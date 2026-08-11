@@ -84,6 +84,8 @@ infra/docker/data/
 minio-data/
 postgres-data/
 redis-data/
+# Redis snapshot written by a natively-run redis-server
+dump.rdb
 
 # ---------------------------------------------------------------------------
 # Editors / OS

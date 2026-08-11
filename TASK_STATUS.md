@@ -5,8 +5,8 @@ Living progress record for the AI Product Video Studio build
 of a phase.
 
 - **Last updated:** 2026-08-11
-- **Current phase:** PHASE 3 — Auth + Workspace + RBAC (next up)
-- **Last completed phase:** PHASE 2 — Core Backend Foundation ✅
+- **Current phase:** PHASE 4 — Media + Upload + Storage (next up)
+- **Last completed phase:** PHASE 3 — Auth + Workspace + RBAC ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -18,7 +18,7 @@ of a phase.
 | 0     | Repository Bootstrap         | ✅ COMPLETED                    |
 | 1     | Local Infrastructure         | ✅ COMPLETED                    |
 | 2     | Core Backend Foundation      | ✅ COMPLETED                    |
-| 3     | Auth + Workspace + RBAC      | ⬜ NOT_STARTED                  |
+| 3     | Auth + Workspace + RBAC      | ✅ COMPLETED                    |
 | 4     | Media + Upload + Storage     | ⬜ NOT_STARTED                  |
 | 5     | Product + Product Truth      | ⬜ NOT_STARTED                  |
 | 6     | Product AI Analysis          | ⬜ NOT_STARTED                  |
@@ -122,27 +122,62 @@ of a phase.
 
 ---
 
-## PHASE 3 — Auth + Workspace + RBAC (next)
+## PHASE 3 — Auth + Workspace + RBAC
+
+**Status: COMPLETED**
+
+### Completed
+
+| Task           | Delivered                                                                                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3-T01/T06/T07 | `users`, `workspaces`, `workspace_members` (§10.1-10.3) with native Postgres enums, `(workspace_id, user_id)` unique constraint (§164), and the **first Alembic migration** |
+| P3-T02         | Argon2id hashing (OWASP profile), length-only policy, NFKC normalisation, transparent rehash on login                                                                       |
+| P3-T03/T04     | Register (creates a personal workspace in the same transaction), login, refresh, logout, `/me`                                                                              |
+| P3-T05         | Short-lived JWT access token in memory + rotating HttpOnly cookie refresh token with `jti` revocation. ADR-0006                                                             |
+| P3-T08         | Permission matrix (§40) enforced server-side; `require_permission` dependency; 404-not-403 for non-members                                                                  |
+| P3-T09/T10     | Typed API client over the generated contract, auth context, login/register pages, protected `/app` layout                                                                   |
+| Extra          | Login and registration rate limiting (§39, §123) with tests proving the limits still bite                                                                                   |
+
+### Tests
+
+203 passing (127 unit + 65 integration + 11 web), zero warnings.
+
+| Gate                                      | Result                 |
+| ----------------------------------------- | ---------------------- |
+| `ruff check` / `ruff format --check`      | ✅ pass                |
+| `mypy --strict`                           | ✅ 47 source files     |
+| `pytest` unit                             | ✅ 127 passed          |
+| `pytest` integration                      | ✅ 65 passed           |
+| `vitest`                                  | ✅ 11 passed           |
+| `eslint` / `tsc` / `next build`           | ✅ pass, 5 routes      |
+| Migration `upgrade → downgrade → upgrade` | ✅ verified reversible |
+
+### Acceptance (§80)
+
+- [x] Register
+- [x] Login
+- [x] Refresh (with rotation; a replayed token is rejected)
+- [x] OWNER / ADMIN / EDITOR / VIEWER matrix enforced server-side
+- [x] **Unauthorised access fails** — a non-member gets 404, indistinguishable from a random id
+
+---
+
+## PHASE 4 — Media + Upload + Storage (next)
 
 **Status: NOT_STARTED**
 
-| Task   | Scope                            |
-| ------ | -------------------------------- |
-| P3-T01 | User schema + first migration    |
-| P3-T02 | Password hashing (Argon2/bcrypt) |
-| P3-T03 | Register                         |
-| P3-T04 | Login (with rate limiting)       |
-| P3-T05 | Access + refresh tokens (+ ADR)  |
-| P3-T06 | Workspace schema                 |
-| P3-T07 | Workspace membership             |
-| P3-T08 | RBAC dependency                  |
-| P3-T09 | Frontend login/register          |
-| P3-T10 | Protected layout                 |
+| Task   | Scope                                                   |
+| ------ | ------------------------------------------------------- |
+| P4-T01 | `MediaAsset` schema                                     |
+| P4-T02 | Presign API                                             |
+| P4-T03 | Complete API                                            |
+| P4-T04 | MIME validation                                         |
+| P4-T05 | Image metadata                                          |
+| P4-T06 | ffprobe adapter                                         |
+| P4-T07 | Frontend uploader (drag-drop, progress, preview, retry) |
 
-**Acceptance:** register, login, refresh, and OWNER/EDITOR/VIEWER permission
-checks all tested — including that cross-workspace access fails.
-
----
+**Acceptance:** a browser uploads an image straight to storage and a
+`MediaAsset` row is created.
 
 ## Known issues
 
