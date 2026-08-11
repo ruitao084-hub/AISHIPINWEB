@@ -143,6 +143,7 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
 
     env:
+      APP_ENV: test
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/aipvs
       REDIS_URL: redis://localhost:6379/0
       S3_ENDPOINT: http://localhost:9000
@@ -150,6 +151,10 @@ jobs:
       S3_ACCESS_KEY_ID: minioadmin
       S3_SECRET_ACCESS_KEY: minioadmin
       S3_FORCE_PATH_STYLE: "true"
+      # Ephemeral, CI-only, and not a secret: it signs tokens that exist for
+      # the length of one job. A developer's local value comes from .env, which
+      # is why the auth suite passed locally while every token test failed here.
+      JWT_SECRET: ci-only-not-a-real-secret-0000000000000000
 
     steps:
       - uses: actions/checkout@v5
