@@ -103,10 +103,10 @@ upload/download works, and API health reports all three.
 
 ## Known issues
 
-| #   | Issue                                                     | Impact                                       | Plan                                                                                                                                                        |
-| --- | --------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Docker daemon is not running in the current dev container | Blocks PHASE 1 _verification_, not authoring | Write the compose stack and integration tests; run them where a daemon is available (CI provides service containers). Flag to the user if it stays blocked. |
-| 2   | `ffmpeg` / `ffprobe` not installed locally                | Blocks PHASE 13 verification                 | Render worker runs in its own image with FFmpeg installed; install locally before PHASE 13.                                                                 |
+| #   | Issue                                                        | Impact                       | Plan                                                                                                                                                     |
+| --- | ------------------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Docker daemon is not started by default in the dev container | None — PHASE 1 is unblocked  | Resolved: `sudo dockerd` starts it (29.3.1, overlayfs). Must be started once per container session before `make infra-up`. Noted in the PHASE 1 runbook. |
+| 2   | `ffmpeg` / `ffprobe` not installed locally                   | Blocks PHASE 13 verification | Render worker runs in its own image with FFmpeg installed; install locally before PHASE 13.                                                              |
 
 Neither is caused by project code.
 
