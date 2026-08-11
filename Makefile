@@ -127,31 +127,49 @@ verify: ## Full local gate — run before every commit (same order as CI)
 	@echo "  All gates passed."
 
 # ---------------------------------------------------------------------------
-# Local infrastructure (§4.10) — compose stack lands in PHASE 1
+# Local infrastructure (§4.10)
 # ---------------------------------------------------------------------------
 
 .PHONY: infra-up
 infra-up: ## Start Postgres, Redis and MinIO
-	@if [ ! -f $(COMPOSE_FILE) ]; then \
-		echo "ERROR: $(COMPOSE_FILE) does not exist yet."; \
-		echo "The local infrastructure stack is built in PHASE 1 (P1-T01..T03)."; \
-		exit 1; \
-	fi
-	docker compose up -d postgres redis minio
-	@echo "Waiting for services to report healthy..."
+	docker compose up -d --wait postgres redis minio minio-init
 	docker compose ps
 
 .PHONY: infra-down
 infra-down: ## Stop local infrastructure (volumes are preserved)
-	@if [ ! -f $(COMPOSE_FILE) ]; then \
-		echo "Nothing to stop: $(COMPOSE_FILE) does not exist yet (built in PHASE 1)."; \
-		exit 0; \
-	fi
 	docker compose down
 
 .PHONY: infra-logs
 infra-logs: ## Tail infrastructure logs
 	docker compose logs -f --tail=100
+
+# ---------------------------------------------------------------------------
+# API contract (§5.2) — OpenAPI is the source of truth for the web client
+# ---------------------------------------------------------------------------
+
+.PHONY: contract
+contract: ## Regenerate openapi.json and the TypeScript types
+	uv run python infra/scripts/export_openapi.py
+	pnpm --filter @aipvs/shared-types generate
+	pnpm exec prettier --write packages/shared-types/openapi.json packages/shared-types/src/generated
+
+CONTRACT_PATHS := packages/shared-types/openapi.json packages/shared-types/src/generated
+
+.PHONY: contract-check
+contract-check: ## Fail if the checked-in contract is stale (what CI runs)
+	@$(MAKE) contract
+	@# `git status --porcelain`, not `git diff`: diff ignores untracked files,
+	@# so a never-committed generated file would let this pass silently.
+	@if [ -n "$$(git status --porcelain -- $(CONTRACT_PATHS))" ]; then \
+		echo ""; \
+		echo "ERROR: the checked-in API contract is out of date."; \
+		echo "The API changed but the generated client was not committed."; \
+		echo "Run 'make contract' and commit the result."; \
+		echo ""; \
+		git --no-pager status --short -- $(CONTRACT_PATHS); \
+		exit 1; \
+	fi
+	@echo "API contract is up to date."
 
 # ---------------------------------------------------------------------------
 # Database migrations (§73) — schema changes only ever happen through Alembic

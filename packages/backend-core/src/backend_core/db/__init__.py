@@ -6,9 +6,21 @@ drives in either mode from an identical ``postgresql+psycopg://`` URL — so
 there is one canonical ``DATABASE_URL`` and no second connection string to keep
 in sync.
 
-ORM base classes and the shared column mixins land in P2-T06.
+``Base`` and the shared column mixins live in :mod:`backend_core.db.base`;
+every model inherits from them so §9's universal columns are structural rather
+than remembered.
 """
 
+from backend_core.db.base import (
+    Base,
+    BaseEntity,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDPrimaryKeyMixin,
+    WorkspaceEntity,
+    WorkspaceScopedMixin,
+    workspace_scoped_index,
+)
 from backend_core.db.engine import (
     dispose_engines,
     get_async_engine,
@@ -20,8 +32,16 @@ from backend_core.db.engine import (
     ping_database,
     reset_engine_cache,
 )
+from backend_core.db.metadata import metadata
 
 __all__ = [
+    "Base",
+    "BaseEntity",
+    "SoftDeleteMixin",
+    "TimestampMixin",
+    "UUIDPrimaryKeyMixin",
+    "WorkspaceEntity",
+    "WorkspaceScopedMixin",
     "dispose_engines",
     "get_async_engine",
     "get_async_session",
@@ -29,6 +49,8 @@ __all__ = [
     "get_sync_engine",
     "get_sync_session",
     "get_sync_sessionmaker",
+    "metadata",
     "ping_database",
     "reset_engine_cache",
+    "workspace_scoped_index",
 ]

@@ -1,0 +1,312 @@
+{
+  "components": {
+    "schemas": {
+      "ApiInfo": {
+        "description": "What this API version is and what it can currently do.",
+        "properties": {
+          "features": {
+            "description": "Capabilities enabled by feature flags (taskbook §122).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "service": {
+            "description": "Service name.",
+            "title": "Service",
+            "type": "string"
+          },
+          "version": {
+            "description": "API surface version.",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": ["version", "service"],
+        "title": "ApiInfo",
+        "type": "object"
+      },
+      "DependencyStatus": {
+        "description": "Result of a single readiness probe.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": ["name", "ready"],
+        "title": "DependencyStatus",
+        "type": "object"
+      },
+      "ErrorCode": {
+        "description": "The complete set of error codes (§65).",
+        "enum": [
+          "AUTH_INVALID_CREDENTIALS",
+          "AUTH_UNAUTHORIZED",
+          "WORKSPACE_FORBIDDEN",
+          "PRODUCT_NOT_FOUND",
+          "ASSET_INVALID",
+          "UPLOAD_TOO_LARGE",
+          "CLAIM_NOT_VERIFIED",
+          "PROJECT_INVALID_STATE",
+          "INSUFFICIENT_CREDITS",
+          "PROVIDER_UNAVAILABLE",
+          "PROVIDER_RATE_LIMITED",
+          "PROVIDER_REJECTED",
+          "JOB_TIMEOUT",
+          "JOB_CANCELED",
+          "RENDER_FAILED",
+          "QC_FAILED",
+          "STORAGE_ERROR",
+          "INTERNAL_ERROR",
+          "VALIDATION_ERROR"
+        ],
+        "title": "ErrorCode",
+        "type": "string"
+      },
+      "ErrorDetail": {
+        "description": "The error object itself.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode",
+            "description": "Stable machine-readable code (taskbook §65)."
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional structured context. Never contains secrets.",
+            "title": "Details"
+          },
+          "message": {
+            "description": "Human-readable, safe to display to a user.",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Correlates this response with the server logs.",
+            "title": "Request Id"
+          }
+        },
+        "required": ["code", "message"],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "description": "Uniform error envelope returned by every failing endpoint.",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": ["error"],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "description": "Liveness payload.",
+        "properties": {
+          "service": {
+            "description": "Which process answered the probe.",
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "description": "Deployed application version.",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": ["service", "version"],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "ReadyResponse": {
+        "description": "Readiness payload.",
+        "properties": {
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyStatus"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": ["ready"],
+        "title": "ReadyResponse",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "HTTP API for AI Product Video Studio.\n\nLong-running AI work (analysis, shot generation, TTS, render, QC) is **never**\nperformed inside a request. Those endpoints validate, create a `GenerationJob`,\nenqueue it and return `202 Accepted` with a `job_id` to poll (taskbook §22).\n\nEvery failure returns the same envelope:\n\n```json\n{\"error\": {\"code\": \"PROJECT_NOT_FOUND\", \"message\": \"...\", \"request_id\": \"...\"}}\n```\n\n`code` comes from a closed set (§65) and is the field clients should branch on.",
+    "title": "AI Product Video Studio API",
+    "version": "0.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/": {
+      "get": {
+        "description": "Describe this API version.\n\nReports which feature flags are on so a client can adapt without probing\nendpoints that are deliberately disabled.",
+        "operationId": "api_info_api_v1__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "summary": "API version information",
+        "tags": ["meta"]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Report that the process is alive. Never touches backing services.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": ["health"]
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "Report whether every backing service is usable.\n\nReturns 503 when any dependency fails so load balancers stop routing here\nrather than serving errors to users. Probes run concurrently: three\nsequential timeouts would exceed most orchestrators' probe budget.",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "description": "One or more dependencies are not ready."
+          }
+        },
+        "summary": "Readiness probe",
+        "tags": ["health"]
+      }
+    }
+  }
+}

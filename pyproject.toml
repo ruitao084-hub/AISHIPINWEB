@@ -70,6 +70,11 @@ ignore = [
 # Tests may assert, use fixtures with shadowing names, and hardcode sample data.
 "**/tests/**" = ["S101", "S105", "S106", "ANN201", "ANN001"]
 "**/conftest.py" = ["ANN001", "ANN201"]
+# Developer CLI scripts talk to a terminal; stdout is their interface, not a
+# log stream. The T201 ban on `print` exists for services (§63), not for these.
+"infra/scripts/*.py" = ["T201"]
+# Alembic's generated migrations follow its own conventions.
+"infra/migrations/env.py" = ["ANN001"]
 
 [tool.ruff.lint.flake8-bandit]
 # `subprocess` is required for FFmpeg (§34). Safety is enforced by review rules
