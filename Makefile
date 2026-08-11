@@ -30,11 +30,13 @@ install: ## Install all JS and Python dependencies
 
 .PHONY: setup
 setup: install ## First-time setup: dependencies + .env
-	@if [ ! -f .env ]; then \
-		cp .env.example .env; \
-		echo "Created .env from .env.example — fill in the blanks before running infra."; \
-	else \
+	@if [ -f .env ]; then \
 		echo ".env already exists; leaving it untouched."; \
+	else \
+		cp .env.example .env; \
+		./infra/scripts/init-local-env.sh .env; \
+		echo "Created .env with local development defaults."; \
+		echo "It is gitignored. Provider API keys stay blank — mocks need none."; \
 	fi
 
 # ---------------------------------------------------------------------------
@@ -150,6 +152,32 @@ infra-down: ## Stop local infrastructure (volumes are preserved)
 .PHONY: infra-logs
 infra-logs: ## Tail infrastructure logs
 	docker compose logs -f --tail=100
+
+# ---------------------------------------------------------------------------
+# Database migrations (§73) — schema changes only ever happen through Alembic
+# ---------------------------------------------------------------------------
+
+.PHONY: migrate
+migrate: ## Apply all pending migrations
+	uv run alembic upgrade head
+
+.PHONY: migrate-down
+migrate-down: ## Roll back one revision
+	uv run alembic downgrade -1
+
+.PHONY: migrate-new
+migrate-new: ## Autogenerate a revision: make migrate-new m="add products table"
+	@if [ -z "$(m)" ]; then echo 'usage: make migrate-new m="description"'; exit 1; fi
+	uv run alembic revision --autogenerate -m "$(m)"
+
+.PHONY: migrate-status
+migrate-status: ## Show the current revision and pending history
+	uv run alembic current
+	uv run alembic history --indicate-current
+
+.PHONY: migrate-sql
+migrate-sql: ## Print the SQL a migration would run, without applying it
+	uv run alembic upgrade head --sql
 
 # ---------------------------------------------------------------------------
 # Housekeeping

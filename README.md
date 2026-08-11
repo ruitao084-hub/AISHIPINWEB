@@ -85,8 +85,39 @@ make infra-logs    # tail logs
 make infra-down    # stop (volumes preserved)
 ```
 
-> Built in **PHASE 1**. Until then these targets report that
-> `docker-compose.yml` does not exist yet.
+Starts PostgreSQL 17, Redis 8 and MinIO. The bucket is created automatically
+and set to private — buckets are never public (§110).
+
+| Service       | Address                                                      |
+| ------------- | ------------------------------------------------------------ |
+| PostgreSQL    | `localhost:5432` (`postgres` / `postgres`, database `aipvs`) |
+| Redis         | `localhost:6379`                                             |
+| MinIO API     | http://localhost:9000                                        |
+| MinIO console | http://localhost:9001 (`minioadmin` / `minioadmin`)          |
+
+Application containers are not in the compose stack yet — run the apps on the
+host with `make dev` against this infrastructure. Their Dockerfiles arrive with
+production packaging in PHASE 23.
+
+<details>
+<summary>If you cannot pull Docker images</summary>
+
+Some restricted networks block Docker Hub's blob CDN. Postgres and Redis can be
+installed natively, and `moto` (already a dev dependency) serves the S3 API on
+MinIO's port:
+
+```bash
+sudo apt-get install -y postgresql redis-server
+sudo pg_ctlcluster 16 main start && sudo -u postgres createdb aipvs
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+sudo redis-server --daemonize yes
+uv run moto_server -H 127.0.0.1 -p 9000 &
+```
+
+No test or application code changes — it is the same API at the same address.
+CI always runs the real images, so nothing merges proven only against a double.
+
+</details>
 
 ## 5. Database migrations
 
@@ -96,9 +127,18 @@ make migrate-new m="add products table"
 make migrate-down      # roll back one revision
 ```
 
-> Alembic is introduced in **PHASE 1 (P1-T05)**; the first real schema arrives
-> in PHASE 3. Schema is only ever changed through a migration — never by hand,
-> and never against a production database directly.
+Also available: `make migrate-status` (current revision and history) and
+`make migrate-sql` (print the SQL without applying it — use this to review a
+change before it touches production).
+
+The schema is only ever changed through a migration: never by hand, and never
+against a production database directly (§73). The database URL comes from
+settings, not from `alembic.ini`, so there is one connection string and no
+credentials in a tracked file.
+
+> No migrations exist yet — the first real schema arrives with users and
+> workspaces in **PHASE 3**. CI already asserts the chain applies to an empty
+> database (§169).
 
 ## 6. Seed data
 
@@ -189,15 +229,17 @@ server-generated paths, an isolated temp directory per render, and a timeout.
 
 ## 12. Troubleshooting
 
-| Symptom                                       | Cause and fix                                                                                                  |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `make infra-up` says compose file missing     | Expected before PHASE 1.                                                                                       |
-| `pnpm install` fails on a frozen lockfile     | Dependencies changed — run `pnpm install` without `--frozen-lockfile` and commit the updated `pnpm-lock.yaml`. |
-| `uv sync --frozen` fails                      | Same for Python — run `uv sync --all-packages` and commit `uv.lock`.                                           |
-| `tsc` cannot find `LayoutProps` / `PageProps` | Next.js generates route types during build. Run `pnpm run build` once, then `make typecheck`.                  |
-| Port 3000 or 8000 already in use              | `lsof -ti:3000 \| xargs kill` (likewise 8000).                                                                 |
-| Ruff or mypy passes locally, fails in CI      | CI uses locked versions. Run `make install` to match.                                                          |
-| API import errors after adding a package      | Re-run `uv sync --all-packages`.                                                                               |
+| Symptom                                                              | Cause and fix                                                                                                                                                     |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker pull` fails with 403 from `production.cloudfront.docker.com` | Your network blocks Docker Hub's CDN. See "If you cannot pull Docker images" in §4.                                                                               |
+| `RuntimeError: Event loop is closed` from Redis or the DB            | You are sharing an async client across event loops. Use `get_redis()` / `get_async_engine()`, which cache per loop, rather than holding a module-level reference. |
+| Integration tests fail with connection refused                       | Infrastructure is not running. `make infra-up`, then `make test-integration`.                                                                                     |
+| `pnpm install` fails on a frozen lockfile                            | Dependencies changed — run `pnpm install` without `--frozen-lockfile` and commit the updated `pnpm-lock.yaml`.                                                    |
+| `uv sync --frozen` fails                                             | Same for Python — run `uv sync --all-packages` and commit `uv.lock`.                                                                                              |
+| `tsc` cannot find `LayoutProps` / `PageProps`                        | Next.js generates route types during build. Run `pnpm run build` once, then `make typecheck`.                                                                     |
+| Port 3000 or 8000 already in use                                     | `lsof -ti:3000 \| xargs kill` (likewise 8000).                                                                                                                    |
+| Ruff or mypy passes locally, fails in CI                             | CI uses locked versions. Run `make install` to match.                                                                                                             |
+| API import errors after adding a package                             | Re-run `uv sync --all-packages`.                                                                                                                                  |
 
 ## Repository layout
 

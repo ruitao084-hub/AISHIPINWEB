@@ -26,6 +26,11 @@ dev = [
     "pytest-cov>=7.1.0",
     # starlette's TestClient requires httpx2; plain httpx is deprecated there.
     "httpx2>=2.10.0",
+    # Typed boto3 — required for `mypy --strict` to see through the SDK.
+    "boto3-stubs[s3]>=1.43.68",
+    # Local S3 double. CI integration tests run against a real MinIO service
+    # container; moto gives developers the same loop without pulling an image.
+    "moto[server]>=5.1.0",
 ]
 
 # ---------------------------------------------------------------------------

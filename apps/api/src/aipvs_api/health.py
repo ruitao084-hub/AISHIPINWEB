@@ -7,19 +7,26 @@ The split matters for orchestrators:
   the container killed and restarted instead of merely taken out of rotation.
 * ``/ready`` is **readiness** — the process can serve real traffic, which does
   depend on its backing services.
-
-PHASE 0 has no backing services yet, so ``/ready`` reports an empty dependency
-set. P1-T04/T06/T07 register the real Postgres, Redis and S3 probes here.
 """
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from typing import Literal
 
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel, Field
 
+from backend_core.cache import ping_redis
+from backend_core.db import ping_database
+from backend_core.storage import ping_storage
+
 router = APIRouter(tags=["health"])
+
+# A readiness probe must answer faster than the orchestrator's own timeout, so
+# a hung dependency reports "not ready" instead of hanging the probe itself.
+_PROBE_TIMEOUT_SECONDS = 3.0
 
 
 class HealthResponse(BaseModel):
@@ -57,6 +64,23 @@ async def health() -> HealthResponse:
     return HealthResponse(service="aipvs-api", version=__version__)
 
 
+async def _probe(name: str, check: Callable[[], Awaitable[bool]]) -> DependencyStatus:
+    """Run one dependency check, converting any failure into a status.
+
+    A probe never raises: an exception here would turn a degraded dependency
+    into a 500 on the readiness endpoint itself, which tells the orchestrator
+    nothing useful. The exception *type* is reported — never its message, which
+    can carry connection strings and credentials (§63).
+    """
+    try:
+        ok = await asyncio.wait_for(check(), timeout=_PROBE_TIMEOUT_SECONDS)
+    except TimeoutError:
+        return DependencyStatus(name=name, ready=False, detail="probe timed out")
+    except Exception as exc:
+        return DependencyStatus(name=name, ready=False, detail=type(exc).__name__)
+    return DependencyStatus(name=name, ready=ok)
+
+
 @router.get(
     "/ready",
     response_model=ReadyResponse,
@@ -67,10 +91,17 @@ async def ready(response: Response) -> ReadyResponse:
     """Report whether every backing service is usable.
 
     Returns 503 when any dependency fails so load balancers stop routing here
-    rather than serving errors to users.
+    rather than serving errors to users. Probes run concurrently: three
+    sequential timeouts would exceed most orchestrators' probe budget.
     """
-    # P1-T04/T06/T07 append Postgres, Redis and S3 probes to this list.
-    dependencies: list[DependencyStatus] = []
+    dependencies = list(
+        await asyncio.gather(
+            _probe("database", ping_database),
+            _probe("redis", ping_redis),
+            # boto3 is synchronous; keep it off the event loop.
+            _probe("storage", lambda: asyncio.to_thread(ping_storage)),
+        )
+    )
 
     all_ready = all(dependency.ready for dependency in dependencies)
     if not all_ready:

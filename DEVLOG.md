@@ -7,6 +7,83 @@ are useful to know later but too small for an ADR.
 
 ---
 
+## 2026-08-11 — PHASE 1: Local Infrastructure
+
+Compose stack plus the database, Redis and object storage clients, with
+integration tests that talk to real services.
+
+### The bug worth remembering: event-loop affinity
+
+The first integration run failed with `RuntimeError: Event loop is closed` on
+every Redis test after the first. The cause was the client being cached with
+`lru_cache` — but an asyncio Redis connection pool **binds to the event loop
+that created it**, so a single process-wide client is only correct in a process
+that runs exactly one loop.
+
+The tempting fix was a test fixture resetting the cache between tests. That
+would have hidden a real defect: a Celery task calling `asyncio.run()` per job
+runs a fresh loop each time and would have hit exactly this in production, far
+from any test. Fixed properly by caching per running loop in a
+`WeakKeyDictionary`, so entries die with their loop. The same treatment was
+applied to the async SQLAlchemy engine and sessionmaker, which carry the same
+constraint — those tests happened to pass, but for incidental reasons.
+
+For the API, which runs one long-lived loop, the behaviour is unchanged: one
+engine, one pool.
+
+### Docker Hub is unreachable from this environment
+
+`production.cloudfront.docker.com` is denied by the environment's egress
+policy, so no image can be pulled here. Per the proxy's documented guidance,
+this was reported rather than routed around.
+
+The compose file is still the real deliverable and CI exercises it properly.
+For a local loop, Postgres and Redis were installed natively and `moto` serves
+the S3 API on MinIO's port — no branching in test code, because it is the same
+API at the same address. CI runs the genuine Postgres 17, Redis 8 and MinIO
+images, so nothing merges having been proven only against a double.
+
+### Decisions worth remembering
+
+**One `DATABASE_URL`, two engines.** SQLAlchemy's psycopg3 dialect drives both
+sync and async from an identical URL, so Alembic and the workers (sync) and the
+API (async) share one connection string. The worker pool is deliberately half
+the API's: workers hold a connection for a whole job, and a fleet of them each
+grabbing an API-sized pool would exhaust Postgres' connection limit.
+
+**Constraint naming convention set before the first migration.** Postgres
+auto-names unnamed constraints and Alembic then cannot emit a reliable
+`DROP CONSTRAINT`. Fixing this after migrations exist means rewriting every
+constraint later; doing it on an empty database costs nothing.
+
+**Storage keys are built, never accepted.** Filenames are server-generated
+UUIDs and extensions come from a MIME whitelist, so path traversal, null bytes
+and double extensions are impossible by construction rather than by sanitising.
+Presigned uploads sign the `Content-Type`, so a client cannot sign for a JPEG
+and store HTML under that key.
+
+**Liveness and readiness diverged further.** `/ready` now probes all three
+services concurrently with a 3s budget — three sequential timeouts would blow
+most orchestrators' probe window. Probes never raise, and report the exception
+_type_ only: an exception message routinely contains a connection string with a
+password (§63). There is a test asserting a password cannot reach the response.
+
+**Local `.env` bootstrapping moved into a script.** `.env.example` keeps every
+secret blank so the CI secret scan stays meaningful; `make setup` generates a
+real `JWT_SECRET` and fills MinIO's local credentials into the gitignored
+`.env`. Idempotent — it only fills values that are empty.
+
+### Verified
+
+41 unit + 16 integration tests, ruff, ruff format and `mypy --strict` all clean.
+Integration coverage proves: the database round-trips and rolls back, ten
+concurrent pooled connections work, Redis provides atomic counters and a
+`SET NX` lock, object storage round-trips both bytes and files with working
+presigned URLs, migrations apply to an empty database, and `/ready` returns 200
+with every dependency live.
+
+---
+
 ## 2026-08-11 — PHASE 0: Repository Bootstrap
 
 Empty repository → working polyglot monorepo with every quality gate green.

@@ -5,8 +5,8 @@ Living progress record for the AI Product Video Studio build
 of a phase.
 
 - **Last updated:** 2026-08-11
-- **Current phase:** PHASE 1 — Local Infrastructure (next up)
-- **Last completed phase:** PHASE 0 — Repository Bootstrap ✅
+- **Current phase:** PHASE 2 — Core Backend Foundation (next up)
+- **Last completed phase:** PHASE 1 — Local Infrastructure ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -16,7 +16,7 @@ of a phase.
 | Phase | Name                         | Status                          |
 | ----- | ---------------------------- | ------------------------------- |
 | 0     | Repository Bootstrap         | ✅ COMPLETED                    |
-| 1     | Local Infrastructure         | ⬜ NOT_STARTED                  |
+| 1     | Local Infrastructure         | ✅ COMPLETED                    |
 | 2     | Core Backend Foundation      | ⬜ NOT_STARTED                  |
 | 3     | Auth + Workspace + RBAC      | ⬜ NOT_STARTED                  |
 | 4     | Media + Upload + Storage     | ⬜ NOT_STARTED                  |
@@ -43,99 +43,108 @@ of a phase.
 
 ---
 
-## PHASE 0 — Repository Bootstrap
+## PHASE 1 — Local Infrastructure
 
 **Status: COMPLETED**
 
 ### Completed
 
-| Task   | Delivered                                                                                                                                                                                                                      |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| P0-T01 | `.gitignore` (secrets, media, infra state), `README.md` (all 12 §133 sections), `TASK_STATUS.md`, `DEVLOG.md`, `.env.example` (full §7 set + §122 flags + §25 concurrency)                                                     |
-| P0-T02 | Monorepo skeleton: `apps/{web,api,worker,render-worker}`, `packages/{ui,shared-types,config,prompts,backend-core,provider-contracts}`, `infra/`, `docs/`, `tests/`. pnpm workspace + Turborepo for JS; uv workspace for Python |
-| P0-T03 | Next.js 16 App Router, TypeScript `strict` + `noUncheckedIndexedAccess`, Tailwind 4, shadcn/ui wired via `components.json`, ESLint flat config, Vitest + Testing Library                                                       |
-| P0-T04 | FastAPI app factory with `/health` + `/ready` (§70), `packages/backend-core` shared package, Ruff (lint + format), mypy `strict`, pytest with integration/e2e/provider markers                                                 |
-| P0-T05 | `Makefile` — `dev test lint typecheck build infra-up infra-down` plus `setup verify format test-cov`. GitHub Actions CI: web, api and secret-scan jobs                                                                         |
-| Extra  | ADR-0001…0004 (§75), `docs/architecture/overview.md` (§5), Prettier config                                                                                                                                                     |
+| Task   | Delivered                                                                                                                                                                                       |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1-T01 | PostgreSQL 17 in `docker-compose.yml` with healthcheck, named volume, deterministic `--locale=C` collation                                                                                      |
+| P1-T02 | Redis 8 with AOF persistence and healthcheck                                                                                                                                                    |
+| P1-T03 | MinIO plus a one-shot `minio-init` that creates the bucket and sets `anonymous none` — buckets are never public (§110)                                                                          |
+| P1-T04 | SQLAlchemy 2 async + sync engines sharing one `DATABASE_URL`, pool sizing, `pool_pre_ping`, transaction-owning session context managers                                                         |
+| P1-T05 | Alembic in `infra/migrations`, URL sourced from settings (never `alembic.ini`), UTC timestamped revisions, ruff post-write hooks, constraint naming convention fixed before the first migration |
+| P1-T06 | Async Redis client with pooling, health-check interval and lock/counter primitives                                                                                                              |
+| P1-T07 | `ObjectStorage` Protocol + `S3ObjectStorage`, §11 key builders, presigned upload/download, ADR-0005                                                                                             |
+| Extra  | `/ready` now probes all three services concurrently with a timeout; app lifespan disposes pools; `make migrate*` targets; `infra/scripts/init-local-env.sh`; CI integration job                 |
 
 ### Tests
 
-| Gate          | Command                 | Result                                              |
-| ------------- | ----------------------- | --------------------------------------------------- |
-| Web lint      | `pnpm run lint`         | ✅ pass, 0 warnings                                 |
-| Web typecheck | `pnpm run typecheck`    | ✅ pass                                             |
-| Web unit      | `pnpm run test`         | ✅ 2 passed                                         |
-| Web build     | `pnpm run build`        | ✅ compiled, 2 static routes                        |
-| Python lint   | `ruff check .`          | ✅ all checks passed                                |
-| Python format | `ruff format --check .` | ✅ 14 files formatted                               |
-| Python types  | `mypy --strict`         | ✅ no issues in 7 files                             |
-| Python unit   | `pytest`                | ✅ 6 passed, 0 warnings                             |
-| Runtime       | `uvicorn` + curl        | ✅ `/health` 200, `/ready` 200, `/openapi.json` 200 |
+57 passing (41 unit + 16 integration), zero warnings.
 
-### Acceptance (§77)
+| Gate                      | Command                       | Result                    |
+| ------------------------- | ----------------------------- | ------------------------- |
+| Python lint               | `ruff check .`                | ✅ all checks passed      |
+| Python format             | `ruff format --check .`       | ✅ 46 files               |
+| Python types              | `mypy --strict`               | ✅ no issues, 17 files    |
+| Unit                      | `pytest -m "not integration"` | ✅ 41 passed              |
+| Integration               | `pytest -m integration`       | ✅ 16 passed              |
+| Web lint/types/test/build | `pnpm`                        | ✅ unchanged from PHASE 0 |
 
-- [x] Web build succeeds
-- [x] API starts successfully
-- [x] Lint passes
-- [x] Test commands exist and pass
-- [x] README can guide a cold start
+### Acceptance (§78)
+
+- [x] DB connects — plus session commit/rollback and 10 concurrent pooled connections
+- [x] Redis set/get — plus atomic `INCR` and `SET NX` lock primitive (§119, §123)
+- [x] MinIO upload/download — bytes and file round-trips, `head`, `exists`, idempotent delete, presigned URLs
+- [x] API health — `/ready` returns 200 with all three dependencies up, 503 when any is down
+- [x] Migrations apply to an empty database (§169)
 
 ---
 
-## PHASE 1 — Local Infrastructure (next)
+## PHASE 2 — Core Backend Foundation (next)
 
 **Status: NOT_STARTED**
 
-| Task   | Scope                                 |
-| ------ | ------------------------------------- |
-| P1-T01 | PostgreSQL in Docker Compose          |
-| P1-T02 | Redis in Docker Compose               |
-| P1-T03 | MinIO in Docker Compose               |
-| P1-T04 | SQLAlchemy 2 engine + connection pool |
-| P1-T05 | Alembic initialisation                |
-| P1-T06 | Redis client wrapper                  |
-| P1-T07 | S3-compatible storage client (+ ADR)  |
-
-**Acceptance:** automated tests proving DB connects, Redis set/get works, MinIO
-upload/download works, and API health reports all three.
+| Task   | Scope                                                        |
+| ------ | ------------------------------------------------------------ |
+| P2-T01 | Formalise and extend Pydantic Settings                       |
+| P2-T02 | Unified `AppError` + error taxonomy (§65)                    |
+| P2-T03 | Request ID middleware                                        |
+| P2-T04 | JSON structured logging with request/job id (§63)            |
+| P2-T05 | `/api/v1` router mount                                       |
+| P2-T06 | DB base models: UUID PK, timestamps (§9)                     |
+| P2-T07 | Uniform error response envelope                              |
+| P2-T08 | OpenAPI → TypeScript client pipeline + CI drift check (§5.2) |
+| P2-T09 | Establish the full `backend-core` module tree (§5.1)         |
 
 ---
 
 ## Known issues
 
-| #   | Issue                                                        | Impact                       | Plan                                                                                                                                                     |
-| --- | ------------------------------------------------------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Docker daemon is not started by default in the dev container | None — PHASE 1 is unblocked  | Resolved: `sudo dockerd` starts it (29.3.1, overlayfs). Must be started once per container session before `make infra-up`. Noted in the PHASE 1 runbook. |
-| 2   | `ffmpeg` / `ffprobe` not installed locally                   | Blocks PHASE 13 verification | Render worker runs in its own image with FFmpeg installed; install locally before PHASE 13.                                                              |
+| #   | Issue                                                                                                        | Impact                                                                                                                                | Plan                                                                                                                                                                                                           |
+| --- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Docker Hub's blob CDN (`production.cloudfront.docker.com`) is blocked by the environment's egress policy** | `make infra-up` cannot pull images _in this dev container_. Does not affect the compose file's correctness, CI, or any other machine. | Verified locally against natively installed Postgres 16 + Redis 8 and `moto` as the S3 endpoint; CI runs the real Postgres 17, Redis 8 and MinIO images. Not routed around, per the proxy's documented policy. |
+| 2   | `ffmpeg` / `ffprobe` not installed locally                                                                   | Blocks PHASE 13 verification                                                                                                          | Render worker ships its own image with FFmpeg; install locally before PHASE 13.                                                                                                                                |
+| 3   | Local dev DB is Postgres 16 (apt) while compose and CI pin 17                                                | Low — no version-specific SQL in use                                                                                                  | CI is authoritative. Revisit if a 17-only feature is adopted.                                                                                                                                                  |
 
-Neither is caused by project code.
+None is caused by project code.
 
 ## Blocked on the user
 
 Nothing right now. Development proceeds on mocks through PHASE 9.
 
-| Will need                              | Phase | Why                                                                                 |
-| -------------------------------------- | ----- | ----------------------------------------------------------------------------------- |
-| Real video provider API key            | 10    | §21 requires one real provider working end to end. Everything before it uses mocks. |
-| TTS provider key                       | 12    | Mock TTS carries PHASE 12 until then.                                               |
-| LLM / Vision key                       | 6     | Mock vision provider carries PHASE 6 until then.                                    |
-| Cloud accounts, domain, secret manager | 23    | Production deployment.                                                              |
+| Will need                              | Phase | Why                                                |
+| -------------------------------------- | ----- | -------------------------------------------------- |
+| Real video provider API key            | 10    | §21 requires one real provider working end to end. |
+| TTS provider key                       | 12    | Mock TTS carries PHASE 12 until then.              |
+| LLM / Vision key                       | 6     | Mock vision provider carries PHASE 6 until then.   |
+| Cloud accounts, domain, secret manager | 23    | Production deployment.                             |
+
+Also outstanding, not blocking: the repository's **default branch is still
+`claude/quirky-mendel-rlh1nm`** and should be switched to `main` in
+Settings → General. No available tool can change repository settings.
 
 ## Technical debt
 
-| #   | Item                                                                             | Incurred                                                    | Repayment            |
-| --- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------- |
-| 1   | `packages/prompts` and `packages/provider-contracts` are documented placeholders | PHASE 0 — filling them now would be cross-phase development | PHASE 6 / PHASE 9    |
-| 2   | `packages/shared-types` exports only a version constant                          | Generated client is P2-T08                                  | PHASE 2              |
-| 3   | `packages/ui` holds only the `cn` helper                                         | Shared composites need real screens to share                | PHASE 5+             |
-| 4   | `/ready` returns an empty dependency list                                        | No backing services exist yet                               | PHASE 1              |
-| 5   | CI lacks integration, migration-from-empty, contract-drift and E2E gates         | Those subjects do not exist yet                             | PHASE 1 / 2 / 3 / 15 |
-| 6   | Turborepo caches JS tasks only                                                   | Python gates currently run in ~1s                           | Revisit if CI slows  |
+| #   | Item                                                                             | Incurred                                               | Repayment              |
+| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------- |
+| 1   | `packages/prompts` and `packages/provider-contracts` are documented placeholders | Filling them now would be cross-phase development      | PHASE 6 / PHASE 9      |
+| 2   | `packages/shared-types` exports only a version constant                          | Generated client is P2-T08                             | PHASE 2                |
+| 3   | `packages/ui` holds only the `cn` helper                                         | Shared composites need real screens to share           | PHASE 5+               |
+| 4   | ~~`/ready` returns an empty dependency list~~                                    | —                                                      | ✅ Repaid in PHASE 1   |
+| 5   | CI still lacks contract-drift and E2E gates                                      | Those subjects do not exist yet                        | PHASE 2 / 15           |
+| 6   | Turborepo caches JS tasks only                                                   | Python gates run in ~2s                                | Revisit if CI slows    |
+| 7   | Compose runs infrastructure only; app services are not containerised             | Their Dockerfiles depend on the PHASE 2 settings layer | PHASE 23 (§69)         |
+| 8   | Storage uses single-PUT presigning, no multipart                                 | Covers the §12 limits (20 MB image / 500 MB video)     | Revisit if limits rise |
 
 ## Deviations from the taskbook
 
-| Deviation                                       | Reason                                                                                                                                                                |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `httpx2` instead of `httpx` for the test client | Starlette 1.6 deprecates `httpx` in `TestClient`. Taskbook does not pin either; §0.1 rule 19 defers to current upstream guidance.                                     |
-| No Google Fonts in the web app                  | `next/font/google` fetches at build time, making builds network-dependent and non-reproducible in CI (§68). System font stack with CJK fallbacks used instead (§128). |
-| TypeScript pinned to 5.x, ESLint to 9.x         | TypeScript 7 (Go rewrite) and ESLint 10 are days old; `eslint-config-next@16.3.0` is validated against ESLint 9. Correctness over novelty (§180).                     |
+| Deviation                                                       | Reason                                                                                                                                                       |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `httpx2` instead of `httpx` for the test client                 | Starlette 1.6 deprecates `httpx` in `TestClient`. §0.1 rule 19 defers to current upstream guidance.                                                          |
+| No Google Fonts in the web app                                  | `next/font/google` fetches at build time, making builds network-dependent and non-reproducible (§68). System font stack with CJK fallbacks instead (§128).   |
+| TypeScript pinned to 5.x, ESLint to 9.x                         | TypeScript 7 and ESLint 10 are days old; `eslint-config-next@16.3.0` is validated against ESLint 9 (§180).                                                   |
+| A minimal settings module arrived in PHASE 1 rather than P2-T01 | The PHASE 1 clients cannot read a database URL without one. Ad-hoc `os.environ` parsing, later ripped out, would be strictly worse. P2-T01 extends it.       |
+| `moto` used as the local S3 endpoint                            | Only because MinIO's image and binary are both unreachable from this environment. CI always runs real MinIO, so nothing merges proven only against a double. |
