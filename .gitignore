@@ -1,0 +1,106 @@
+# ---------------------------------------------------------------------------
+# Secrets — NEVER commit. See docs/security/secrets.md and taskbook §7 / §138.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
+credentials.json
+service-account*.json
+
+# ---------------------------------------------------------------------------
+# Node / JS
+# ---------------------------------------------------------------------------
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+.turbo/
+dist/
+build/
+out/
+.next/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+.nyc_output/
+.eslintcache
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+
+# ---------------------------------------------------------------------------
+# Media / render scratch — taskbook §9 forbids binaries in Postgres, and
+# §117 requires isolated render temp dirs. None of it belongs in git either.
+# ---------------------------------------------------------------------------
+/tmp/
+tmp/
+.tmp/
+render-tmp/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.wav
+*.mp3
+*.aac
+!tests/fixtures/**/*.mp4
+!tests/fixtures/**/*.wav
+!tests/fixtures/**/*.mp3
+
+# ---------------------------------------------------------------------------
+# Local infrastructure state (Docker volumes bind-mounted for convenience)
+# ---------------------------------------------------------------------------
+.docker-data/
+infra/docker/data/
+minio-data/
+postgres-data/
+redis-data/
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.recommended.json
+*.swp
+*.swo
+*~
+
+# ---------------------------------------------------------------------------
+# Test artifacts
+# ---------------------------------------------------------------------------
+playwright-report/
+test-results/
+.playwright/

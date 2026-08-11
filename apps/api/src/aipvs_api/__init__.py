@@ -1,0 +1,10 @@
+"""AI Product Video Studio HTTP API.
+
+Controllers only (taskbook §136): this package owns HTTP concerns — routing,
+request/response schemas, auth dependencies — and delegates every domain
+decision to ``backend_core``.
+"""
+
+__all__ = ["__version__"]
+
+__version__ = "0.0.0"
