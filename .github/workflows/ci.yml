@@ -90,6 +90,22 @@ jobs:
       - name: Unit tests
         run: uv run pytest -m "not integration and not e2e and not provider" --cov --cov-report=xml
 
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install web dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: API contract is not stale
+        # §5.2 — the web client's types are generated from the OpenAPI schema.
+        # Regenerate and fail on any diff, so an API change cannot reach the
+        # frontend as a silent runtime error instead of a type error.
+        run: make contract-check
+
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         if: always()

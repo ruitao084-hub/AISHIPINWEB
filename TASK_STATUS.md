@@ -5,8 +5,8 @@ Living progress record for the AI Product Video Studio build
 of a phase.
 
 - **Last updated:** 2026-08-11
-- **Current phase:** PHASE 2 — Core Backend Foundation (next up)
-- **Last completed phase:** PHASE 1 — Local Infrastructure ✅
+- **Current phase:** PHASE 3 — Auth + Workspace + RBAC (next up)
+- **Last completed phase:** PHASE 2 — Core Backend Foundation ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -17,7 +17,7 @@ of a phase.
 | ----- | ---------------------------- | ------------------------------- |
 | 0     | Repository Bootstrap         | ✅ COMPLETED                    |
 | 1     | Local Infrastructure         | ✅ COMPLETED                    |
-| 2     | Core Backend Foundation      | ⬜ NOT_STARTED                  |
+| 2     | Core Backend Foundation      | ✅ COMPLETED                    |
 | 3     | Auth + Workspace + RBAC      | ⬜ NOT_STARTED                  |
 | 4     | Media + Upload + Storage     | ⬜ NOT_STARTED                  |
 | 5     | Product + Product Truth      | ⬜ NOT_STARTED                  |
@@ -83,21 +83,64 @@ of a phase.
 
 ---
 
-## PHASE 2 — Core Backend Foundation (next)
+## PHASE 2 — Core Backend Foundation
+
+**Status: COMPLETED**
+
+### Completed
+
+| Task   | Delivered                                                                                                                                                                                  |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2-T01 | Full Pydantic Settings over the whole `.env` surface, `SecretStr` for every credential, and boot-time production guards (JWT length, debug off, no wildcard or plain-http CORS, mocks off) |
+| P2-T02 | `ErrorCode` closed enum carrying all 18 §65 codes; `AppError` hierarchy with HTTP status and §24 retryable classification                                                                  |
+| P2-T03 | `RequestContextMiddleware` — id taken from a validated inbound header or generated, echoed back, bound for the request's lifetime                                                          |
+| P2-T04 | JSON logging with correlation fields and redaction applied at the formatter: sensitive keys, URL-inline passwords, oversized base64, cycle-safe                                            |
+| P2-T05 | `/api/v1` router with the shared error responses documented once                                                                                                                           |
+| P2-T06 | `Base` plus `UUIDPrimaryKeyMixin`, `TimestampMixin`, `WorkspaceScopedMixin`, `SoftDeleteMixin`, `workspace_scoped_index`                                                                   |
+| P2-T07 | Handlers for `AppError`, 422, Starlette HTTP errors and unhandled exceptions — every failure path returns the §41 envelope                                                                 |
+| P2-T08 | `openapi.json` export, `openapi-typescript` generation, `make contract` / `make contract-check`, CI drift gate                                                                             |
+| P2-T09 | `backend-core` §5.1 module tree established: domain, schemas, repositories, services, providers, prompts, jobs, security, observability                                                    |
+
+### Tests
+
+143 passing (127 unit + 16 integration), zero warnings.
+
+| Gate                                       | Result                                                  |
+| ------------------------------------------ | ------------------------------------------------------- |
+| `ruff check` / `ruff format --check`       | ✅ 69 files                                             |
+| `mypy --strict`                            | ✅ 34 source files                                      |
+| `pytest` unit                              | ✅ 127 passed                                           |
+| `pytest` integration                       | ✅ 16 passed                                            |
+| `eslint` / `tsc` / `vitest` / `next build` | ✅ pass                                                 |
+| `make contract-check`                      | ✅ verified it passes clean **and** fails on real drift |
+
+### Acceptance (§79)
+
+- [x] Integration tests written and passing
+- [x] Every failure path returns the uniform envelope, including framework-generated ones
+- [x] No secret, traceback or connection string reaches a client or a log
+
+---
+
+## PHASE 3 — Auth + Workspace + RBAC (next)
 
 **Status: NOT_STARTED**
 
-| Task   | Scope                                                        |
-| ------ | ------------------------------------------------------------ |
-| P2-T01 | Formalise and extend Pydantic Settings                       |
-| P2-T02 | Unified `AppError` + error taxonomy (§65)                    |
-| P2-T03 | Request ID middleware                                        |
-| P2-T04 | JSON structured logging with request/job id (§63)            |
-| P2-T05 | `/api/v1` router mount                                       |
-| P2-T06 | DB base models: UUID PK, timestamps (§9)                     |
-| P2-T07 | Uniform error response envelope                              |
-| P2-T08 | OpenAPI → TypeScript client pipeline + CI drift check (§5.2) |
-| P2-T09 | Establish the full `backend-core` module tree (§5.1)         |
+| Task   | Scope                            |
+| ------ | -------------------------------- |
+| P3-T01 | User schema + first migration    |
+| P3-T02 | Password hashing (Argon2/bcrypt) |
+| P3-T03 | Register                         |
+| P3-T04 | Login (with rate limiting)       |
+| P3-T05 | Access + refresh tokens (+ ADR)  |
+| P3-T06 | Workspace schema                 |
+| P3-T07 | Workspace membership             |
+| P3-T08 | RBAC dependency                  |
+| P3-T09 | Frontend login/register          |
+| P3-T10 | Protected layout                 |
+
+**Acceptance:** register, login, refresh, and OWNER/EDITOR/VIEWER permission
+checks all tested — including that cross-workspace access fails.
 
 ---
 

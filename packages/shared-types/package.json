@@ -2,7 +2,7 @@
   "name": "@aipvs/shared-types",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared TypeScript types. From P2-T08 onward the API surface here is GENERATED from the FastAPI OpenAPI schema — do not hand-edit generated files.",
+  "description": "Types generated from the FastAPI OpenAPI schema. Do not hand-edit src/generated.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,12 +10,14 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "generate": "openapi-typescript ./openapi.json -o ./src/generated/api.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "echo \"(no lint target yet — populated in P2-T08)\"",
-    "test": "echo \"(no tests yet — populated in P2-T08)\""
+    "lint": "echo \"(covered by the web app's flat config)\"",
+    "test": "echo \"(no runtime code to test — types are verified by tsc)\""
   },
   "devDependencies": {
     "@aipvs/config": "workspace:*",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.9.3"
   }
 }

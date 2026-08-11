@@ -7,6 +7,93 @@ are useful to know later but too small for an ADR.
 
 ---
 
+## 2026-08-11 — PHASE 2: Core Backend Foundation
+
+Config, errors, logging, the versioned surface, ORM base models, and the
+OpenAPI → TypeScript contract pipeline.
+
+### A guard that silently passed
+
+`make contract-check` regenerates the client and fails if the result differs
+from what is committed. Written, run, reported "API contract is up to date" —
+and it was lying. It used `git diff`, which does not report **untracked**
+files, and the generated artefacts had never been committed. Any first-time
+generation would have sailed through.
+
+It only surfaced because the check was tested by deliberately changing the API
+and confirming the guard failed. It did not. Switched to
+`git status --porcelain`, which reports untracked, modified and staged paths
+alike, then re-ran both cases: clean passes, injected drift fails.
+
+The lesson is narrow and worth keeping: a guard that has only ever been
+observed passing has not been tested. Both branches need exercising.
+
+### Errors are a contract, not strings
+
+§65 fixes eighteen error codes, so `ErrorCode` is a `StrEnum` and a test
+asserts every taskbook code exists. Clients branch on `code` — HTTP status is
+too coarse and messages are for humans.
+
+`retryable` lives on the error rather than in the retry loop, because whether a
+429 is worth retrying is a property of what went wrong, not of who is handling
+it. PHASE 9's runner reads it instead of re-deriving the classification.
+
+Two message decisions are security, not wording: `InvalidCredentialsError`
+deliberately does not say whether the email or the password was wrong (the
+distinction turns login into an account-enumeration oracle), and the 422
+handler keeps the field name and reason from Pydantic but drops the submitted
+value — otherwise a mistyped password ends up in a log and on a screen.
+
+### Nothing escapes the envelope
+
+Handlers cover `AppError`, `RequestValidationError`, Starlette's own
+`HTTPException` and bare `Exception`. Without the last three, a client would
+meet three different error shapes — a 404 from the router, a 422 from FastAPI,
+a 500 from anywhere — and two of them would carry no `code` at all.
+
+An unhandled exception returns `INTERNAL_ERROR` and the `request_id`, nothing
+more. Tests assert that a `RuntimeError` carrying
+`postgresql://svc:hunter2@db/aipvs` yields a response containing neither the
+password, the scheme, the exception type, nor the word "Traceback".
+
+### Redaction belongs at the formatter
+
+Trusting every call site to remember not to log a payload fails once, and once
+is enough to put a provider key in an aggregator. So redaction runs inside
+`JsonFormatter`: sensitive key names at any nesting depth, passwords inline in
+connection URLs, base64 runs over 256 characters, and a depth cap so a cyclic
+structure cannot hang the logger. Logging must never be able to take down the
+process it describes.
+
+### Correlation via contextvars
+
+Request and job ids would otherwise thread through every signature.
+`ContextVar` is safe here specifically because it is per-task under asyncio — a
+module global or thread-local would let concurrent requests read each other's
+ids. There is a test running two overlapping tasks that asserts exactly this.
+
+The inbound `X-Request-ID` is honoured so a trace can span the web app and the
+API, but it is validated first: it lands in every log line, so an unchecked
+value could inject newlines and forge JSON log records.
+
+### Small things worth recording
+
+**`rootDir` is not the only tsconfig trap** — `Base.metadata` needed
+`ClassVar[MetaData]`, since `DeclarativeBase` declares it as a class variable
+and a plain annotation redeclares it as an instance attribute.
+
+**`T201` scoped rather than suppressed.** The `print` ban exists for services
+(§63); `infra/scripts/export_openapi.py` is a CLI whose interface _is_ stdout.
+A per-file ignore says that; a `noqa` would just have hidden it.
+
+**A shell quoting bug worth not repeating.** Nine placeholder `__init__.py`
+files were generated with a `write()` helper whose single-quoted arguments were
+never closed, so every other file swallowed the next command. The alternating
+failure pattern gave it away. Regenerated through Python, which has no such
+ambiguity, and verified all nine parse.
+
+---
+
 ## 2026-08-11 — PHASE 1: Local Infrastructure
 
 Compose stack plus the database, Redis and object storage clients, with
