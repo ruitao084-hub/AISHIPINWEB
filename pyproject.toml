@@ -1,0 +1,151 @@
+# ===========================================================================
+# uv workspace root (virtual — this root is not itself a distributable package)
+# ===========================================================================
+# All Python tool configuration is centralised here so apps/api, apps/worker,
+# apps/render-worker and packages/backend-core cannot drift apart.
+# See docs/adr/0002-python-package-manager.md.
+# ===========================================================================
+
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "apps/worker",
+    "apps/render-worker",
+    "packages/backend-core",
+]
+
+[tool.uv.sources]
+aipvs-backend-core = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.2",
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    # starlette's TestClient requires httpx2; plain httpx is deprecated there.
+    "httpx2>=2.10.0",
+    # Typed boto3 — required for `mypy --strict` to see through the SDK.
+    "boto3-stubs[s3]>=1.43.68",
+    # Local S3 double. CI integration tests run against a real MinIO service
+    # container; moto gives developers the same loop without pulling an image.
+    "moto[server]>=5.1.0",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff — lint + format (taskbook §68, §136)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["apps/api/src", "apps/worker/src", "apps/render-worker/src", "packages/backend-core/src"]
+extend-exclude = [".venv", "infra/migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez — taskbook §129 mandates UTC-aware datetimes
+    "T20",    # flake8-print — structured logging only (§63)
+    "SIM",    # flake8-simplify
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # ruff-specific
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit — security (§61)
+    "ANN",    # flake8-annotations — §136 requires type annotations
+]
+ignore = [
+    "ANN401",  # allow explicit `Any` in narrowly-typed decorator plumbing
+    "S101",    # `assert` is how pytest asserts; re-enabled for src/ below
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may assert, use fixtures with shadowing names, and hardcode sample data.
+"**/tests/**" = ["S101", "S105", "S106", "ANN201", "ANN001"]
+"**/conftest.py" = ["ANN001", "ANN201"]
+
+[tool.ruff.lint.flake8-bandit]
+# `subprocess` is required for FFmpeg (§34). Safety is enforced by review rules
+# in docs/security/ffmpeg.md: argument arrays only, never shell=True (§35).
+check-typed-exception = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend_core", "aipvs_api", "aipvs_worker", "aipvs_render_worker"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+# mypy — static types (taskbook §0.1 rule 17, §136)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+warn_no_return = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_reexport = true
+show_error_codes = true
+pretty = true
+mypy_path = [
+    "packages/backend-core/src",
+    "apps/api/src",
+    "apps/worker/src",
+    "apps/render-worker/src",
+]
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+# Tests get the same strictness minus the ceremony of annotating every fixture.
+module = ["tests.*", "*.tests.*"]
+disallow_untyped_defs = false
+
+# ---------------------------------------------------------------------------
+# pytest (taskbook §66)
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = [
+    "packages/backend-core/tests",
+    "apps/api/tests",
+    "apps/worker/tests",
+    "apps/render-worker/tests",
+]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+markers = [
+    "integration: requires live Postgres/Redis/MinIO (taskbook §66 Integration)",
+    "e2e: full browser or pipeline end-to-end test",
+    "provider: hits a real third-party provider; skipped unless keys are present",
+]
+
+[tool.coverage.run]
+branch = true
+source = [
+    "packages/backend-core/src",
+    "apps/api/src",
+    "apps/worker/src",
+    "apps/render-worker/src",
+]
+omit = ["*/tests/*", "*/__main__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+]

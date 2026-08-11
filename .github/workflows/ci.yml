@@ -1,0 +1,220 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop", "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  FORCE_COLOR: "1"
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Web: eslint / tsc --noEmit / vitest / next build   (taskbook §68)
+  # -------------------------------------------------------------------------
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Build
+        # Runs before typecheck: Next.js generates route types into .next/types
+        # that `tsc --noEmit` needs in order to resolve LayoutProps/PageProps.
+        run: pnpm run build
+
+      - name: Type check
+        run: pnpm run typecheck
+
+      - name: Unit tests
+        run: pnpm run test
+
+      - name: Formatting
+        run: pnpm run format:check
+
+  # -------------------------------------------------------------------------
+  # API: ruff / mypy / pytest                          (taskbook §68)
+  # -------------------------------------------------------------------------
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-packages --frozen
+
+      - name: Lint
+        run: uv run ruff check --output-format=github .
+
+      - name: Formatting
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: |
+          uv run mypy \
+            packages/backend-core/src \
+            apps/api/src \
+            apps/worker/src \
+            apps/render-worker/src
+
+      - name: Unit tests
+        run: uv run pytest -m "not integration and not e2e and not provider" --cov --cov-report=xml
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-coverage
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------------
+  # Integration: real Postgres, Redis and MinIO   (taskbook §66, §78, §169)
+  # -------------------------------------------------------------------------
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aipvs
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d aipvs"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/aipvs
+      REDIS_URL: redis://localhost:6379/0
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: aipvs-ci
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_FORCE_PATH_STYLE: "true"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Start MinIO
+        # Not a service container: those cannot override the image command, and
+        # the MinIO image needs `server /data`. Same image the compose stack
+        # uses, so CI proves the real thing rather than a stand-in.
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data --console-address ":9001"
+
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live > /dev/null; then
+              echo "MinIO ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::MinIO did not become ready"; docker logs minio; exit 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-packages --frozen
+
+      - name: Migrations apply to an empty database
+        # §169 — the chain must run from nothing, every time.
+        run: uv run alembic upgrade head
+
+      - name: Integration tests
+        run: uv run pytest -m integration -v
+
+      - name: MinIO logs on failure
+        if: failure()
+        run: docker logs minio
+
+  # -------------------------------------------------------------------------
+  # Secret scanning — §0.1 rule 9/10, §173 "Secrets 不在 repo"
+  # -------------------------------------------------------------------------
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify no .env file is committed
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env is tracked by git. Secrets must never be committed (taskbook §7)."
+            exit 1
+          fi
+          echo "OK: no tracked .env"
+
+      - name: Verify .env.example carries no filled-in secrets
+        run: |
+          # Every credential-ish key in the template must have an empty value.
+          if grep -nE '^(JWT_SECRET|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|OPENAI_API_KEY|GOOGLE_AI_API_KEY|RUNWAY_API_KEY|TTS_API_KEY|SENTRY_DSN)=.+' .env.example; then
+            echo "::error::.env.example must not contain real values for secret keys (taskbook §7)."
+            exit 1
+          fi
+          echo "OK: .env.example has no filled-in secrets"
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # -------------------------------------------------------------------------
+  # Gates added as the phases that introduce them land:
+  #   PHASE 2  OpenAPI -> TypeScript client drift check (P2-T08)
+  #   PHASE 15 Playwright E2E against mock providers (§92)
+  # -------------------------------------------------------------------------

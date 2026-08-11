@@ -1,0 +1,24 @@
+# Lockfiles and generated output
+pnpm-lock.yaml
+uv.lock
+.next/
+dist/
+build/
+coverage/
+node_modules/
+.venv/
+.turbo/
+
+# Generated API client — regenerated from the OpenAPI schema in P2-T08
+packages/shared-types/src/generated/
+
+# The master taskbook is a delivered specification document. Taskbook §135
+# forbids altering it; reformatting counts.
+CLAUDE_CODE_AI_PRODUCT_VIDEO_PLATFORM_MASTER_TASKBOOK.md
+
+# Written by `next dev` on every run; reformatting fights the generator.
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
+
+# Python is formatted by Ruff, not Prettier
+*.py

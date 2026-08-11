@@ -1,0 +1,11 @@
+packages:
+  - "apps/web"
+  - "packages/ui"
+  - "packages/shared-types"
+  - "packages/config"
+
+# pnpm 10 blocks postinstall scripts by default. These two are build-time only
+# and are not required for `next build` to succeed in CI.
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

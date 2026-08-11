@@ -1,0 +1,4 @@
+{
+  "extends": "@aipvs/config/tsconfig.library.json",
+  "include": ["src/**/*"]
+}
