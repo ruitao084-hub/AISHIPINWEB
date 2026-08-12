@@ -1,4 +1,8 @@
-"""ORM models for users, workspaces, membership and media (taskbook §10.1-§10.3, §10.17)."""
+"""ORM models: users, workspaces, membership, media and products.
+
+Covers taskbook §10.1-§10.3 (identity and tenancy), §10.17 (media) and
+§10.5-§10.8 (products and the Truth Layer).
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -16,6 +21,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     text,
 )
@@ -31,9 +37,17 @@ from backend_core.db.base import (
 from backend_core.domain.enums import (
     AssetSourceType,
     AssetType,
+    ClaimRiskLevel,
+    ClaimStatus,
+    ClaimType,
+    FactSourceType,
+    FactType,
     PlanCode,
+    ProductAssetRole,
+    ProductStatus,
     UploadStatus,
     UserStatus,
+    VerificationStatus,
     WorkspaceRole,
     WorkspaceStatus,
 )
@@ -335,4 +349,295 @@ class MediaAsset(WorkspaceEntity, SoftDeleteMixin):
         return (
             f"MediaAsset(id={self.id!r}, type={self.asset_type.value!r}, "
             f"status={self.upload_status.value!r})"
+        )
+
+
+class Product(WorkspaceEntity, SoftDeleteMixin):
+    """A thing being advertised (§10.5).
+
+    The root of the Truth Layer. Everything a generated video may assert about
+    this product hangs off it as a :class:`ProductFact` or :class:`ProductClaim`,
+    and §13's whole point is that those are separate from the product's own
+    free-text description — which is marketing copy, not evidence.
+    """
+
+    __tablename__ = "products"
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    category: Mapped[str] = mapped_column(String(120), nullable=False)
+    brand_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    sku: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    status: Mapped[ProductStatus] = mapped_column(
+        _pg_enum(ProductStatus, "product_status"),
+        nullable=False,
+        default=ProductStatus.DRAFT,
+        server_default=ProductStatus.DRAFT.value,
+    )
+
+    # Written by the analyser in PHASE 6. Explicitly *not* a source of truth:
+    # it is a readable summary, and anything load-bearing must exist as a
+    # verified fact (§13).
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # §14's `visual_dna`: tone, palette, recommended backgrounds and camera
+    # styles. Aesthetic direction rather than factual assertion, which is why
+    # it lives here as JSON rather than going through fact verification.
+    visual_dna: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+
+    assets: Mapped[list[ProductAsset]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+    facts: Mapped[list[ProductFact]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+    claims: Mapped[list[ProductClaim]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+
+    __table_args__ = (
+        CheckConstraint("length(trim(name)) > 0", name="name_not_blank"),
+        CheckConstraint("length(trim(category)) > 0", name="category_not_blank"),
+        # A SKU identifies one product within a workspace. Partial, so the many
+        # products without a SKU do not collide with each other on NULL.
+        Index(
+            "uq_products_workspace_id_sku",
+            "workspace_id",
+            "sku",
+            unique=True,
+            postgresql_where=text("sku IS NOT NULL AND deleted_at IS NULL"),
+        ),
+        workspace_scoped_index("products", "status"),
+    )
+
+    def __repr__(self) -> str:
+        return f"Product(id={self.id!r}, name={self.name!r}, status={self.status.value!r})"
+
+
+class ProductAsset(WorkspaceEntity):
+    """A media asset attached to a product, with the role it plays (§10.6).
+
+    A join row rather than a foreign key on `media_assets`, because one image
+    can legitimately serve two products (a shared packaging shot) and because
+    the *role* belongs to the relationship, not to the file.
+    """
+
+    __tablename__ = "product_assets"
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # RESTRICT, not CASCADE: deleting a media asset that a product depends on
+    # should fail loudly rather than silently strip the product's imagery.
+    # Detaching is an explicit action (§112).
+    media_asset_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    asset_role: Mapped[ProductAssetRole] = mapped_column(
+        _pg_enum(ProductAssetRole, "product_asset_role"),
+        nullable=False,
+        default=ProductAssetRole.OTHER,
+        server_default=ProductAssetRole.OTHER.value,
+    )
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+    product: Mapped[Product] = relationship(back_populates="assets", lazy="raise")
+    media_asset: Mapped[MediaAsset] = relationship(lazy="raise")
+
+    __table_args__ = (
+        UniqueConstraint("product_id", "media_asset_id", name="uq_product_asset"),
+        # At most one primary image per product, enforced by the database.
+        # Doing this in application code loses to two concurrent "set primary"
+        # requests, and a product with two primaries has no defined hero shot.
+        Index(
+            "uq_product_assets_primary",
+            "product_id",
+            unique=True,
+            postgresql_where=text("is_primary"),
+        ),
+        Index("ix_product_assets_product_id_sort_order", "product_id", "sort_order"),
+    )
+
+    def __repr__(self) -> str:
+        return f"ProductAsset(product_id={self.product_id!r}, role={self.asset_role.value!r})"
+
+
+class ProductFact(WorkspaceEntity):
+    """Something asserted about a product, and how much it is trusted (§10.7).
+
+    The load-bearing table of the Truth Layer. A fact's
+    :class:`VerificationStatus` decides whether it may back a claim, and
+    therefore whether a generated script may rely on it (§13, §109).
+
+    Facts are never hard-deleted through the normal path: a wrong one is
+    `REJECTED` so the analyser is not re-asked the same question and the
+    review history survives.
+    """
+
+    __tablename__ = "product_facts"
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    fact_type: Mapped[FactType] = mapped_column(_pg_enum(FactType, "fact_type"), nullable=False)
+
+    #: Short machine-ish name, e.g. ``noise_level`` or ``filter_type``.
+    key: Mapped[str] = mapped_column(String(120), nullable=False)
+    #: The human-readable value. Always present, even when `value_json` is too.
+    value_text: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Structured form when there is one — a number with a unit, a range, a
+    #: list. Kept alongside rather than instead of the text, because the text
+    #: is what a script quotes and the structure is what a filter queries.
+    value_json: Mapped[dict[str, Any] | None] = mapped_column(postgresql.JSONB, nullable=True)
+
+    source_type: Mapped[FactSourceType] = mapped_column(
+        _pg_enum(FactSourceType, "fact_source_type"), nullable=False
+    )
+    #: The image or document this came from, when it came from one.
+    source_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    verification_status: Mapped[VerificationStatus] = mapped_column(
+        _pg_enum(VerificationStatus, "verification_status"),
+        nullable=False,
+        default=VerificationStatus.AI_INFERRED,
+        server_default=VerificationStatus.AI_INFERRED.value,
+    )
+    # SET NULL rather than RESTRICT: a departing employee's account should not
+    # pin every fact they ever confirmed, and `verified_at` still records that
+    # verification happened.
+    verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    product: Mapped[Product] = relationship(back_populates="facts", lazy="raise")
+
+    __table_args__ = (
+        CheckConstraint("length(trim(key)) > 0", name="key_not_blank"),
+        CheckConstraint("length(trim(value_text)) > 0", name="value_not_blank"),
+        # The database refuses a VERIFIED fact with no timestamp. Without this,
+        # one missed assignment on one code path silently produces a fact that
+        # claims to be confirmed with no record of when — and §13's guarantee
+        # is only as good as its weakest write.
+        CheckConstraint(
+            "verification_status <> 'VERIFIED' OR verified_at IS NOT NULL",
+            name="verified_facts_have_a_timestamp",
+        ),
+        workspace_scoped_index("product_facts", "product_id"),
+        Index("ix_product_facts_product_id_status", "product_id", "verification_status"),
+    )
+
+    @property
+    def is_verified(self) -> bool:
+        return self.verification_status is VerificationStatus.VERIFIED
+
+    def __repr__(self) -> str:
+        return (
+            f"ProductFact(id={self.id!r}, key={self.key!r}, "
+            f"status={self.verification_status.value!r})"
+        )
+
+
+class ProductClaim(WorkspaceEntity):
+    """A marketing statement, and whether it may be used (§10.8).
+
+    §109 is the rule this table exists to enforce: a script generator calls
+    for `VERIFIED` claims and gets nothing else. A claim that asserts anything
+    checkable must cite the verified facts that support it, which is what
+    `source_fact_ids` holds.
+    """
+
+    __tablename__ = "product_claims"
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    claim_text: Mapped[str] = mapped_column(Text, nullable=False)
+    claim_type: Mapped[ClaimType] = mapped_column(_pg_enum(ClaimType, "claim_type"), nullable=False)
+
+    # A JSONB array of fact ids rather than a join table, because §10.8
+    # specifies it and because the list is read as a whole every time — a
+    # claim's evidence is never queried piecewise.
+    source_fact_ids: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+
+    status: Mapped[ClaimStatus] = mapped_column(
+        _pg_enum(ClaimStatus, "claim_status"),
+        nullable=False,
+        default=ClaimStatus.SUGGESTED,
+        server_default=ClaimStatus.SUGGESTED.value,
+    )
+    risk_level: Mapped[ClaimRiskLevel] = mapped_column(
+        _pg_enum(ClaimRiskLevel, "claim_risk_level"),
+        nullable=False,
+        default=ClaimRiskLevel.MEDIUM,
+        server_default=ClaimRiskLevel.MEDIUM.value,
+    )
+
+    verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    product: Mapped[Product] = relationship(back_populates="claims", lazy="raise")
+
+    __table_args__ = (
+        CheckConstraint("length(trim(claim_text)) > 0", name="claim_not_blank"),
+        CheckConstraint("jsonb_typeof(source_fact_ids) = 'array'", name="source_fact_ids_is_array"),
+        CheckConstraint(
+            "status <> 'VERIFIED' OR verified_at IS NOT NULL",
+            name="verified_claims_have_a_timestamp",
+        ),
+        workspace_scoped_index("product_claims", "product_id"),
+        Index("ix_product_claims_product_id_status", "product_id", "status"),
+    )
+
+    @property
+    def is_verified(self) -> bool:
+        return self.status is ClaimStatus.VERIFIED
+
+    def __repr__(self) -> str:
+        return (
+            f"ProductClaim(id={self.id!r}, type={self.claim_type.value!r}, "
+            f"status={self.status.value!r})"
         )

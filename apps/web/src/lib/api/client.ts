@@ -36,6 +36,19 @@ export type PresignRequest = Schemas["PresignRequest"];
 export type PresignResponse = Schemas["PresignResponse"];
 export type UploadConfigResponse = Schemas["UploadConfigResponse"];
 export type AssetType = Schemas["AssetType"];
+export type ProductResponse = Schemas["ProductResponse"];
+export type ProductAssetResponse = Schemas["ProductAssetResponse"];
+export type ProductFactResponse = Schemas["ProductFactResponse"];
+export type ProductClaimResponse = Schemas["ProductClaimResponse"];
+export type CreateProductRequest = Schemas["CreateProductRequest"];
+export type CreateFactRequest = Schemas["CreateFactRequest"];
+export type CreateClaimRequest = Schemas["CreateClaimRequest"];
+export type UpdateFactRequest = Schemas["UpdateFactRequest"];
+export type FactType = Schemas["FactType"];
+export type ClaimType = Schemas["ClaimType"];
+export type VerificationStatus = Schemas["VerificationStatus"];
+export type ClaimStatus = Schemas["ClaimStatus"];
+export type ProductAssetRole = Schemas["ProductAssetRole"];
 
 /** An error carrying the API's `code`, so callers branch on it rather than text. */
 export class ApiError extends Error {
@@ -240,6 +253,141 @@ export const uploadApi = {
   get: (workspaceId: string, assetId: string) =>
     apiRequest<MediaAssetDetailResponse>(
       `/api/v1/workspaces/${workspaceId}/assets/${assetId}`,
+    ),
+};
+
+// --- Products and the Truth Layer (§13, §109) ------------------------------
+
+export const productApi = {
+  list: (workspaceId: string) =>
+    apiRequest<ProductResponse[]>(`/api/v1/workspaces/${workspaceId}/products`),
+
+  get: (workspaceId: string, productId: string) =>
+    apiRequest<ProductResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}`,
+    ),
+
+  create: (workspaceId: string, payload: CreateProductRequest) =>
+    apiRequest<ProductResponse>(`/api/v1/workspaces/${workspaceId}/products`, {
+      method: "POST",
+      body: payload,
+    }),
+
+  markReady: (workspaceId: string, productId: string) =>
+    apiRequest<ProductResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/ready`,
+      { method: "POST" },
+    ),
+
+  // -- imagery --
+  assets: (workspaceId: string, productId: string) =>
+    apiRequest<ProductAssetResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets`,
+    ),
+
+  attachAsset: (
+    workspaceId: string,
+    productId: string,
+    mediaAssetId: string,
+    assetRole: ProductAssetRole = "OTHER",
+  ) =>
+    apiRequest<ProductAssetResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets`,
+      {
+        method: "POST",
+        body: { media_asset_id: mediaAssetId, asset_role: assetRole },
+      },
+    ),
+
+  setPrimaryAsset: (workspaceId: string, productId: string, linkId: string) =>
+    apiRequest<ProductAssetResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets/${linkId}/primary`,
+      { method: "POST" },
+    ),
+
+  detachAsset: (workspaceId: string, productId: string, linkId: string) =>
+    apiRequest<void>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets/${linkId}`,
+      { method: "DELETE" },
+    ),
+
+  // -- facts --
+  facts: (workspaceId: string, productId: string) =>
+    apiRequest<ProductFactResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts`,
+    ),
+
+  createFact: (
+    workspaceId: string,
+    productId: string,
+    payload: CreateFactRequest,
+  ) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts`,
+      { method: "POST", body: payload },
+    ),
+
+  updateFact: (
+    workspaceId: string,
+    productId: string,
+    factId: string,
+    payload: UpdateFactRequest,
+  ) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts/${factId}`,
+      { method: "PATCH", body: payload },
+    ),
+
+  verifyFact: (workspaceId: string, productId: string, factId: string) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts/${factId}/verify`,
+      { method: "POST" },
+    ),
+
+  rejectFact: (workspaceId: string, productId: string, factId: string) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts/${factId}/reject`,
+      { method: "POST" },
+    ),
+
+  // -- claims --
+  claims: (workspaceId: string, productId: string) =>
+    apiRequest<ProductClaimResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims`,
+    ),
+
+  /**
+   * §109's `get_verified_claims`: the only claims a script may use.
+   *
+   * A distinct call rather than a filter over `claims`, so "safe to broadcast"
+   * is something a caller asks for rather than something it has to remember
+   * to apply.
+   */
+  verifiedClaims: (workspaceId: string, productId: string) =>
+    apiRequest<ProductClaimResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims/verified`,
+    ),
+
+  createClaim: (
+    workspaceId: string,
+    productId: string,
+    payload: CreateClaimRequest,
+  ) =>
+    apiRequest<ProductClaimResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims`,
+      { method: "POST", body: payload },
+    ),
+
+  verifyClaim: (workspaceId: string, productId: string, claimId: string) =>
+    apiRequest<ProductClaimResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims/${claimId}/verify`,
+      { method: "POST" },
+    ),
+
+  rejectClaim: (workspaceId: string, productId: string, claimId: string) =>
+    apiRequest<ProductClaimResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims/${claimId}/reject`,
+      { method: "POST" },
     ),
 };
 

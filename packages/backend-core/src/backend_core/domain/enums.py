@@ -81,6 +81,250 @@ class UploadStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class ProductStatus(StrEnum):
+    """Where a product sits in its lifecycle (§104).
+
+    Transitions are validated by :func:`can_transition_product`; §105 forbids
+    writing a status by assignment, and the same rule is applied here.
+    """
+
+    DRAFT = "DRAFT"
+    #: Enough imagery attached to be analysed.
+    ASSETS_READY = "ASSETS_READY"
+    ANALYZING = "ANALYZING"
+    #: AI produced inferences that a human has not yet confirmed (§13).
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    #: Verified facts and claims exist; safe to generate from.
+    READY = "READY"
+    ARCHIVED = "ARCHIVED"
+
+
+#: Legal product transitions (§104). Anything absent is refused.
+_PRODUCT_TRANSITIONS: dict[ProductStatus, frozenset[ProductStatus]] = {
+    ProductStatus.DRAFT: frozenset({ProductStatus.ASSETS_READY, ProductStatus.ARCHIVED}),
+    ProductStatus.ASSETS_READY: frozenset(
+        {
+            ProductStatus.ANALYZING,
+            # Removing the last image drops a product back to DRAFT.
+            ProductStatus.DRAFT,
+            # A product whose facts were all entered by hand never needs the
+            # analyser; §13 treats user-provided data as the strongest source.
+            ProductStatus.READY,
+            ProductStatus.ARCHIVED,
+        }
+    ),
+    ProductStatus.ANALYZING: frozenset(
+        {
+            ProductStatus.REVIEW_REQUIRED,
+            # Analysis failing must not strand the product mid-state (§24).
+            ProductStatus.ASSETS_READY,
+            ProductStatus.ARCHIVED,
+        }
+    ),
+    ProductStatus.REVIEW_REQUIRED: frozenset({ProductStatus.READY, ProductStatus.ARCHIVED}),
+    ProductStatus.READY: frozenset(
+        {
+            # Editing facts can invalidate claims and send a product back for
+            # review — see `demote_dependent_claims` in the truth service.
+            ProductStatus.REVIEW_REQUIRED,
+            ProductStatus.ANALYZING,
+            ProductStatus.ARCHIVED,
+        }
+    ),
+    # Terminal by design: restoring an archived product is an explicit,
+    # separate operation rather than a status write.
+    ProductStatus.ARCHIVED: frozenset(),
+}
+
+
+def can_transition_product(current: ProductStatus, target: ProductStatus) -> bool:
+    """Whether ``current -> target`` is a legal product transition (§104)."""
+    if current is target:
+        return True
+    return target in _PRODUCT_TRANSITIONS[current]
+
+
+def allowed_product_transitions(current: ProductStatus) -> frozenset[ProductStatus]:
+    """Every status reachable from ``current`` in one step."""
+    return _PRODUCT_TRANSITIONS[current]
+
+
+class ProductAssetRole(StrEnum):
+    """What a product image shows (§10.6).
+
+    The role is not decoration: PHASE 8's prompt compiler picks reference
+    imagery by role, so "the front of the product" has to be answerable
+    without a human looking at the picture.
+    """
+
+    FRONT = "FRONT"
+    SIDE = "SIDE"
+    BACK = "BACK"
+    ANGLE_45 = "ANGLE_45"
+    PACKAGING = "PACKAGING"
+    LOGO = "LOGO"
+    DETAIL = "DETAIL"
+    MATERIAL = "MATERIAL"
+    SCENE = "SCENE"
+    STRUCTURE = "STRUCTURE"
+    OTHER = "OTHER"
+
+
+class FactType(StrEnum):
+    """What kind of thing a product fact asserts (§10.7).
+
+    The taskbook names ``fact_type`` without enumerating it. These values are
+    chosen so that the *risky* categories are separable: §13's forbidden
+    example ("除甲醛率 99.9%") is a `PERFORMANCE` fact, and being able to
+    identify that class by type is what lets the claim rules treat it more
+    strictly than, say, a colour.
+    """
+
+    #: A measurable physical specification: dimensions, weight, capacity.
+    SPEC = "SPEC"
+    MATERIAL = "MATERIAL"
+    #: A functional capability — what the product does.
+    FEATURE = "FEATURE"
+    #: A quantified outcome. The category §13 exists to protect.
+    PERFORMANCE = "PERFORMANCE"
+    #: A standard, test result or certificate the product holds.
+    CERTIFICATION = "CERTIFICATION"
+    INGREDIENT = "INGREDIENT"
+    COMPATIBILITY = "COMPATIBILITY"
+    WARRANTY = "WARRANTY"
+    PRICING = "PRICING"
+    APPEARANCE = "APPEARANCE"
+    OTHER = "OTHER"
+
+
+class FactSourceType(StrEnum):
+    """Where a fact came from (§10.7).
+
+    Distinct from :class:`VerificationStatus`, which is how much it is
+    trusted. A fact can be `AI_VISION` in origin and `VERIFIED` in status —
+    that is precisely the review workflow §13 describes — but the origin is
+    never overwritten, so "a human confirmed something the AI guessed" stays
+    distinguishable from "a human typed it in".
+    """
+
+    USER_INPUT = "USER_INPUT"
+    #: Inferred from product imagery by the vision provider (PHASE 6).
+    AI_VISION = "AI_VISION"
+    #: Extracted from text — a description or spec sheet — by an LLM.
+    AI_TEXT = "AI_TEXT"
+    #: Read from a document the user supplied as evidence.
+    DOCUMENT = "DOCUMENT"
+    IMPORT = "IMPORT"
+
+
+class VerificationStatus(StrEnum):
+    """How much a fact may be trusted (§10.7, §13).
+
+    This is the Truth Layer. Only `VERIFIED` facts may back a claim, and only
+    `VERIFIED` claims may reach a script (§109). Everything the AI produces
+    starts at `AI_INFERRED` and can only be promoted by a person.
+    """
+
+    #: The AI's guess. Never usable as a fact on its own.
+    AI_INFERRED = "AI_INFERRED"
+    #: Typed in by a user but not yet explicitly confirmed.
+    USER_PROVIDED = "USER_PROVIDED"
+    #: Confirmed by a person, with `verified_by_user_id` and `verified_at` set.
+    VERIFIED = "VERIFIED"
+    #: Explicitly wrong. Kept rather than deleted so the AI is not re-asked
+    #: the same question and the audit trail survives.
+    REJECTED = "REJECTED"
+
+
+class ClaimType(StrEnum):
+    """What a marketing claim asserts (§10.8).
+
+    Not enumerated by the taskbook. The split is by *what would have to be
+    true* for the claim to be honest, because that is what decides whether it
+    needs a verified fact behind it (§13, §109).
+    """
+
+    #: "Filters impurities from the air." Asserts a capability.
+    FUNCTIONAL = "FUNCTIONAL"
+    #: "Removes 99.9% of formaldehyde." Asserts a number.
+    PERFORMANCE = "PERFORMANCE"
+    #: "Quieter than the leading brand." Asserts something about a competitor.
+    COMPARATIVE = "COMPARATIVE"
+    #: "CE certified." Asserts a credential.
+    CERTIFICATION = "CERTIFICATION"
+    #: "Safe for infants." Asserts absence of harm.
+    SAFETY = "SAFETY"
+    #: "Brings calm to your morning." Asserts nothing checkable.
+    EMOTIONAL = "EMOTIONAL"
+
+
+#: Claim types that assert something about the product and therefore cannot be
+#: verified without at least one `VERIFIED` fact behind them (§13).
+#:
+#: `EMOTIONAL` is the sole exception, and deliberately so: "brings calm to your
+#: morning" makes no factual assertion, so demanding evidence for it would be
+#: theatre. Everything else — including `FUNCTIONAL`, per §13's own example
+#: where "helps filter impurities" is allowed only *if that function has been
+#: confirmed as a fact* — requires substantiation.
+FACT_BACKED_CLAIM_TYPES: frozenset[ClaimType] = frozenset(
+    {
+        ClaimType.FUNCTIONAL,
+        ClaimType.PERFORMANCE,
+        ClaimType.COMPARATIVE,
+        ClaimType.CERTIFICATION,
+        ClaimType.SAFETY,
+    }
+)
+
+
+class ClaimStatus(StrEnum):
+    """Whether a claim may be used (§10.8).
+
+    §109 is unambiguous: only `VERIFIED` claims reach a script.
+    """
+
+    #: Proposed — by the AI, or by a user who has not confirmed it yet.
+    SUGGESTED = "SUGGESTED"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+
+
+class ClaimRiskLevel(StrEnum):
+    """How much substantiation a claim needs before it is safe to broadcast.
+
+    Recorded per claim so the review UI can order the queue by consequence:
+    an unverified `HIGH` claim about infant safety deserves attention before a
+    `LOW` one about colour.
+    """
+
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+#: Default risk for each claim type, used when a caller does not set one.
+#: Quantified, comparative, safety and certification claims are the ones that
+#: attract regulatory attention, so they default high rather than low.
+_DEFAULT_CLAIM_RISK: dict[ClaimType, ClaimRiskLevel] = {
+    ClaimType.EMOTIONAL: ClaimRiskLevel.LOW,
+    ClaimType.FUNCTIONAL: ClaimRiskLevel.MEDIUM,
+    ClaimType.PERFORMANCE: ClaimRiskLevel.HIGH,
+    ClaimType.COMPARATIVE: ClaimRiskLevel.HIGH,
+    ClaimType.CERTIFICATION: ClaimRiskLevel.HIGH,
+    ClaimType.SAFETY: ClaimRiskLevel.HIGH,
+}
+
+
+def default_risk_level(claim_type: ClaimType) -> ClaimRiskLevel:
+    """The risk level a claim of this type carries unless overridden."""
+    return _DEFAULT_CLAIM_RISK[claim_type]
+
+
+def requires_fact_backing(claim_type: ClaimType) -> bool:
+    """Whether verifying this claim requires a `VERIFIED` supporting fact."""
+    return claim_type in FACT_BACKED_CLAIM_TYPES
+
+
 class WorkspaceRole(StrEnum):
     """Membership role (§40).
 

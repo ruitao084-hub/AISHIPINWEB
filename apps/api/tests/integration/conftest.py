@@ -17,7 +17,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from aipvs_api.app import create_app
-from backend_core.db import get_async_engine
+from backend_core.cache import close_redis
+from backend_core.db import dispose_engines, get_async_engine
 
 _HERE = Path(__file__).parent
 
@@ -45,13 +46,27 @@ async def _clean_state() -> AsyncIterator[None]:
     (which is doing exactly its job) fails the sixth test in the file. Cleared
     rather than raised — the limit protecting production should not be relaxed
     to suit a test suite. ``test_ratelimit.py`` asserts it still bites.
+
+    The teardown also **disposes the pools this fixture opened**. Engines and
+    Redis clients are cached per event loop (so a Celery worker calling
+    ``asyncio.run`` per job gets a usable client), and pytest-asyncio gives
+    each test a fresh loop — so every test that touches the database here
+    builds a new pool. Without disposal those connections accumulate until
+    Postgres refuses with "sorry, too many clients already", which is what
+    happened the moment the integration suite passed roughly a hundred tests.
+    The app's own lifespan disposes the pools it opened on *its* loop; this
+    covers the ones the fixture opened on the test's.
     """
     await _flush_rate_limits()
     yield
-    engine = get_async_engine()
-    async with engine.begin() as connection:
-        await connection.execute(text("TRUNCATE workspace_members, workspaces, users CASCADE"))
-    await _flush_rate_limits()
+    try:
+        engine = get_async_engine()
+        async with engine.begin() as connection:
+            await connection.execute(text("TRUNCATE workspace_members, workspaces, users CASCADE"))
+        await _flush_rate_limits()
+    finally:
+        await dispose_engines()
+        await close_redis()
 
 
 async def _flush_rate_limits() -> None:

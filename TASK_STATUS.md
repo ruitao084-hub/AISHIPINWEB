@@ -5,8 +5,8 @@ Living progress record for the AI Product Video Studio build
 of a phase.
 
 - **Last updated:** 2026-08-12
-- **Current phase:** PHASE 5 — Product + Product Truth (next up)
-- **Last completed phase:** PHASE 4 — Media + Upload + Storage ✅
+- **Current phase:** PHASE 6 — Product AI Analysis (next up)
+- **Last completed phase:** PHASE 5 — Product + Product Truth ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -20,7 +20,7 @@ of a phase.
 | 2     | Core Backend Foundation      | ✅ COMPLETED                    |
 | 3     | Auth + Workspace + RBAC      | ✅ COMPLETED                    |
 | 4     | Media + Upload + Storage     | ✅ COMPLETED                    |
-| 5     | Product + Product Truth      | ⬜ NOT_STARTED                  |
+| 5     | Product + Product Truth      | ✅ COMPLETED                    |
 | 6     | Product AI Analysis          | ⬜ NOT_STARTED                  |
 | 7     | Project + Creative + Script  | ⬜ NOT_STARTED                  |
 | 8     | Storyboard + Prompt Compiler | ⬜ NOT_STARTED                  |
@@ -217,23 +217,94 @@ of a phase.
    `LIKE` (two wildcards match as one) but wrong in the stored definition;
    replaced with `starts_with()`, which needs no metacharacter.
 
-## PHASE 5 — Product + Product Truth (next)
+## PHASE 5 — Product + Product Truth
+
+**Status: COMPLETED**
+
+The phase the whole project's credibility rests on: §13 forbids the platform
+from stating a product fact nobody confirmed, and this is where that becomes
+structural rather than aspirational.
+
+### Completed
+
+| Task   | Delivered                                                                                                                                          |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P5-T01 | `products` (§10.5) with the §104 state machine enforced by a transition table — `DRAFT → READY` is not a legal edge                                |
+| P5-T02 | Product CRUD; `status` is deliberately not editable through PATCH (§105)                                                                           |
+| P5-T03 | `product_assets` (§10.6) with roles, ordering, and exactly-one-primary enforced by a partial unique index                                          |
+| P5-T04 | `product_facts` (§10.7); AI-sourced facts are forced to `AI_INFERRED` in the service, so no route can create a pre-verified AI fact                |
+| P5-T05 | `product_claims` (§10.8) with cited evidence, claim types and default risk levels                                                                  |
+| P5-T06 | Fact verify/reject/edit, recording who confirmed and when; a database CHECK refuses a `VERIFIED` row with no timestamp                             |
+| P5-T07 | Claim verification requiring `VERIFIED` backing facts, plus `get_verified_claims` (§109) as the accessor generation code calls                     |
+| P5-T08 | Product list, creation, and a detail page where facts and claims are verified — review state shown on every row rather than hidden behind a filter |
+| Extra  | Withdrawal cascade: rejecting or editing a fact demotes every verified claim citing it. ADR-0008.                                                  |
+
+### Tests
+
+395 passing (239 unit + 117 integration + 39 web), zero warnings.
+
+| Gate                                      | Result                           |
+| ----------------------------------------- | -------------------------------- |
+| `ruff check` / `ruff format --check`      | ✅ pass                          |
+| `mypy --strict`                           | ✅ 58 source files               |
+| `pytest` unit                             | ✅ 239 passed                    |
+| `pytest` integration                      | ✅ 117 passed                    |
+| `vitest`                                  | ✅ 39 passed                     |
+| `eslint` / `tsc` / `next build`           | ✅ pass, 8 routes                |
+| `make contract-check`                     | ✅ pass                          |
+| Migration `upgrade → downgrade → upgrade` | ✅ verified reversible (8 enums) |
+
+### Acceptance (§82)
+
+- [x] Create a product
+- [x] Upload several product images
+- [x] Set the primary image
+- [x] Edit facts
+- [x] Confirm claims
+
+### The rule, and what would have broken it
+
+§13's forbidden example is a test: "Removes 99.9% of formaldehyde" is refused
+verification for lacking evidence, while "Brings a little calm to your morning"
+is approved because it asserts nothing checkable.
+
+The subtle failure the phase had to close: verify a fact, verify a claim citing
+it, then reject the fact. Naively the claim stays `VERIFIED` and a script keeps
+quoting withdrawn evidence — the fabricated statement §13 forbids, reached one
+legitimate step at a time. Rejecting or editing a fact now demotes every claim
+that cited it.
+
+### Bugs found by tests, not by inspection
+
+1. **`create_fact` violated its own CHECK constraint.** It inserted a
+   `VERIFIED` row and stamped `verified_at` in a _second_ statement, so the
+   insert hit `ck_product_facts_verified_facts_have_a_timestamp` immediately.
+   The constraint was written precisely so a partial verification could not
+   exist, and it earned its place on the first run.
+2. **The integration suite exhausted Postgres's connection limit.** Engines are
+   cached per event loop and pytest-asyncio gives each test a fresh one, so
+   every test built a pool nothing disposed. Invisible until the suite passed
+   ~100 tests, then `FATAL: sorry, too many clients already`. The fixture now
+   disposes what it opened.
+
+## PHASE 6 — Product AI Analysis (next)
 
 **Status: NOT_STARTED**
 
-| Task   | Scope                                    |
-| ------ | ---------------------------------------- |
-| P5-T01 | `Product` schema                         |
-| P5-T02 | Product CRUD                             |
-| P5-T03 | `ProductAsset` (links products to media) |
-| P5-T04 | `ProductFact`                            |
-| P5-T05 | `ProductClaim`                           |
-| P5-T06 | Fact verification API                    |
-| P5-T07 | Claim verification API                   |
-| P5-T08 | Product UI                               |
+| Task   | Scope                                                       |
+| ------ | ----------------------------------------------------------- |
+| P6-T01 | LLM / Vision provider contract                              |
+| P6-T02 | Prompt registry (§15)                                       |
+| P6-T03 | Analysis schema (§14)                                       |
+| P6-T04 | Mock vision provider                                        |
+| P6-T05 | Real vision provider · **needs an API key**                 |
+| P6-T06 | Analyze-product job                                         |
+| P6-T07 | Persist AI-inferred facts — status must be `AI_INFERRED`    |
+| P6-T08 | Review UI: verify / reject / edit-and-verify each inference |
 
-**Acceptance:** a user can create a product, upload several product images, set
-a primary image, edit facts and confirm claims.
+**Acceptance:** uploading real product images yields structured Product
+Intelligence. The Truth Layer built in PHASE 5 is what receives it — P6-T07 is
+already enforced by `create_fact`.
 
 ## Known issues
 
