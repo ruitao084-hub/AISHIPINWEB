@@ -51,6 +51,16 @@ export type ClaimStatus = Schemas["ClaimStatus"];
 export type ProductAssetRole = Schemas["ProductAssetRole"];
 export type ProductAnalysisResponse = Schemas["ProductAnalysisResponse"];
 export type AnalysisStatus = Schemas["AnalysisStatus"];
+export type ProjectResponse = Schemas["ProjectResponse"];
+export type CreativePlanResponse = Schemas["CreativePlanResponse"];
+export type ScriptResponse = Schemas["ScriptResponse"];
+export type CreateProjectRequest = Schemas["CreateProjectRequest"];
+export type ProjectStatus = Schemas["ProjectStatus"];
+export type ProjectPurpose = Schemas["ProjectPurpose"];
+export type TargetPlatform = Schemas["TargetPlatform"];
+export type AspectRatio = Schemas["AspectRatio"];
+export type VideoStyle = Schemas["VideoStyle"];
+export type QualityMode = Schemas["QualityMode"];
 
 /** An error carrying the API's `code`, so callers branch on it rather than text. */
 export class ApiError extends Error {
@@ -411,6 +421,68 @@ export const productApi = {
   analyses: (workspaceId: string, productId: string) =>
     apiRequest<ProductAnalysisResponse[]>(
       `/api/v1/workspaces/${workspaceId}/products/${productId}/analyses`,
+    ),
+};
+
+/**
+ * Projects, creative plans and scripts (§16, §17).
+ *
+ * The two generation calls cost money and take seconds. Callers must disable
+ * their trigger while one is in flight — a double-click is two billable
+ * requests, and the API cannot tell them apart.
+ */
+export const projectApi = {
+  list: (workspaceId: string, productId?: string) =>
+    apiRequest<ProjectResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects` +
+        (productId ? `?product_id=${productId}` : ""),
+    ),
+
+  get: (workspaceId: string, projectId: string) =>
+    apiRequest<ProjectResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}`,
+    ),
+
+  create: (workspaceId: string, payload: CreateProjectRequest) =>
+    apiRequest<ProjectResponse>(`/api/v1/workspaces/${workspaceId}/projects`, {
+      method: "POST",
+      body: payload,
+    }),
+
+  // -- creative plans (§16) --
+  plans: (workspaceId: string, projectId: string) =>
+    apiRequest<CreativePlanResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-plans`,
+    ),
+
+  generatePlans: (workspaceId: string, projectId: string) =>
+    apiRequest<CreativePlanResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-plans`,
+      { method: "POST" },
+    ),
+
+  selectPlan: (workspaceId: string, projectId: string, planId: string) =>
+    apiRequest<CreativePlanResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-plans/${planId}/select`,
+      { method: "POST" },
+    ),
+
+  // -- scripts (§17) --
+  scripts: (workspaceId: string, projectId: string) =>
+    apiRequest<ScriptResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/scripts`,
+    ),
+
+  generateScript: (workspaceId: string, projectId: string) =>
+    apiRequest<ScriptResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/scripts`,
+      { method: "POST" },
+    ),
+
+  approveScript: (workspaceId: string, projectId: string, scriptId: string) =>
+    apiRequest<ScriptResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/scripts/${scriptId}/approve`,
+      { method: "POST" },
     ),
 };
 

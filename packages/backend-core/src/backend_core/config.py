@@ -19,7 +19,9 @@ from pydantic import Field, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AppEnv = Literal["development", "test", "staging", "production"]
-QualityMode = Literal["FAST", "STANDARD", "HIGH", "PREMIUM"]
+# QualityMode used to be declared here as a Literal. It moved to
+# `backend_core.domain.enums` in PHASE 7, where it is persisted on the
+# project row — two spellings of the same closed set is how they drift.
 MockVideoMode = Literal["success", "fail", "timeout", "slow"]
 
 #: Failure injection for the mock vision provider (§172). Each mode reaches a
@@ -40,6 +42,17 @@ MockVisionMode = Literal[
 #: default; the setting exists because a customer with difficult imagery can
 #: raise it without a deploy (§122).
 VisionEffort = Literal["low", "medium", "high", "xhigh", "max"]
+
+#: Failure injection for the mock LLM provider (§172). Same taxonomy as the
+#: vision mock, minus `empty` — an empty creative plan set fails schema
+#: validation rather than being a distinct outcome, so it is `malformed`.
+MockLLMMode = Literal[
+    "success",
+    "unavailable",
+    "rate_limited",
+    "rejected",
+    "malformed",
+]
 
 
 class Settings(BaseSettings):
@@ -117,6 +130,17 @@ class Settings(BaseSettings):
     anthropic_vision_model: str = "claude-opus-5"
     anthropic_vision_effort: VisionEffort = "medium"
 
+    # --- Creative and script generation (§16, §17) ------------------------
+    anthropic_llm_model: str = "claude-opus-5"
+    #: Higher than the vision default: writing three genuinely distinct
+    #: concepts and a script that fits a character budget is a reasoning task,
+    #: not a description task, and the cheap tier shows.
+    anthropic_llm_effort: VisionEffort = "high"
+    llm_timeout_seconds: float = Field(default=300.0, gt=0)
+    #: §107 asks for a retry when structured output fails to parse. Two
+    #: attempts, because a third rarely helps and every one is billed.
+    llm_parse_retries: int = Field(default=1, ge=0, le=3)
+
     #: Cap on images per analysis call. Vision pricing is per image, and a
     #: product with forty photographs produces an expensive request whose extra
     #: frames add nothing — the first few cover it from every useful angle.
@@ -171,6 +195,7 @@ class Settings(BaseSettings):
     use_mock_providers: bool = True
     enable_real_video_provider: bool = False
     enable_real_vision_provider: bool = False
+    enable_real_llm_provider: bool = False
     enable_qc: bool = False
     enable_credits: bool = False
     enable_multi_provider: bool = False
@@ -179,6 +204,7 @@ class Settings(BaseSettings):
     # --- Mock failure injection (§172) ------------------------------------
     mock_video_mode: MockVideoMode = "success"
     mock_vision_mode: MockVisionMode = "success"
+    mock_llm_mode: MockLLMMode = "success"
 
     # -- computed ----------------------------------------------------------
 
@@ -255,6 +281,19 @@ class Settings(BaseSettings):
         # Checked at boot rather than at the first analysis: a missing key
         # discovered mid-request costs a user their upload flow, whereas one
         # discovered here costs a deploy that was going to fail anyway.
+        if self.enable_real_llm_provider:
+            if self.default_llm_provider == "mock":
+                raise ValueError(
+                    "ENABLE_REAL_LLM_PROVIDER is true but DEFAULT_LLM_PROVIDER is 'mock'"
+                )
+            if (
+                self.default_llm_provider == "anthropic"
+                and not self.anthropic_api_key.get_secret_value()
+            ):
+                raise ValueError(
+                    "DEFAULT_LLM_PROVIDER is 'anthropic' but ANTHROPIC_API_KEY is not set"
+                )
+
         if self.enable_real_vision_provider:
             if self.default_vision_provider == "mock":
                 raise ValueError(

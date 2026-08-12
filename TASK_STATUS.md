@@ -5,8 +5,8 @@ Living progress record for the AI Product Video Studio build
 of a phase.
 
 - **Last updated:** 2026-08-12
-- **Current phase:** PHASE 7 — Project + Creative + Script (next up)
-- **Last completed phase:** PHASE 6 — Product AI Analysis ✅
+- **Current phase:** PHASE 8 — Storyboard + Prompt Compiler (next up)
+- **Last completed phase:** PHASE 7 — Project + Creative + Script ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -22,7 +22,7 @@ of a phase.
 | 4     | Media + Upload + Storage     | ✅ COMPLETED                    |
 | 5     | Product + Product Truth      | ✅ COMPLETED                    |
 | 6     | Product AI Analysis          | ✅ COMPLETED                    |
-| 7     | Project + Creative + Script  | ⬜ NOT_STARTED                  |
+| 7     | Project + Creative + Script  | ✅ COMPLETED                    |
 | 8     | Storyboard + Prompt Compiler | ⬜ NOT_STARTED                  |
 | 9     | Job System + Mock Provider   | ⬜ NOT_STARTED                  |
 | 10    | First Real Video Provider    | ⬜ NOT_STARTED · needs API key  |
@@ -354,6 +354,62 @@ template and then expanded by the next iteration — untrusted input reaching th
 instruction text. Replaced with a single-pass regex substitution, which never
 re-reads what it just wrote, plus a test on the real template.
 
+## PHASE 7 — Project + Creative + Script
+
+**Status: COMPLETED**
+
+### Completed
+
+| Task   | Delivered                                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P7-T01 | `projects` (§10.9) with the §105 state machine **derived** from three rules rather than ~40 hand-written edges                                                     |
+| P7-T02 | Project CRUD; the brief is editable only ahead of generation, because changing a duration once shots exist would orphan paid work                                  |
+| P7-T03 | Project wizard and detail page: plan picker showing `risk_notes` on every card, script view naming the claims behind it                                            |
+| P7-T04 | `creative_plan_v1` — §108 boundary first, §13's no-invented-numbers rule stated where the model reads it                                                           |
+| P7-T05 | `CreativePlanSet` / `ScriptDocument`, `extra="forbid"`, exactly three plans with **distinct titles**                                                               |
+| P7-T06 | `POST .../creative-plans` — re-running versions rather than replaces, and clears the stale selection                                                               |
+| P7-T07 | `POST .../creative-plans/{id}/select`, one selection per project enforced by a partial unique index                                                                |
+| P7-T08 | `script_generate_v1` with the character budget passed as a number, not an adjective                                                                                |
+| P7-T09 | **The verified-claim filter.** One function, `CreativeService._brief`, reaching the Truth Layer's `get_verified_claims`. Providers receive strings, never entities |
+| P7-T10 | Immutable script versions; human edits append; approving supersedes the rest via a partial unique index so PHASE 8 has one answer                                  |
+
+### Tests
+
+527 passing (368 unit + 159 integration), zero warnings. 85 new.
+
+| Gate                 | Command                         | Result                        |
+| -------------------- | ------------------------------- | ----------------------------- |
+| Python lint + format | `ruff check` / `format --check` | ✅                            |
+| Python types         | `mypy --strict`                 | ✅ no issues, 72 files        |
+| Unit                 | `pytest -m "not integration"`   | ✅ 368 passed                 |
+| Integration          | `pytest -m integration`         | ✅ 159 passed                 |
+| Migration round-trip | `upgrade → downgrade → upgrade` | ✅ plus `alembic check` clean |
+| Web lint/types/build | `pnpm`                          | ✅                            |
+
+### Acceptance (§84)
+
+- [x] Create a project from a product
+- [x] Generate three plans — distinct titles enforced by schema, not hoped for
+- [x] Select one; a second selection replaces the first rather than joining it
+- [x] Generate a script: nine §17 sections, in order, budgeted against duration
+- [x] **A SUGGESTED claim's text appears nowhere in a generated script** — asserted end to end through the API
+- [x] An approved claim does reach it, and its id is recorded on the script
+- [x] Rejecting a claim afterwards leaves the script still traceable to it
+- [x] A product with nothing verified is refused with `CLAIM_NOT_VERIFIED`
+- [x] Every provider failure leaves the project in `DRAFT` with no plans written
+- [x] A viewer cannot generate — `GENERATION_RUN`, not `PROJECT_WRITE` (§40)
+
+### One finding worth carrying forward
+
+**The state machine had to learn that `ANALYZING` is skippable.** The derived
+table gave `DRAFT → ANALYZING → CREATIVE_PLANNING`, which the first acceptance
+run rejected with a 409. A project's analysis stage means "analyse the product
+this project is for" — and PHASE 6 made that a _product_ concern. An
+already-analysed product's projects would have been forced through a stage that
+either bills a second vision call or is set and immediately cleared. Added as an
+explicit exception with the reason recorded, rather than by loosening the
+derivation.
+
 ## Known issues
 
 | #   | Issue                                                                                                        | Impact                                                                                                                                | Plan                                                                                                                                                                                                           |
@@ -392,6 +448,8 @@ Nothing right now. Development proceeds on mocks through PHASE 9.
 | 11  | `complete` runs ffprobe synchronously inside a request                           | The job system arrives in PHASE 9; the acceptance criterion needs a synchronous answer                                                                                                              | Bounded by `media_probe_timeout_seconds` and run off the event loop. Candidate to become a job in PHASE 9.                                                                                   |
 | 12  | **`AnthropicVisionProvider` has never run against the live API**                 | No key has been supplied. Request construction, downscaling, parsing and every error-mapping branch are tested against a stubbed client; whether the request shape is one the vendor accepts is not | Needs `ANTHROPIC_API_KEY` from the user. Until then `USE_MOCK_PROVIDERS=true` carries the whole flow (§170). Recorded in the module docstring too, so it cannot be rediscovered by surprise. |
 | 13  | Analysis runs synchronously inside the request                                   | §83 permits it for a short task, and the job system is PHASE 9                                                                                                                                      | PHASE 9. The API already returns a `ProductAnalysis` row rather than the intelligence, so the async shape needs no client change beyond polling.                                             |
+| 15  | `AnthropicLLMProvider` has never run against the live API                        | Same as #12 and for the same reason — no key                                                                                                                                                        | Needs `ANTHROPIC_API_KEY`. Request construction, both schemas, the §107 parse-retry loop and every error branch are tested against a stubbed client.                                         |
+| 16  | Creative and script generation run synchronously inside the request              | §83 allows it; the job system is PHASE 9                                                                                                                                                            | PHASE 9, alongside PHASE 6's analysis call.                                                                                                                                                  |
 | 14  | The vendor JSON schema is hand-written beside the Pydantic model                 | Generating it from a model whose fields all have defaults produces a schema the structured-output API rejects                                                                                       | Kept in step by `test_the_schema_matches_the_pydantic_model`. Revisit if the vendor relaxes the `required` rule.                                                                             |
 
 ## Deviations from the taskbook

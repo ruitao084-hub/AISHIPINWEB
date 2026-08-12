@@ -1,7 +1,8 @@
-"""ORM models: users, workspaces, membership, media and products.
+"""ORM models: identity, media, products, and video projects.
 
-Covers taskbook §10.1-§10.3 (identity and tenancy), §10.17 (media) and
-§10.5-§10.8 (products and the Truth Layer).
+Covers taskbook §10.1-§10.3 (identity and tenancy), §10.17 (media),
+§10.5-§10.8 (products and the Truth Layer) and §10.9-§10.11 (projects,
+creative plans and scripts).
 """
 
 from __future__ import annotations
@@ -36,6 +37,7 @@ from backend_core.db.base import (
 )
 from backend_core.domain.enums import (
     AnalysisStatus,
+    AspectRatio,
     AssetSourceType,
     AssetType,
     ClaimRiskLevel,
@@ -46,9 +48,15 @@ from backend_core.domain.enums import (
     PlanCode,
     ProductAssetRole,
     ProductStatus,
+    ProjectPurpose,
+    ProjectStatus,
+    QualityMode,
+    ScriptStatus,
+    TargetPlatform,
     UploadStatus,
     UserStatus,
     VerificationStatus,
+    VideoStyle,
     WorkspaceRole,
     WorkspaceStatus,
 )
@@ -728,3 +736,236 @@ class ProductAnalysis(WorkspaceEntity):
             f"ProductAnalysis(id={self.id!r}, provider={self.provider!r}, "
             f"status={self.status.value!r})"
         )
+
+
+# ---------------------------------------------------------------------------
+# PHASE 7 — Project, Creative Plan, Script (§10.9-§10.11)
+# ---------------------------------------------------------------------------
+
+
+class Project(WorkspaceEntity, SoftDeleteMixin):
+    """One video being made from one product (§10.9).
+
+    The brief and the pipeline state in one row. Every field above `status` is
+    an input the creative and script engines read (§16), which is why they are
+    columns rather than a settings blob: "generate me a 30-second 9:16 Douyin
+    ad" has to be answerable by a query, not by parsing JSON.
+    """
+
+    __tablename__ = "projects"
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    #: PHASE 17. Declared now because the creative engine (§16) lists Brand Kit
+    #: among its inputs, and adding the column later means a second migration
+    #: over a table that will by then have rows.
+    brand_kit_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    purpose: Mapped[ProjectPurpose] = mapped_column(
+        _pg_enum(ProjectPurpose, "project_purpose"),
+        nullable=False,
+        default=ProjectPurpose.SOCIAL_AD,
+        server_default=ProjectPurpose.SOCIAL_AD.value,
+    )
+    target_platform: Mapped[TargetPlatform] = mapped_column(
+        _pg_enum(TargetPlatform, "target_platform"),
+        nullable=False,
+        default=TargetPlatform.DOUYIN,
+        server_default=TargetPlatform.DOUYIN.value,
+    )
+    target_audience: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: BCP-47. The language every generated word must be written in (§128).
+    language: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="zh-CN", server_default="zh-CN"
+    )
+    aspect_ratio: Mapped[AspectRatio] = mapped_column(
+        _pg_enum(AspectRatio, "aspect_ratio"),
+        nullable=False,
+        default=AspectRatio.PORTRAIT_9_16,
+        server_default=AspectRatio.PORTRAIT_9_16.value,
+    )
+    duration_seconds: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=30, server_default=text("30")
+    )
+    style: Mapped[VideoStyle] = mapped_column(
+        _pg_enum(VideoStyle, "video_style"),
+        nullable=False,
+        default=VideoStyle.CLEAN_MINIMAL,
+        server_default=VideoStyle.CLEAN_MINIMAL.value,
+    )
+    quality_mode: Mapped[QualityMode] = mapped_column(
+        _pg_enum(QualityMode, "quality_mode"),
+        nullable=False,
+        default=QualityMode.STANDARD,
+        server_default=QualityMode.STANDARD.value,
+    )
+
+    status: Mapped[ProjectStatus] = mapped_column(
+        _pg_enum(ProjectStatus, "project_status"),
+        nullable=False,
+        default=ProjectStatus.DRAFT,
+        server_default=ProjectStatus.DRAFT.value,
+    )
+    #: Why the project failed, kept for the resume path (§105). Cleared when a
+    #: recovery transition moves it back onto the pipeline.
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    product: Mapped[Product] = relationship(lazy="raise")
+
+    __table_args__ = (
+        # §12's ceiling, enforced in the database as well as the settings layer:
+        # a 40-minute "short video" is a render bill nobody authorised.
+        CheckConstraint(
+            "duration_seconds > 0 AND duration_seconds <= 600",
+            name="duration_is_within_range",
+        ),
+        CheckConstraint(
+            "status <> 'FAILED' OR failure_reason IS NOT NULL",
+            name="failed_projects_explain_themselves",
+        ),
+        workspace_scoped_index("projects", "status"),
+        workspace_scoped_index("projects", "product_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"Project(id={self.id!r}, name={self.name!r}, status={self.status.value!r})"
+
+
+class CreativePlan(WorkspaceEntity):
+    """One of the three creative directions offered for a project (§10.10, §16).
+
+    Immutable once written. Regenerating produces a new `version` rather than
+    editing these — the user's choice was made against specific wording, and
+    rewriting it under them would make "which plan did they pick?" unanswerable.
+    """
+
+    __tablename__ = "creative_plans"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    #: Generation round. All three plans from one call share a version.
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    concept: Mapped[str] = mapped_column(Text, nullable=False)
+    hook: Mapped[str] = mapped_column(Text, nullable=False)
+    core_message: Mapped[str] = mapped_column(Text, nullable=False)
+    narrative_structure: Mapped[str] = mapped_column(Text, nullable=False)
+    visual_direction: Mapped[str] = mapped_column(Text, nullable=False)
+    camera_direction: Mapped[str] = mapped_column(Text, nullable=False)
+    music_direction: Mapped[str] = mapped_column(Text, nullable=False)
+    ending_cta: Mapped[str] = mapped_column(Text, nullable=False)
+    #: §16's `risk_notes`. Where the model flags a direction that leans on
+    #: something unverified — read by a human before selection, not enforced.
+    risk_notes: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    recommended_style: Mapped[VideoStyle | None] = mapped_column(
+        _pg_enum(VideoStyle, "video_style"), nullable=True
+    )
+
+    selected: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
+    #: §15's record: provider, model, prompt key and version for this call.
+    model_info: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    __table_args__ = (
+        # At most one selected plan per project. §16 requires a choice before
+        # scripting, and two simultaneous choices is not a state the script
+        # engine could act on.
+        Index(
+            "uq_creative_plans_selected",
+            "project_id",
+            unique=True,
+            postgresql_where=text("selected"),
+        ),
+        workspace_scoped_index("creative_plans", "project_id"),
+        Index("ix_creative_plans_project_id_version", "project_id", "version"),
+    )
+
+    def __repr__(self) -> str:
+        return f"CreativePlan(id={self.id!r}, title={self.title!r}, selected={self.selected!r})"
+
+
+class Script(WorkspaceEntity):
+    """A versioned script for a project (§10.11, §17).
+
+    Versions are immutable and never overwritten: §17 says an edit produces a
+    new version and history survives. `SUPERSEDED` marks the ones an edit
+    replaced, so "what did we approve last Tuesday" stays answerable.
+
+    `sourced_claim_ids` is the audit trail P7-T09 exists to produce. It records
+    which verified claims were loaded when this text was generated, so a claim
+    later withdrawn can be traced to every script that leaned on it.
+    """
+
+    __tablename__ = "scripts"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    creative_plan_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("creative_plans.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    #: The structured sections of §17, validated against `ScriptDocument`.
+    content_json: Mapped[dict[str, Any]] = mapped_column(postgresql.JSONB, nullable=False)
+    #: The same script as flat narration, for reading and for the TTS engine.
+    plain_text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    status: Mapped[ScriptStatus] = mapped_column(
+        _pg_enum(ScriptStatus, "script_status"),
+        nullable=False,
+        default=ScriptStatus.DRAFT,
+        server_default=ScriptStatus.DRAFT.value,
+    )
+
+    #: Which VERIFIED claims were in scope when this was written (P7-T09).
+    sourced_claim_ids: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    #: Estimated narration length from the character budget (§17). An estimate,
+    #: replaced by the TTS engine's measurement in PHASE 12.
+    estimated_duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    model_info: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "version", name="uq_scripts_project_version"),
+        # One approved script at a time: PHASE 8 asks "which script do I turn
+        # into a storyboard", and that must have one answer.
+        Index(
+            "uq_scripts_approved",
+            "project_id",
+            unique=True,
+            postgresql_where=text("status = 'APPROVED'"),
+        ),
+        workspace_scoped_index("scripts", "project_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"Script(id={self.id!r}, version={self.version!r}, status={self.status.value!r})"

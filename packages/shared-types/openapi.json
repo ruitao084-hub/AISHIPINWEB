@@ -49,6 +49,12 @@
         "title": "ApiInfo",
         "type": "object"
       },
+      "AspectRatio": {
+        "description": "Frame shape. Stored as an enum rather than a free string because the\nrender pipeline (PHASE 13) resolves it to exact pixel dimensions, and\n\"9 : 16\" versus \"9:16\" would be two products' worth of bugs.",
+        "enum": ["9:16", "16:9", "1:1", "4:5"],
+        "title": "AspectRatio",
+        "type": "string"
+      },
       "AssetType": {
         "description": "What kind of media an asset holds (§10.17).",
         "enum": [
@@ -246,6 +252,68 @@
         "title": "CreateProductRequest",
         "type": "object"
       },
+      "CreateProjectRequest": {
+        "properties": {
+          "aspect_ratio": {
+            "$ref": "#/components/schemas/AspectRatio",
+            "default": "9:16"
+          },
+          "duration_seconds": {
+            "default": 30,
+            "maximum": 600.0,
+            "minimum": 5.0,
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "language": {
+            "default": "zh-CN",
+            "maxLength": 16,
+            "title": "Language",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ProjectPurpose",
+            "default": "SOCIAL_AD"
+          },
+          "quality_mode": {
+            "$ref": "#/components/schemas/QualityMode",
+            "default": "STANDARD"
+          },
+          "style": {
+            "$ref": "#/components/schemas/VideoStyle",
+            "default": "CLEAN_MINIMAL"
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience"
+          },
+          "target_platform": {
+            "$ref": "#/components/schemas/TargetPlatform",
+            "default": "DOUYIN"
+          }
+        },
+        "required": ["product_id", "name"],
+        "title": "CreateProjectRequest",
+        "type": "object"
+      },
       "CreateWorkspaceRequest": {
         "properties": {
           "name": {
@@ -257,6 +325,87 @@
         },
         "required": ["name"],
         "title": "CreateWorkspaceRequest",
+        "type": "object"
+      },
+      "CreativePlanResponse": {
+        "properties": {
+          "camera_direction": {
+            "title": "Camera Direction",
+            "type": "string"
+          },
+          "concept": {
+            "title": "Concept",
+            "type": "string"
+          },
+          "core_message": {
+            "title": "Core Message",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ending_cta": {
+            "title": "Ending Cta",
+            "type": "string"
+          },
+          "hook": {
+            "title": "Hook",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "music_direction": {
+            "title": "Music Direction",
+            "type": "string"
+          },
+          "narrative_structure": {
+            "title": "Narrative Structure",
+            "type": "string"
+          },
+          "risk_notes": {
+            "description": "Where the model flagged something a human should check before filming — a claim it wanted and did not have, or a direction resting on something unstated (§16).",
+            "title": "Risk Notes",
+            "type": "string"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visual_direction": {
+            "title": "Visual Direction",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "title",
+          "concept",
+          "hook",
+          "core_message",
+          "narrative_structure",
+          "visual_direction",
+          "camera_direction",
+          "music_direction",
+          "ending_cta",
+          "risk_notes",
+          "selected",
+          "created_at"
+        ],
+        "title": "CreativePlanResponse",
         "type": "object"
       },
       "DependencyStatus": {
@@ -1244,6 +1393,133 @@
         "title": "ProductStatus",
         "type": "string"
       },
+      "ProjectPurpose": {
+        "description": "What the video is for (§10.9, §16).\n\nFeeds the creative prompt, so these are not cosmetic: a launch film and a\nmarketplace listing want different structures from the same product.",
+        "enum": [
+          "LAUNCH",
+          "ECOMMERCE_LISTING",
+          "SOCIAL_AD",
+          "BRAND_STORY",
+          "FEATURE_HIGHLIGHT",
+          "TUTORIAL",
+          "OTHER"
+        ],
+        "title": "ProjectPurpose",
+        "type": "string"
+      },
+      "ProjectResponse": {
+        "properties": {
+          "aspect_ratio": {
+            "$ref": "#/components/schemas/AspectRatio"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ProjectPurpose"
+          },
+          "quality_mode": {
+            "$ref": "#/components/schemas/QualityMode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
+          },
+          "style": {
+            "$ref": "#/components/schemas/VideoStyle"
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience"
+          },
+          "target_platform": {
+            "$ref": "#/components/schemas/TargetPlatform"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "name",
+          "purpose",
+          "target_platform",
+          "target_audience",
+          "language",
+          "aspect_ratio",
+          "duration_seconds",
+          "style",
+          "quality_mode",
+          "status",
+          "failure_reason",
+          "created_at"
+        ],
+        "title": "ProjectResponse",
+        "type": "object"
+      },
+      "ProjectStatus": {
+        "description": "Where a video project has got to (§10.9, §105).\n\nLonger than the product's machine because a project *is* the pipeline: each\nstate names a stage that can fail on its own and be resumed on its own.",
+        "enum": [
+          "DRAFT",
+          "ANALYZING",
+          "CREATIVE_PLANNING",
+          "SCRIPTING",
+          "STORYBOARDING",
+          "GENERATING",
+          "COMPOSITING",
+          "QC",
+          "READY",
+          "FAILED",
+          "ARCHIVED"
+        ],
+        "title": "ProjectStatus",
+        "type": "string"
+      },
+      "QualityMode": {
+        "description": "Cost/quality tier (§10.9, §138). Drives provider and model selection in\nPHASE 19 and the credit price in PHASE 18.",
+        "enum": ["FAST", "STANDARD", "HIGH", "PREMIUM"],
+        "title": "QualityMode",
+        "type": "string"
+      },
       "ReadyResponse": {
         "description": "Readiness payload.",
         "properties": {
@@ -1287,6 +1563,160 @@
         "required": ["email", "password", "display_name"],
         "title": "RegisterRequest",
         "type": "object"
+      },
+      "ReviseScriptRequest": {
+        "description": "A human's edit. Validated against §17's schema like any generated one —\na hand-written script with eight sections would break PHASE 8 exactly as a\ngenerated one would.",
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ScriptDocument"
+          }
+        },
+        "required": ["document"],
+        "title": "ReviseScriptRequest",
+        "type": "object"
+      },
+      "ScriptDocument": {
+        "additionalProperties": false,
+        "description": "A complete script (§17).\n\nAll nine sections, in §17's order, no duplicates. Order is not cosmetic —\nPHASE 8 turns this sequence into shots, and a script whose CTA precedes its\nhook would produce a storyboard nobody could film.",
+        "properties": {
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ScriptSection"
+            },
+            "minItems": 9,
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": ["sections"],
+        "title": "ScriptDocument",
+        "type": "object"
+      },
+      "ScriptResponse": {
+        "properties": {
+          "content_json": {
+            "additionalProperties": true,
+            "title": "Content Json",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "creative_plan_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creative Plan Id"
+          },
+          "estimated_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Duration Seconds"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "plain_text": {
+            "title": "Plain Text",
+            "type": "string"
+          },
+          "sourced_claim_ids": {
+            "description": "The VERIFIED claims that were in scope when this was written (P7-T09). A claim withdrawn later can be traced to every script that used it.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Sourced Claim Ids",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScriptStatus"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "status",
+          "creative_plan_id",
+          "content_json",
+          "plain_text",
+          "sourced_claim_ids",
+          "estimated_duration_seconds",
+          "created_at"
+        ],
+        "title": "ScriptResponse",
+        "type": "object"
+      },
+      "ScriptSection": {
+        "additionalProperties": false,
+        "description": "One narrated beat of the script (§17).",
+        "properties": {
+          "duration_seconds": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "narration": {
+            "default": "",
+            "title": "Narration",
+            "type": "string"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "visual": {
+            "default": "",
+            "title": "Visual",
+            "type": "string"
+          }
+        },
+        "required": ["section"],
+        "title": "ScriptSection",
+        "type": "object"
+      },
+      "ScriptStatus": {
+        "description": "§10.11. A script is DRAFT until a person accepts it.\n\n`SUPERSEDED` rather than deletion: §17 requires history to survive an edit,\nso a new version marks the old one superseded instead of overwriting it.",
+        "enum": ["DRAFT", "APPROVED", "SUPERSEDED"],
+        "title": "ScriptStatus",
+        "type": "string"
+      },
+      "TargetPlatform": {
+        "description": "Where the video will be published (§10.9).",
+        "enum": [
+          "DOUYIN",
+          "XIAOHONGSHU",
+          "BILIBILI",
+          "WECHAT_CHANNELS",
+          "TAOBAO",
+          "TIKTOK",
+          "INSTAGRAM",
+          "YOUTUBE",
+          "OTHER"
+        ],
+        "title": "TargetPlatform",
+        "type": "string"
       },
       "TokenResponse": {
         "description": "Issued credentials.\n\nThe refresh token is **not** in this body — it is set as an HttpOnly cookie.\nReturning it here would put a long-lived credential somewhere JavaScript\ncan read it.",
@@ -1449,6 +1879,79 @@
         "title": "UpdateProductRequest",
         "type": "object"
       },
+      "UpdateProjectRequest": {
+        "properties": {
+          "aspect_ratio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AspectRatio"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "maximum": 600.0,
+                "minimum": 5.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "quality_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QualityMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "style": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoStyle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience"
+          }
+        },
+        "title": "UpdateProjectRequest",
+        "type": "object"
+      },
       "UpdateWorkspaceRequest": {
         "properties": {
           "name": {
@@ -1556,6 +2059,19 @@
         "description": "How much a fact may be trusted (§10.7, §13).\n\nThis is the Truth Layer. Only `VERIFIED` facts may back a claim, and only\n`VERIFIED` claims may reach a script (§109). Everything the AI produces\nstarts at `AI_INFERRED` and can only be promoted by a person.",
         "enum": ["AI_INFERRED", "USER_PROVIDED", "VERIFIED", "REJECTED"],
         "title": "VerificationStatus",
+        "type": "string"
+      },
+      "VideoStyle": {
+        "description": "Visual register (§10.9). Reaches the prompt compiler in PHASE 8.",
+        "enum": [
+          "CLEAN_MINIMAL",
+          "WARM_LIFESTYLE",
+          "TECH_PREMIUM",
+          "BOLD_ENERGETIC",
+          "NATURAL_DOCUMENTARY",
+          "LUXURY"
+        ],
+        "title": "VideoStyle",
         "type": "string"
       },
       "WorkspaceResponse": {
@@ -5763,6 +6279,1379 @@
         ],
         "summary": "Mark a reviewed product ready",
         "tags": ["products"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects": {
+      "get": {
+        "operationId": "list_projects_api_v1_workspaces__workspace_id__projects_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProjectStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectResponse"
+                  },
+                  "title": "Response List Projects Api V1 Workspaces  Workspace Id  Projects Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "List projects",
+        "tags": ["projects"]
+      },
+      "post": {
+        "description": "Create a project against a product. Always starts in DRAFT (§105).",
+        "operationId": "create_project_api_v1_workspaces__workspace_id__projects_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Start a project",
+        "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}": {
+      "get": {
+        "operationId": "get_project_api_v1_workspaces__workspace_id__projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Get a project",
+        "tags": ["projects"]
+      },
+      "patch": {
+        "description": "Change the brief, while the project is still ahead of generation.\n\nRefused afterwards: changing the duration once shots exist would silently\ninvalidate work already paid for. Move the project back a stage first.",
+        "operationId": "update_project_api_v1_workspaces__workspace_id__projects__project_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Edit the brief",
+        "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/archive": {
+      "post": {
+        "operationId": "archive_project_api_v1_workspaces__workspace_id__projects__project_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Archive a project",
+        "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/creative-plans": {
+      "get": {
+        "operationId": "list_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CreativePlanResponse"
+                  },
+                  "title": "Response List Creative Plans Api V1 Workspaces  Workspace Id  Projects  Project Id  Creative Plans Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "List creative plans",
+        "tags": ["projects"]
+      },
+      "post": {
+        "description": "Produce three directions to choose between (§16).\n\nBuilt only from the product's VERIFIED facts and claims — a product with\nnothing confirmed is refused with `CLAIM_NOT_VERIFIED` rather than served\nwith invented content.\n\nRe-running produces a new version and clears any previous selection; the\nold plans stay readable (§103 rule 9).",
+        "operationId": "generate_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CreativePlanResponse"
+                  },
+                  "title": "Response Generate Creative Plans Api V1 Workspaces  Workspace Id  Projects  Project Id  Creative Plans Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Generate three creative directions",
+        "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/creative-plans/{plan_id}/select": {
+      "post": {
+        "description": "Pick the plan to script from (§16). Exactly one per project.",
+        "operationId": "select_creative_plan_api_v1_workspaces__workspace_id__projects__project_id__creative_plans__plan_id__select_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativePlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Choose a direction",
+        "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts": {
+      "get": {
+        "operationId": "list_scripts_api_v1_workspaces__workspace_id__projects__project_id__scripts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScriptResponse"
+                  },
+                  "title": "Response List Scripts Api V1 Workspaces  Workspace Id  Projects  Project Id  Scripts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Script history",
+        "tags": ["projects"]
+      },
+      "post": {
+        "description": "Write a script from the selected plan (§17).\n\nOnly VERIFIED claims reach the generator (P7-T09), and which ones did is\nrecorded on the row. Always a new version; the previous ones stay readable.",
+        "operationId": "generate_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Generate a script",
+        "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts/revise": {
+      "post": {
+        "description": "Store a human's edit as a new version (§17).\n\nNever an update in place — history survives an edit, so a user who regrets\na change can still see what they had.",
+        "operationId": "revise_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_revise_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseScriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Save an edited script",
+        "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts/{script_id}/approve": {
+      "post": {
+        "description": "Accept this version and supersede the rest.\n\nPHASE 8 reads the approved script, so exactly one may hold that status —\nenforced by a partial unique index, not only by this handler.",
+        "operationId": "approve_script_api_v1_workspaces__workspace_id__projects__project_id__scripts__script_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "script_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Script Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Approve a script",
+        "tags": ["projects"]
       }
     },
     "/api/v1/workspaces/{workspace_id}/uploads/config": {

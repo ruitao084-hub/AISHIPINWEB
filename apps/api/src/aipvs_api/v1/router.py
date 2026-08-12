@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from aipvs_api.errors import ErrorResponse
-from aipvs_api.v1 import auth, products, uploads, workspaces
+from aipvs_api.v1 import auth, products, projects, uploads, workspaces
 
 # Documented once here rather than repeated per route, so every endpoint's
 # OpenAPI entry advertises the same envelope and the generated TypeScript
@@ -49,6 +49,10 @@ async def api_info() -> ApiInfo:
         features.append("mock_providers")
     if settings.enable_real_video_provider:
         features.append("real_video_provider")
+    if settings.enable_real_vision_provider:
+        features.append("real_vision_provider")
+    if settings.enable_real_llm_provider:
+        features.append("real_llm_provider")
     if settings.enable_qc:
         features.append("qc")
     if settings.enable_credits:
@@ -65,9 +69,9 @@ api_v1_router.include_router(auth.router)
 api_v1_router.include_router(workspaces.router)
 api_v1_router.include_router(uploads.router)
 api_v1_router.include_router(products.router)
+api_v1_router.include_router(projects.router)
 
 # Further resource routers mount here as their phases land:
-#   PHASE 7  projects, creative plans, scripts
 #   PHASE 8  storyboards, shots
 #   PHASE 9  jobs
 #   PHASE 12 voice, subtitles

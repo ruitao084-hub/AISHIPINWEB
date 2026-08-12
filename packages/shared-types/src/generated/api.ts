@@ -664,6 +664,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List projects */
+        get: operations["list_projects_api_v1_workspaces__workspace_id__projects_get"];
+        put?: never;
+        /**
+         * Start a project
+         * @description Create a project against a product. Always starts in DRAFT (§105).
+         */
+        post: operations["create_project_api_v1_workspaces__workspace_id__projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a project */
+        get: operations["get_project_api_v1_workspaces__workspace_id__projects__project_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit the brief
+         * @description Change the brief, while the project is still ahead of generation.
+         *
+         *     Refused afterwards: changing the duration once shots exist would silently
+         *     invalidate work already paid for. Move the project back a stage first.
+         */
+        patch: operations["update_project_api_v1_workspaces__workspace_id__projects__project_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a project */
+        post: operations["archive_project_api_v1_workspaces__workspace_id__projects__project_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/creative-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List creative plans */
+        get: operations["list_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_get"];
+        put?: never;
+        /**
+         * Generate three creative directions
+         * @description Produce three directions to choose between (§16).
+         *
+         *     Built only from the product's VERIFIED facts and claims — a product with
+         *     nothing confirmed is refused with `CLAIM_NOT_VERIFIED` rather than served
+         *     with invented content.
+         *
+         *     Re-running produces a new version and clears any previous selection; the
+         *     old plans stay readable (§103 rule 9).
+         */
+        post: operations["generate_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/creative-plans/{plan_id}/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose a direction
+         * @description Pick the plan to script from (§16). Exactly one per project.
+         */
+        post: operations["select_creative_plan_api_v1_workspaces__workspace_id__projects__project_id__creative_plans__plan_id__select_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Script history */
+        get: operations["list_scripts_api_v1_workspaces__workspace_id__projects__project_id__scripts_get"];
+        put?: never;
+        /**
+         * Generate a script
+         * @description Write a script from the selected plan (§17).
+         *
+         *     Only VERIFIED claims reach the generator (P7-T09), and which ones did is
+         *     recorded on the row. Always a new version; the previous ones stay readable.
+         */
+        post: operations["generate_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts/revise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save an edited script
+         * @description Store a human's edit as a new version (§17).
+         *
+         *     Never an update in place — history survives an edit, so a user who regrets
+         *     a change can still see what they had.
+         */
+        post: operations["revise_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_revise_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts/{script_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a script
+         * @description Accept this version and supersede the rest.
+         *
+         *     PHASE 8 reads the approved script, so exactly one may hold that status —
+         *     enforced by a partial unique index, not only by this handler.
+         */
+        post: operations["approve_script_api_v1_workspaces__workspace_id__projects__project_id__scripts__script_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/uploads/config": {
         parameters: {
             query?: never;
@@ -820,6 +1000,14 @@ export interface components {
             version: string;
         };
         /**
+         * AspectRatio
+         * @description Frame shape. Stored as an enum rather than a free string because the
+         *     render pipeline (PHASE 13) resolves it to exact pixel dimensions, and
+         *     "9 : 16" versus "9:16" would be two products' worth of bugs.
+         * @enum {string}
+         */
+        AspectRatio: "9:16" | "16:9" | "1:1" | "4:5";
+        /**
          * AssetType
          * @description What kind of media an asset holds (§10.17).
          * @enum {string}
@@ -910,10 +1098,82 @@ export interface components {
             /** Sku */
             sku?: string | null;
         };
+        /** CreateProjectRequest */
+        CreateProjectRequest: {
+            /** @default 9:16 */
+            aspect_ratio: components["schemas"]["AspectRatio"];
+            /**
+             * Duration Seconds
+             * @default 30
+             */
+            duration_seconds: number;
+            /**
+             * Language
+             * @default zh-CN
+             */
+            language: string;
+            /** Name */
+            name: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** @default SOCIAL_AD */
+            purpose: components["schemas"]["ProjectPurpose"];
+            /** @default STANDARD */
+            quality_mode: components["schemas"]["QualityMode"];
+            /** @default CLEAN_MINIMAL */
+            style: components["schemas"]["VideoStyle"];
+            /** Target Audience */
+            target_audience?: string | null;
+            /** @default DOUYIN */
+            target_platform: components["schemas"]["TargetPlatform"];
+        };
         /** CreateWorkspaceRequest */
         CreateWorkspaceRequest: {
             /** Name */
             name: string;
+        };
+        /** CreativePlanResponse */
+        CreativePlanResponse: {
+            /** Camera Direction */
+            camera_direction: string;
+            /** Concept */
+            concept: string;
+            /** Core Message */
+            core_message: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Ending Cta */
+            ending_cta: string;
+            /** Hook */
+            hook: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Music Direction */
+            music_direction: string;
+            /** Narrative Structure */
+            narrative_structure: string;
+            /**
+             * Risk Notes
+             * @description Where the model flagged something a human should check before filming — a claim it wanted and did not have, or a direction resting on something unstated (§16).
+             */
+            risk_notes: string;
+            /** Selected */
+            selected: boolean;
+            /** Title */
+            title: string;
+            /** Version */
+            version: number;
+            /** Visual Direction */
+            visual_direction: string;
         };
         /**
          * DependencyStatus
@@ -1336,6 +1596,65 @@ export interface components {
          */
         ProductStatus: "DRAFT" | "ASSETS_READY" | "ANALYZING" | "REVIEW_REQUIRED" | "READY" | "ARCHIVED";
         /**
+         * ProjectPurpose
+         * @description What the video is for (§10.9, §16).
+         *
+         *     Feeds the creative prompt, so these are not cosmetic: a launch film and a
+         *     marketplace listing want different structures from the same product.
+         * @enum {string}
+         */
+        ProjectPurpose: "LAUNCH" | "ECOMMERCE_LISTING" | "SOCIAL_AD" | "BRAND_STORY" | "FEATURE_HIGHLIGHT" | "TUTORIAL" | "OTHER";
+        /** ProjectResponse */
+        ProjectResponse: {
+            aspect_ratio: components["schemas"]["AspectRatio"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Failure Reason */
+            failure_reason: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Language */
+            language: string;
+            /** Name */
+            name: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            purpose: components["schemas"]["ProjectPurpose"];
+            quality_mode: components["schemas"]["QualityMode"];
+            status: components["schemas"]["ProjectStatus"];
+            style: components["schemas"]["VideoStyle"];
+            /** Target Audience */
+            target_audience: string | null;
+            target_platform: components["schemas"]["TargetPlatform"];
+        };
+        /**
+         * ProjectStatus
+         * @description Where a video project has got to (§10.9, §105).
+         *
+         *     Longer than the product's machine because a project *is* the pipeline: each
+         *     state names a stage that can fail on its own and be resumed on its own.
+         * @enum {string}
+         */
+        ProjectStatus: "DRAFT" | "ANALYZING" | "CREATIVE_PLANNING" | "SCRIPTING" | "STORYBOARDING" | "GENERATING" | "COMPOSITING" | "QC" | "READY" | "FAILED" | "ARCHIVED";
+        /**
+         * QualityMode
+         * @description Cost/quality tier (§10.9, §138). Drives provider and model selection in
+         *     PHASE 19 and the credit price in PHASE 18.
+         * @enum {string}
+         */
+        QualityMode: "FAST" | "STANDARD" | "HIGH" | "PREMIUM";
+        /**
          * ReadyResponse
          * @description Readiness payload.
          */
@@ -1360,6 +1679,96 @@ export interface components {
              */
             password: string;
         };
+        /**
+         * ReviseScriptRequest
+         * @description A human's edit. Validated against §17's schema like any generated one —
+         *     a hand-written script with eight sections would break PHASE 8 exactly as a
+         *     generated one would.
+         */
+        ReviseScriptRequest: {
+            document: components["schemas"]["ScriptDocument"];
+        };
+        /**
+         * ScriptDocument
+         * @description A complete script (§17).
+         *
+         *     All nine sections, in §17's order, no duplicates. Order is not cosmetic —
+         *     PHASE 8 turns this sequence into shots, and a script whose CTA precedes its
+         *     hook would produce a storyboard nobody could film.
+         */
+        ScriptDocument: {
+            /** Sections */
+            sections: components["schemas"]["ScriptSection"][];
+        };
+        /** ScriptResponse */
+        ScriptResponse: {
+            /** Content Json */
+            content_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Creative Plan Id */
+            creative_plan_id: string | null;
+            /** Estimated Duration Seconds */
+            estimated_duration_seconds: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Plain Text */
+            plain_text: string;
+            /**
+             * Sourced Claim Ids
+             * @description The VERIFIED claims that were in scope when this was written (P7-T09). A claim withdrawn later can be traced to every script that used it.
+             */
+            sourced_claim_ids: string[];
+            status: components["schemas"]["ScriptStatus"];
+            /** Version */
+            version: number;
+        };
+        /**
+         * ScriptSection
+         * @description One narrated beat of the script (§17).
+         */
+        ScriptSection: {
+            /**
+             * Duration Seconds
+             * @default 0
+             */
+            duration_seconds: number;
+            /**
+             * Narration
+             * @default
+             */
+            narration: string;
+            /** Section */
+            section: string;
+            /**
+             * Visual
+             * @default
+             */
+            visual: string;
+        };
+        /**
+         * ScriptStatus
+         * @description §10.11. A script is DRAFT until a person accepts it.
+         *
+         *     `SUPERSEDED` rather than deletion: §17 requires history to survive an edit,
+         *     so a new version marks the old one superseded instead of overwriting it.
+         * @enum {string}
+         */
+        ScriptStatus: "DRAFT" | "APPROVED" | "SUPERSEDED";
+        /**
+         * TargetPlatform
+         * @description Where the video will be published (§10.9).
+         * @enum {string}
+         */
+        TargetPlatform: "DOUYIN" | "XIAOHONGSHU" | "BILIBILI" | "WECHAT_CHANNELS" | "TAOBAO" | "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "OTHER";
         /**
          * TokenResponse
          * @description Issued credentials.
@@ -1417,6 +1826,18 @@ export interface components {
             name?: string | null;
             /** Sku */
             sku?: string | null;
+        };
+        /** UpdateProjectRequest */
+        UpdateProjectRequest: {
+            aspect_ratio?: components["schemas"]["AspectRatio"] | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
+            /** Name */
+            name?: string | null;
+            quality_mode?: components["schemas"]["QualityMode"] | null;
+            style?: components["schemas"]["VideoStyle"] | null;
+            /** Target Audience */
+            target_audience?: string | null;
         };
         /** UpdateWorkspaceRequest */
         UpdateWorkspaceRequest: {
@@ -1479,6 +1900,12 @@ export interface components {
          * @enum {string}
          */
         VerificationStatus: "AI_INFERRED" | "USER_PROVIDED" | "VERIFIED" | "REJECTED";
+        /**
+         * VideoStyle
+         * @description Visual register (§10.9). Reaches the prompt compiler in PHASE 8.
+         * @enum {string}
+         */
+        VideoStyle: "CLEAN_MINIMAL" | "WARM_LIFESTYLE" | "TECH_PREMIUM" | "BOLD_ENERGETIC" | "NATURAL_DOCUMENTARY" | "LUXURY";
         /** WorkspaceResponse */
         WorkspaceResponse: {
             /**
@@ -4432,6 +4859,947 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_projects_api_v1_workspaces__workspace_id__projects_get: {
+        parameters: {
+            query?: {
+                product_id?: string | null;
+                project_status?: components["schemas"]["ProjectStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_project_api_v1_workspaces__workspace_id__projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_project_api_v1_workspaces__workspace_id__projects__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_project_api_v1_workspaces__workspace_id__projects__project_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    archive_project_api_v1_workspaces__workspace_id__projects__project_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreativePlanResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreativePlanResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    select_creative_plan_api_v1_workspaces__workspace_id__projects__project_id__creative_plans__plan_id__select_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreativePlanResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_scripts_api_v1_workspaces__workspace_id__projects__project_id__scripts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    revise_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_revise_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviseScriptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approve_script_api_v1_workspaces__workspace_id__projects__project_id__scripts__script_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                script_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"];
                 };
             };
             /** @description Invalid request */

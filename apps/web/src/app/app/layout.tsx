@@ -64,6 +64,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               Products
             </Link>
             <Link
+              href="/app/projects"
+              className="underline-offset-4 hover:underline"
+            >
+              Projects
+            </Link>
+            <Link
               href="/app/media"
               className="underline-offset-4 hover:underline"
             >

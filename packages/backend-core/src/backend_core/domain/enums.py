@@ -473,3 +473,221 @@ def role_has_permission(role: WorkspaceRole, permission: Permission) -> bool:
 def permissions_for(role: WorkspaceRole) -> frozenset[Permission]:
     """Everything ``role`` may do."""
     return ROLE_PERMISSIONS[role]
+
+
+# ---------------------------------------------------------------------------
+# PHASE 7 — Project, Creative and Script (§10.9-§10.11, §16, §17, §105)
+# ---------------------------------------------------------------------------
+
+
+class ProjectStatus(StrEnum):
+    """Where a video project has got to (§10.9, §105).
+
+    Longer than the product's machine because a project *is* the pipeline: each
+    state names a stage that can fail on its own and be resumed on its own.
+    """
+
+    DRAFT = "DRAFT"
+    ANALYZING = "ANALYZING"
+    CREATIVE_PLANNING = "CREATIVE_PLANNING"
+    SCRIPTING = "SCRIPTING"
+    STORYBOARDING = "STORYBOARDING"
+    GENERATING = "GENERATING"
+    COMPOSITING = "COMPOSITING"
+    QC = "QC"
+    READY = "READY"
+    FAILED = "FAILED"
+    ARCHIVED = "ARCHIVED"
+
+
+#: The pipeline in order. Used to build the transition table below and to answer
+#: "where does a recovered project go back to", so the sequence is stated once.
+_PROJECT_PIPELINE: tuple[ProjectStatus, ...] = (
+    ProjectStatus.DRAFT,
+    ProjectStatus.ANALYZING,
+    ProjectStatus.CREATIVE_PLANNING,
+    ProjectStatus.SCRIPTING,
+    ProjectStatus.STORYBOARDING,
+    ProjectStatus.GENERATING,
+    ProjectStatus.COMPOSITING,
+    ProjectStatus.QC,
+    ProjectStatus.READY,
+)
+
+#: States a failure can strike from. §105 says FAILED is reachable from most
+#: intermediate states — not from DRAFT (nothing has run yet) and not from the
+#: terminal ones.
+_FAILABLE: frozenset[ProjectStatus] = frozenset(_PROJECT_PIPELINE[1:-1])
+
+
+def _build_project_transitions() -> dict[ProjectStatus, frozenset[ProjectStatus]]:
+    """Derive the legal edges rather than hand-listing forty of them.
+
+    Three rules, and deriving them means they cannot disagree with each other:
+
+    1. **Forward one step**, along the pipeline.
+    2. **Backward one step**, because §103 rule 4 requires the user to be able
+       to go back — regenerating a script after rejecting the storyboard is the
+       ordinary case, not an exception.
+    3. **Into FAILED and back out to where it failed**, which is §105's
+       "恢复后回原合理状态": a recovered project resumes at the stage that
+       failed, not at the beginning.
+
+    ARCHIVED is reachable from everywhere and leads nowhere, matching the
+    product machine.
+    """
+    table: dict[ProjectStatus, set[ProjectStatus]] = {
+        status: {ProjectStatus.ARCHIVED} for status in ProjectStatus
+    }
+    table[ProjectStatus.ARCHIVED] = set()
+
+    for index, status in enumerate(_PROJECT_PIPELINE):
+        if index + 1 < len(_PROJECT_PIPELINE):
+            table[status].add(_PROJECT_PIPELINE[index + 1])
+        if index > 0:
+            table[status].add(_PROJECT_PIPELINE[index - 1])
+        if status in _FAILABLE:
+            table[status].add(ProjectStatus.FAILED)
+            table[ProjectStatus.FAILED].add(status)
+
+    # A finished project can be sent back for another pass — §103 rule 10's
+    # one-click regeneration has to land somewhere.
+    table[ProjectStatus.READY].add(ProjectStatus.STORYBOARDING)
+
+    # `ANALYZING` is the one skippable stage, and it has to be. A project's
+    # analysis stage means "analyse the product this project is for", and by
+    # PHASE 6 that belongs to the *product*: a product already in
+    # `REVIEW_REQUIRED` or `READY` has been analysed, and forcing its projects
+    # through a no-op stage would mean either a second billed vision call or a
+    # status the pipeline sets and immediately clears. Neither is honest.
+    table[ProjectStatus.DRAFT].add(ProjectStatus.CREATIVE_PLANNING)
+    table[ProjectStatus.CREATIVE_PLANNING].add(ProjectStatus.DRAFT)
+
+    return {status: frozenset(targets) for status, targets in table.items()}
+
+
+_PROJECT_TRANSITIONS: dict[ProjectStatus, frozenset[ProjectStatus]] = _build_project_transitions()
+
+
+def can_transition_project(current: ProjectStatus, target: ProjectStatus) -> bool:
+    """Whether ``current -> target`` is a legal project transition (§105)."""
+    if current is target:
+        return True
+    return target in _PROJECT_TRANSITIONS[current]
+
+
+def allowed_project_transitions(current: ProjectStatus) -> frozenset[ProjectStatus]:
+    """Every status reachable from ``current`` in one step."""
+    return _PROJECT_TRANSITIONS[current]
+
+
+class ProjectPurpose(StrEnum):
+    """What the video is for (§10.9, §16).
+
+    Feeds the creative prompt, so these are not cosmetic: a launch film and a
+    marketplace listing want different structures from the same product.
+    """
+
+    LAUNCH = "LAUNCH"
+    ECOMMERCE_LISTING = "ECOMMERCE_LISTING"
+    SOCIAL_AD = "SOCIAL_AD"
+    BRAND_STORY = "BRAND_STORY"
+    FEATURE_HIGHLIGHT = "FEATURE_HIGHLIGHT"
+    TUTORIAL = "TUTORIAL"
+    OTHER = "OTHER"
+
+
+class TargetPlatform(StrEnum):
+    """Where the video will be published (§10.9)."""
+
+    DOUYIN = "DOUYIN"
+    XIAOHONGSHU = "XIAOHONGSHU"
+    BILIBILI = "BILIBILI"
+    WECHAT_CHANNELS = "WECHAT_CHANNELS"
+    TAOBAO = "TAOBAO"
+    TIKTOK = "TIKTOK"
+    INSTAGRAM = "INSTAGRAM"
+    YOUTUBE = "YOUTUBE"
+    OTHER = "OTHER"
+
+
+class AspectRatio(StrEnum):
+    """Frame shape. Stored as an enum rather than a free string because the
+    render pipeline (PHASE 13) resolves it to exact pixel dimensions, and
+    "9 : 16" versus "9:16" would be two products' worth of bugs."""
+
+    PORTRAIT_9_16 = "9:16"
+    LANDSCAPE_16_9 = "16:9"
+    SQUARE_1_1 = "1:1"
+    VERTICAL_4_5 = "4:5"
+
+
+#: Each platform's native frame. Offered as the default in the wizard; the user
+#: can still choose otherwise, since one asset is often cut for several places.
+PLATFORM_DEFAULT_ASPECT: dict[TargetPlatform, AspectRatio] = {
+    TargetPlatform.DOUYIN: AspectRatio.PORTRAIT_9_16,
+    TargetPlatform.XIAOHONGSHU: AspectRatio.VERTICAL_4_5,
+    TargetPlatform.BILIBILI: AspectRatio.LANDSCAPE_16_9,
+    TargetPlatform.WECHAT_CHANNELS: AspectRatio.PORTRAIT_9_16,
+    TargetPlatform.TAOBAO: AspectRatio.SQUARE_1_1,
+    TargetPlatform.TIKTOK: AspectRatio.PORTRAIT_9_16,
+    TargetPlatform.INSTAGRAM: AspectRatio.VERTICAL_4_5,
+    TargetPlatform.YOUTUBE: AspectRatio.LANDSCAPE_16_9,
+    TargetPlatform.OTHER: AspectRatio.PORTRAIT_9_16,
+}
+
+
+class VideoStyle(StrEnum):
+    """Visual register (§10.9). Reaches the prompt compiler in PHASE 8."""
+
+    CLEAN_MINIMAL = "CLEAN_MINIMAL"
+    WARM_LIFESTYLE = "WARM_LIFESTYLE"
+    TECH_PREMIUM = "TECH_PREMIUM"
+    BOLD_ENERGETIC = "BOLD_ENERGETIC"
+    NATURAL_DOCUMENTARY = "NATURAL_DOCUMENTARY"
+    LUXURY = "LUXURY"
+
+
+class QualityMode(StrEnum):
+    """Cost/quality tier (§10.9, §138). Drives provider and model selection in
+    PHASE 19 and the credit price in PHASE 18."""
+
+    FAST = "FAST"
+    STANDARD = "STANDARD"
+    HIGH = "HIGH"
+    PREMIUM = "PREMIUM"
+
+
+class ScriptStatus(StrEnum):
+    """§10.11. A script is DRAFT until a person accepts it.
+
+    `SUPERSEDED` rather than deletion: §17 requires history to survive an edit,
+    so a new version marks the old one superseded instead of overwriting it.
+    """
+
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    SUPERSEDED = "SUPERSEDED"
+
+
+#: The script's sections, in order, exactly as §17 lists them. Held here rather
+#: than in the prompt so the schema, the validator and the prompt all read the
+#: same tuple — a section the model invents cannot pass validation, and one it
+#: omits is visible.
+SCRIPT_SECTIONS: tuple[str, ...] = (
+    "opening_hook",
+    "problem",
+    "product_intro",
+    "feature_1",
+    "feature_2",
+    "usage_scene",
+    "proof_or_visual_support",
+    "brand_ending",
+    "cta",
+)
+
+#: Spoken syllables per second used to budget section wordcount against the
+#: project's duration (§17 "必须根据目标时长做字数预算"). Chinese narration in
+#: advertising sits around this rate; it is a budget, not a promise, and PHASE
+#: 12 replaces the estimate with the TTS engine's measured duration.
+SPEECH_RATE_CHARS_PER_SECOND: float = 4.5

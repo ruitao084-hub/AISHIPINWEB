@@ -19,6 +19,7 @@ Format: **Context → Decision → Consequences → Alternatives considered.**
 | [0007](0007-upload-and-media-validation.md)  | Two-phase presigned upload and media validation                    | Accepted | 4     |
 | [0008](0008-product-truth-layer.md)          | The Product Truth Layer                                            | Accepted | 5     |
 | [0009](0009-vision-provider-and-analysis.md) | Vision provider adapter, prompt registry and the analysis boundary | Accepted | 6     |
+| [0010](0010-creative-and-script-engines.md)  | Creative and script engines, and the verified-claim boundary       | Accepted | 7     |
 
 ## Required but not yet written
 
