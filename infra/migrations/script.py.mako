@@ -7,6 +7,15 @@ Create Date: ${create_date}
 Every migration must be reversible or document why it is not (taskbook §73).
 Fill in ``downgrade()`` — an empty one is only acceptable with a comment
 explaining the irreversible operation and the recovery plan.
+
+CHECK BEFORE COMMITTING:
+
+* If this migration adds a column with ``sa.Enum``, autogenerate created a
+  Postgres ENUM type but ``drop_table`` will NOT remove it. Add an explicit
+  ``op.execute(sa.text("DROP TYPE IF EXISTS <name>"))`` to ``downgrade()``,
+  or the next ``upgrade`` fails with "type already exists".
+* Run ``upgrade -> downgrade -> upgrade`` against a real database. A downgrade
+  that has never been executed is not known to work.
 """
 
 from __future__ import annotations

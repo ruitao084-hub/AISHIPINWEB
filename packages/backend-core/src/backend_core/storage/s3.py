@@ -81,6 +81,26 @@ class S3ObjectStorage:
             raise StorageError(f"Failed to read {key}") from exc
         return body
 
+    def read_prefix(self, key: str, length: int) -> bytes:
+        """Ranged GET of the first ``length`` bytes.
+
+        ``Range`` is inclusive on both ends, so the last byte index is
+        ``length - 1``. A store that ignores the header would return the whole
+        object, so the result is truncated defensively rather than trusted.
+        """
+        if length <= 0:
+            raise ValueError("read_prefix length must be positive")
+        try:
+            response = self._client.get_object(
+                Bucket=self._bucket, Key=key, Range=f"bytes=0-{length - 1}"
+            )
+            body: bytes = response["Body"].read(length)
+        except ClientError as exc:
+            raise self._translate(exc, key) from exc
+        except BotoCoreError as exc:
+            raise StorageError(f"Failed to read prefix of {key}") from exc
+        return body[:length]
+
     def download_file(self, key: str, destination: Path) -> Path:
         destination.parent.mkdir(parents=True, exist_ok=True)
         try:

@@ -11,6 +11,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import backend_core.domain  # noqa: F401 - registers models on the metadata
 from backend_core.config import get_settings
 from backend_core.db.metadata import metadata
 
@@ -19,10 +20,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Autogeneration diffs the live database against exactly this. Model modules
-# must be imported before it is read, or Alembic will cheerfully generate a
-# migration that drops every table it cannot see. P2-T06 adds those imports
-# alongside the declarative base.
+# Autogeneration diffs the live database against exactly this. Importing
+# `backend_core.domain` above is what registers the models — without it Alembic
+# would cheerfully generate a migration dropping every table it cannot see.
 target_metadata = metadata
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url)

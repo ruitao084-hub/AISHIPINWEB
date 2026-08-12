@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from aipvs_api.errors import ErrorResponse
+from aipvs_api.v1 import auth, uploads, workspaces
 
 # Documented once here rather than repeated per route, so every endpoint's
 # OpenAPI entry advertises the same envelope and the generated TypeScript
@@ -60,9 +61,11 @@ async def api_info() -> ApiInfo:
     return ApiInfo(version="v1", service="aipvs-api", features=features)
 
 
-# Resource routers mount here as their phases land:
-#   PHASE 3  auth, workspaces
-#   PHASE 4  uploads
+api_v1_router.include_router(auth.router)
+api_v1_router.include_router(workspaces.router)
+api_v1_router.include_router(uploads.router)
+
+# Further resource routers mount here as their phases land:
 #   PHASE 5  products, brand kits
 #   PHASE 7  projects, creative plans, scripts
 #   PHASE 8  storyboards, shots

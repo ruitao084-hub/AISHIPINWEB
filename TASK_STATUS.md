@@ -4,9 +4,9 @@ Living progress record for the AI Product Video Studio build
 (taskbook §134, §175). Updated as each task completes — not batched at the end
 of a phase.
 
-- **Last updated:** 2026-08-11
-- **Current phase:** PHASE 3 — Auth + Workspace + RBAC (next up)
-- **Last completed phase:** PHASE 2 — Core Backend Foundation ✅
+- **Last updated:** 2026-08-12
+- **Current phase:** PHASE 5 — Product + Product Truth (next up)
+- **Last completed phase:** PHASE 4 — Media + Upload + Storage ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -18,8 +18,8 @@ of a phase.
 | 0     | Repository Bootstrap         | ✅ COMPLETED                    |
 | 1     | Local Infrastructure         | ✅ COMPLETED                    |
 | 2     | Core Backend Foundation      | ✅ COMPLETED                    |
-| 3     | Auth + Workspace + RBAC      | ⬜ NOT_STARTED                  |
-| 4     | Media + Upload + Storage     | ⬜ NOT_STARTED                  |
+| 3     | Auth + Workspace + RBAC      | ✅ COMPLETED                    |
+| 4     | Media + Upload + Storage     | ✅ COMPLETED                    |
 | 5     | Product + Product Truth      | ⬜ NOT_STARTED                  |
 | 6     | Product AI Analysis          | ⬜ NOT_STARTED                  |
 | 7     | Project + Creative + Script  | ⬜ NOT_STARTED                  |
@@ -122,34 +122,125 @@ of a phase.
 
 ---
 
-## PHASE 3 — Auth + Workspace + RBAC (next)
+## PHASE 3 — Auth + Workspace + RBAC
+
+**Status: COMPLETED**
+
+### Completed
+
+| Task           | Delivered                                                                                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3-T01/T06/T07 | `users`, `workspaces`, `workspace_members` (§10.1-10.3) with native Postgres enums, `(workspace_id, user_id)` unique constraint (§164), and the **first Alembic migration** |
+| P3-T02         | Argon2id hashing (OWASP profile), length-only policy, NFKC normalisation, transparent rehash on login                                                                       |
+| P3-T03/T04     | Register (creates a personal workspace in the same transaction), login, refresh, logout, `/me`                                                                              |
+| P3-T05         | Short-lived JWT access token in memory + rotating HttpOnly cookie refresh token with `jti` revocation. ADR-0006                                                             |
+| P3-T08         | Permission matrix (§40) enforced server-side; `require_permission` dependency; 404-not-403 for non-members                                                                  |
+| P3-T09/T10     | Typed API client over the generated contract, auth context, login/register pages, protected `/app` layout                                                                   |
+| Extra          | Login and registration rate limiting (§39, §123) with tests proving the limits still bite                                                                                   |
+
+### Tests
+
+203 passing (127 unit + 65 integration + 11 web), zero warnings.
+
+| Gate                                      | Result                 |
+| ----------------------------------------- | ---------------------- |
+| `ruff check` / `ruff format --check`      | ✅ pass                |
+| `mypy --strict`                           | ✅ 47 source files     |
+| `pytest` unit                             | ✅ 127 passed          |
+| `pytest` integration                      | ✅ 65 passed           |
+| `vitest`                                  | ✅ 11 passed           |
+| `eslint` / `tsc` / `next build`           | ✅ pass, 5 routes      |
+| Migration `upgrade → downgrade → upgrade` | ✅ verified reversible |
+
+### Acceptance (§80)
+
+- [x] Register
+- [x] Login
+- [x] Refresh (with rotation; a replayed token is rejected)
+- [x] OWNER / ADMIN / EDITOR / VIEWER matrix enforced server-side
+- [x] **Unauthorised access fails** — a non-member gets 404, indistinguishable from a random id
+
+---
+
+## PHASE 4 — Media + Upload + Storage
+
+**Status: COMPLETED**
+
+### Completed
+
+| Task   | Delivered                                                                                                                                                                                                                |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P4-T01 | `media_assets` (§10.17) — the only table that references binary content, with `AssetType` / `AssetSourceType` / `UploadStatus` native enums, a workspace-prefix CHECK constraint (§61), and the second Alembic migration |
+| P4-T02 | `POST /uploads/presign` — closed MIME whitelist, per-type size limits, server-generated key (§11), `PENDING` row written before the bytes exist                                                                          |
+| P4-T03 | `POST /uploads/{id}/complete` — HEAD, ranged signature read, probe, promote to `READY`; idempotent on retry (§67)                                                                                                        |
+| P4-T04 | Magic-byte verification against the declared type, extension cross-check, size re-checked against the stored object                                                                                                      |
+| P4-T05 | Pillow header probe: dimensions before decoding, decompression-bomb ceiling, format-confusion rejection, SHA-256                                                                                                         |
+| P4-T06 | ffprobe adapter — fixed argv, per-call-site protocol whitelist, timeout, exact rational frame rates (`30000/1001`, not `29.97`)                                                                                          |
+| P4-T07 | Drag-and-drop uploader with per-file progress, image previews, cancel and retry; `/app/media` library page                                                                                                               |
+| Extra  | `read_prefix` ranged read on the storage Protocol; `GET /uploads/config` so the picker and the whitelist cannot drift; `GET /assets` and `GET /assets/{id}` with signed download URLs; ADR-0007                          |
+
+### Tests
+
+321 passing (197 unit + 94 integration + 30 web), zero warnings.
+
+| Gate                                      | Result                              |
+| ----------------------------------------- | ----------------------------------- |
+| `ruff check` / `ruff format --check`      | ✅ pass                             |
+| `mypy --strict`                           | ✅ 54 source files                  |
+| `pytest` unit                             | ✅ 197 passed                       |
+| `pytest` integration                      | ✅ 94 passed                        |
+| `vitest`                                  | ✅ 30 passed                        |
+| `eslint` / `tsc` / `next build`           | ✅ pass, 6 routes                   |
+| `make contract-check`                     | ✅ pass                             |
+| Migration `upgrade → downgrade → upgrade` | ✅ verified reversible (enums drop) |
+
+### Acceptance (§81)
+
+- [x] A browser uploads an image **straight to storage** — the PUT in the test
+      bypasses the API entirely, exactly as §116 requires
+- [x] A `MediaAsset` row is created, with probed width, height, size and SHA-256
+- [x] Video uploads record duration, frame rate and codec via ffprobe over a
+      signed URL, without the API holding the file
+
+### Bugs found by tests, not by inspection
+
+1. **A rejected upload's `FAILED` status was rolled back.** Rejection raises,
+   and the request session rolls back on any exception — so the status write
+   was undone while the object deletion (not transactional) went through,
+   leaving a `PENDING` row pointing at nothing. The failure record is now
+   committed in its own transaction. Caught by the cleanup test.
+2. **`require_permission` had never been used by any route.** PHASE 3 enforced
+   permissions inside services, so the dependency's `-> object` return type and
+   its double-wrapped `Depends(...)` usage example were both wrong and nothing
+   had exercised them. Wiring the first route through it surfaced both.
+3. **A literal `%` in a CHECK constraint reached Postgres as `%%`.** Harmless in
+   `LIKE` (two wildcards match as one) but wrong in the stored definition;
+   replaced with `starts_with()`, which needs no metacharacter.
+
+## PHASE 5 — Product + Product Truth (next)
 
 **Status: NOT_STARTED**
 
-| Task   | Scope                            |
-| ------ | -------------------------------- |
-| P3-T01 | User schema + first migration    |
-| P3-T02 | Password hashing (Argon2/bcrypt) |
-| P3-T03 | Register                         |
-| P3-T04 | Login (with rate limiting)       |
-| P3-T05 | Access + refresh tokens (+ ADR)  |
-| P3-T06 | Workspace schema                 |
-| P3-T07 | Workspace membership             |
-| P3-T08 | RBAC dependency                  |
-| P3-T09 | Frontend login/register          |
-| P3-T10 | Protected layout                 |
+| Task   | Scope                                    |
+| ------ | ---------------------------------------- |
+| P5-T01 | `Product` schema                         |
+| P5-T02 | Product CRUD                             |
+| P5-T03 | `ProductAsset` (links products to media) |
+| P5-T04 | `ProductFact`                            |
+| P5-T05 | `ProductClaim`                           |
+| P5-T06 | Fact verification API                    |
+| P5-T07 | Claim verification API                   |
+| P5-T08 | Product UI                               |
 
-**Acceptance:** register, login, refresh, and OWNER/EDITOR/VIEWER permission
-checks all tested — including that cross-workspace access fails.
-
----
+**Acceptance:** a user can create a product, upload several product images, set
+a primary image, edit facts and confirm claims.
 
 ## Known issues
 
 | #   | Issue                                                                                                        | Impact                                                                                                                                | Plan                                                                                                                                                                                                           |
 | --- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **Docker Hub's blob CDN (`production.cloudfront.docker.com`) is blocked by the environment's egress policy** | `make infra-up` cannot pull images _in this dev container_. Does not affect the compose file's correctness, CI, or any other machine. | Verified locally against natively installed Postgres 16 + Redis 8 and `moto` as the S3 endpoint; CI runs the real Postgres 17, Redis 8 and MinIO images. Not routed around, per the proxy's documented policy. |
-| 2   | `ffmpeg` / `ffprobe` not installed locally                                                                   | Blocks PHASE 13 verification                                                                                                          | Render worker ships its own image with FFmpeg; install locally before PHASE 13.                                                                                                                                |
+| 2   | ~~`ffmpeg` / `ffprobe` not installed locally~~                                                               | —                                                                                                                                     | ✅ Resolved in PHASE 4: ffmpeg 6.1.1 installed locally and added to the CI integration job, since P4-T06 needs ffprobe. The probe tests **assert** the binary is present rather than skipping.                 |
 | 3   | Local dev DB is Postgres 16 (apt) while compose and CI pin 17                                                | Low — no version-specific SQL in use                                                                                                  | CI is authoritative. Revisit if a 17-only feature is adopted.                                                                                                                                                  |
 
 None is caused by project code.
@@ -165,22 +256,21 @@ Nothing right now. Development proceeds on mocks through PHASE 9.
 | LLM / Vision key                       | 6     | Mock vision provider carries PHASE 6 until then.   |
 | Cloud accounts, domain, secret manager | 23    | Production deployment.                             |
 
-Also outstanding, not blocking: the repository's **default branch is still
-`claude/quirky-mendel-rlh1nm`** and should be switched to `main` in
-Settings → General. No available tool can change repository settings.
-
 ## Technical debt
 
-| #   | Item                                                                             | Incurred                                               | Repayment              |
-| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------- |
-| 1   | `packages/prompts` and `packages/provider-contracts` are documented placeholders | Filling them now would be cross-phase development      | PHASE 6 / PHASE 9      |
-| 2   | `packages/shared-types` exports only a version constant                          | Generated client is P2-T08                             | PHASE 2                |
-| 3   | `packages/ui` holds only the `cn` helper                                         | Shared composites need real screens to share           | PHASE 5+               |
-| 4   | ~~`/ready` returns an empty dependency list~~                                    | —                                                      | ✅ Repaid in PHASE 1   |
-| 5   | CI still lacks contract-drift and E2E gates                                      | Those subjects do not exist yet                        | PHASE 2 / 15           |
-| 6   | Turborepo caches JS tasks only                                                   | Python gates run in ~2s                                | Revisit if CI slows    |
-| 7   | Compose runs infrastructure only; app services are not containerised             | Their Dockerfiles depend on the PHASE 2 settings layer | PHASE 23 (§69)         |
-| 8   | Storage uses single-PUT presigning, no multipart                                 | Covers the §12 limits (20 MB image / 500 MB video)     | Revisit if limits rise |
+| #   | Item                                                                             | Incurred                                                                                                           | Repayment                                                                                                                                           |
+| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `packages/prompts` and `packages/provider-contracts` are documented placeholders | Filling them now would be cross-phase development                                                                  | PHASE 6 / PHASE 9                                                                                                                                   |
+| 2   | `packages/shared-types` exports only a version constant                          | Generated client is P2-T08                                                                                         | PHASE 2                                                                                                                                             |
+| 3   | `packages/ui` holds only the `cn` helper                                         | Shared composites need real screens to share                                                                       | PHASE 5+                                                                                                                                            |
+| 4   | ~~`/ready` returns an empty dependency list~~                                    | —                                                                                                                  | ✅ Repaid in PHASE 1                                                                                                                                |
+| 5   | CI still lacks contract-drift and E2E gates                                      | Those subjects do not exist yet                                                                                    | PHASE 2 / 15                                                                                                                                        |
+| 6   | Turborepo caches JS tasks only                                                   | Python gates run in ~2s                                                                                            | Revisit if CI slows                                                                                                                                 |
+| 7   | Compose runs infrastructure only; app services are not containerised             | Their Dockerfiles depend on the PHASE 2 settings layer                                                             | PHASE 23 (§69)                                                                                                                                      |
+| 8   | Storage uses single-PUT presigning, no multipart                                 | Covers the §12 limits (20 MB image / 500 MB video)                                                                 | Revisit if limits rise                                                                                                                              |
+| 9   | **Video uploads carry no SHA-256** — only the storage ETag                       | Hashing means streaming the whole object through the API, which is what §116 and the presigned flow exist to avoid | PHASE 9: the ingest worker hashes while it already has the file. An integration test asserts `checksum is None` for video so the gap stays visible. |
+| 10  | Abandoned `PENDING` uploads leak a row and an orphan object                      | The §163 collector does not exist yet                                                                              | PHASE 16 (§163). The partial index `(created_at) WHERE upload_status = 'PENDING'` it will scan is already in place.                                 |
+| 11  | `complete` runs ffprobe synchronously inside a request                           | The job system arrives in PHASE 9; the acceptance criterion needs a synchronous answer                             | Bounded by `media_probe_timeout_seconds` and run off the event loop. Candidate to become a job in PHASE 9.                                          |
 
 ## Deviations from the taskbook
 

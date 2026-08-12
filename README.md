@@ -39,13 +39,13 @@ Three principles drive most of the design decisions:
 | Python           | ≥ 3.11  |                                                                    |
 | uv               | ≥ 0.8   | [install](https://docs.astral.sh/uv/getting-started/installation/) |
 | Docker + Compose | ≥ 24    | Needed from PHASE 1 for Postgres, Redis, MinIO                     |
-| FFmpeg + ffprobe | ≥ 6     | Needed from PHASE 13 for rendering                                 |
+| FFmpeg + ffprobe | ≥ 6     | Needed from PHASE 4: `ffprobe` reads every uploaded video          |
 | GNU Make         | any     | Entry point for every command                                      |
 
 Verify:
 
 ```bash
-node -v && pnpm -v && python3 -V && uv --version && docker --version
+node -v && pnpm -v && python3 -V && uv --version && docker --version && ffprobe -version | head -1
 ```
 
 ## 2. Install
@@ -231,6 +231,7 @@ server-generated paths, an isolated temp directory per render, and a timeout.
 
 | Symptom                                                              | Cause and fix                                                                                                                                                     |
 | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MediaProbeError: ffprobe not found`                                 | Install FFmpeg (`apt-get install ffmpeg`), or point `FFPROBE_PATH` at it. Video uploads cannot be validated without it (§12).                                     |
 | `docker pull` fails with 403 from `production.cloudfront.docker.com` | Your network blocks Docker Hub's CDN. See "If you cannot pull Docker images" in §4.                                                                               |
 | `RuntimeError: Event loop is closed` from Redis or the DB            | You are sharing an async client across event loops. Use `get_redis()` / `get_async_engine()`, which cache per loop, rather than holding a module-level reference. |
 | Integration tests fail with connection refused                       | Infrastructure is not running. `make infra-up`, then `make test-integration`.                                                                                     |
