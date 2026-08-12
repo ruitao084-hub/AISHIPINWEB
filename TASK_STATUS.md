@@ -5,8 +5,8 @@ Living progress record for the AI Product Video Studio build
 of a phase.
 
 - **Last updated:** 2026-08-12
-- **Current phase:** PHASE 6 — Product AI Analysis (next up)
-- **Last completed phase:** PHASE 5 — Product + Product Truth ✅
+- **Current phase:** PHASE 7 — Project + Creative + Script (next up)
+- **Last completed phase:** PHASE 6 — Product AI Analysis ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -21,7 +21,7 @@ of a phase.
 | 3     | Auth + Workspace + RBAC      | ✅ COMPLETED                    |
 | 4     | Media + Upload + Storage     | ✅ COMPLETED                    |
 | 5     | Product + Product Truth      | ✅ COMPLETED                    |
-| 6     | Product AI Analysis          | ⬜ NOT_STARTED                  |
+| 6     | Product AI Analysis          | ✅ COMPLETED                    |
 | 7     | Project + Creative + Script  | ⬜ NOT_STARTED                  |
 | 8     | Storyboard + Prompt Compiler | ⬜ NOT_STARTED                  |
 | 9     | Job System + Mock Provider   | ⬜ NOT_STARTED                  |
@@ -287,24 +287,61 @@ that cited it.
    ~100 tests, then `FATAL: sorry, too many clients already`. The fixture now
    disposes what it opened.
 
-## PHASE 6 — Product AI Analysis (next)
+## PHASE 6 — Product AI Analysis
 
-**Status: NOT_STARTED**
+**Status: COMPLETED**
 
-| Task   | Scope                                                       |
-| ------ | ----------------------------------------------------------- |
-| P6-T01 | LLM / Vision provider contract                              |
-| P6-T02 | Prompt registry (§15)                                       |
-| P6-T03 | Analysis schema (§14)                                       |
-| P6-T04 | Mock vision provider                                        |
-| P6-T05 | Real vision provider · **needs an API key**                 |
-| P6-T06 | Analyze-product job                                         |
-| P6-T07 | Persist AI-inferred facts — status must be `AI_INFERRED`    |
-| P6-T08 | Review UI: verify / reject / edit-and-verify each inference |
+### Completed
 
-**Acceptance:** uploading real product images yields structured Product
-Intelligence. The Truth Layer built in PHASE 5 is what receives it — P6-T07 is
-already enforced by `create_fact`.
+| Task   | Delivered                                                                                                                                                                                                           |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P6-T01 | `VisionProvider` Protocol with `ProviderImage` / `ProviderUsage` / `VisionAnalysis`; §20's error taxonomy mapped at the adapter boundary                                                                            |
+| P6-T02 | Versioned prompt registry; `product_analyze_v1` v1; single-pass `{{name}}` substitution so an untrusted product name cannot inject a placeholder (§108)                                                             |
+| P6-T03 | `ProductIntelligence` / `VisualDNA`, `extra="forbid"`, and the `OBSERVED_FIELDS` / `INFERRED_FIELDS` split that makes §109's boundary structural                                                                    |
+| P6-T04 | `MockVisionProvider` — deterministic from product name + image bytes, five failure modes via `MOCK_VISION_MODE` (§172), and `visible_text` left empty because a mock inventing legible text is exactly §13's danger |
+| P6-T05 | `AnthropicVisionProvider` — structured outputs, image downscaling to the model's resolution tier, refusal checked before content, full §20 error mapping. **Never run against the live API** (see below)            |
+| P6-T06 | `ProductAnalysisService.analyze` + `POST /products/{id}/analyze` + `GET /products/{id}/analyses`; `product_analyses` table records prompt key/version, model, tokens, latency and failures                          |
+| P6-T07 | Observed fields → `AI_INFERRED` facts, `possible_selling_points` → `SUGGESTED` claims. The inferred fields cannot reach `create_fact`: `_fact_specs` iterates `OBSERVED_FIELDS` only                                |
+| P6-T08 | Review UI: analysis panel with provenance, plus Verify / **Edit + Verify** / Reject per fact. A corrected value is recorded as the reviewer's, not as the AI having been right                                      |
+
+### Tests
+
+442 passing (307 unit + 135 integration), zero warnings. 67 new.
+
+| Gate                 | Command                         | Result                        |
+| -------------------- | ------------------------------- | ----------------------------- |
+| Python lint          | `ruff check packages apps`      | ✅ all checks passed          |
+| Python format        | `ruff format --check`           | ✅ 94 files                   |
+| Python types         | `mypy --strict`                 | ✅ no issues, 65 files        |
+| Unit                 | `pytest -m "not integration"`   | ✅ 307 passed                 |
+| Integration          | `pytest -m integration`         | ✅ 135 passed                 |
+| Migration round-trip | `upgrade → downgrade → upgrade` | ✅ plus `alembic check` clean |
+| Web lint/types/build | `pnpm`                          | ✅                            |
+
+### Acceptance (§83)
+
+- [x] Uploading product images yields structured Product Intelligence
+- [x] Every AI observation lands `AI_INFERRED` with `source_type=AI_VISION` — asserted, not assumed
+- [x] `possible_selling_points` become `SUGGESTED` claims and **cannot** be approved without a verified fact (a 409 the test asserts, end to end)
+- [x] The product lands `REVIEW_REQUIRED`, never `READY`
+- [x] Each of the five injected provider failures leaves the product in `ASSETS_READY` with nothing written to the Truth Layer
+- [x] A viewer cannot run an analysis — `GENERATION_RUN`, not `PRODUCT_WRITE` (§40)
+- [x] The whole flow runs on mocks with no API key (§170)
+
+### Two things worth carrying forward
+
+**A real bug the tests found.** The product state machine had no
+`REVIEW_REQUIRED → ANALYZING` edge, so a reviewer who added a clearer
+photograph could not re-run the analyser — while a _finished_ (`READY`) product
+could. §104 lists only the states, so the edge set was this project's design
+and the omission was an oversight rather than policy. Added, with a domain test
+naming the reason (§103 rules 4 and 10).
+
+**A §108 hole in prompt rendering.** `Prompt.render` looped `str.replace` per
+placeholder, so a product named `{{language}}` would be substituted _into_ the
+template and then expanded by the next iteration — untrusted input reaching the
+instruction text. Replaced with a single-pass regex substitution, which never
+re-reads what it just wrote, plus a test on the real template.
 
 ## Known issues
 
@@ -320,28 +357,31 @@ None is caused by project code.
 
 Nothing right now. Development proceeds on mocks through PHASE 9.
 
-| Will need                              | Phase | Why                                                |
-| -------------------------------------- | ----- | -------------------------------------------------- |
-| Real video provider API key            | 10    | §21 requires one real provider working end to end. |
-| TTS provider key                       | 12    | Mock TTS carries PHASE 12 until then.              |
-| LLM / Vision key                       | 6     | Mock vision provider carries PHASE 6 until then.   |
-| Cloud accounts, domain, secret manager | 23    | Production deployment.                             |
+| Will need                              | Phase | Why                                                                                                                                         |
+| -------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Real video provider API key            | 10    | §21 requires one real provider working end to end.                                                                                          |
+| TTS provider key                       | 12    | Mock TTS carries PHASE 12 until then.                                                                                                       |
+| LLM / Vision key                       | 6     | **PHASE 6 is complete on mocks.** The Anthropic adapter is written and unit-tested but has never made a live call — see technical debt #12. |
+| Cloud accounts, domain, secret manager | 23    | Production deployment.                                                                                                                      |
 
 ## Technical debt
 
-| #   | Item                                                                             | Incurred                                                                                                           | Repayment                                                                                                                                           |
-| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `packages/prompts` and `packages/provider-contracts` are documented placeholders | Filling them now would be cross-phase development                                                                  | PHASE 6 / PHASE 9                                                                                                                                   |
-| 2   | `packages/shared-types` exports only a version constant                          | Generated client is P2-T08                                                                                         | PHASE 2                                                                                                                                             |
-| 3   | `packages/ui` holds only the `cn` helper                                         | Shared composites need real screens to share                                                                       | PHASE 5+                                                                                                                                            |
-| 4   | ~~`/ready` returns an empty dependency list~~                                    | —                                                                                                                  | ✅ Repaid in PHASE 1                                                                                                                                |
-| 5   | CI still lacks contract-drift and E2E gates                                      | Those subjects do not exist yet                                                                                    | PHASE 2 / 15                                                                                                                                        |
-| 6   | Turborepo caches JS tasks only                                                   | Python gates run in ~2s                                                                                            | Revisit if CI slows                                                                                                                                 |
-| 7   | Compose runs infrastructure only; app services are not containerised             | Their Dockerfiles depend on the PHASE 2 settings layer                                                             | PHASE 23 (§69)                                                                                                                                      |
-| 8   | Storage uses single-PUT presigning, no multipart                                 | Covers the §12 limits (20 MB image / 500 MB video)                                                                 | Revisit if limits rise                                                                                                                              |
-| 9   | **Video uploads carry no SHA-256** — only the storage ETag                       | Hashing means streaming the whole object through the API, which is what §116 and the presigned flow exist to avoid | PHASE 9: the ingest worker hashes while it already has the file. An integration test asserts `checksum is None` for video so the gap stays visible. |
-| 10  | Abandoned `PENDING` uploads leak a row and an orphan object                      | The §163 collector does not exist yet                                                                              | PHASE 16 (§163). The partial index `(created_at) WHERE upload_status = 'PENDING'` it will scan is already in place.                                 |
-| 11  | `complete` runs ffprobe synchronously inside a request                           | The job system arrives in PHASE 9; the acceptance criterion needs a synchronous answer                             | Bounded by `media_probe_timeout_seconds` and run off the event loop. Candidate to become a job in PHASE 9.                                          |
+| #   | Item                                                                             | Incurred                                                                                                                                                                                            | Repayment                                                                                                                                                                                    |
+| --- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `packages/prompts` and `packages/provider-contracts` are documented placeholders | Filling them now would be cross-phase development                                                                                                                                                   | PHASE 6 / PHASE 9                                                                                                                                                                            |
+| 2   | `packages/shared-types` exports only a version constant                          | Generated client is P2-T08                                                                                                                                                                          | PHASE 2                                                                                                                                                                                      |
+| 3   | `packages/ui` holds only the `cn` helper                                         | Shared composites need real screens to share                                                                                                                                                        | PHASE 5+                                                                                                                                                                                     |
+| 4   | ~~`/ready` returns an empty dependency list~~                                    | —                                                                                                                                                                                                   | ✅ Repaid in PHASE 1                                                                                                                                                                         |
+| 5   | CI still lacks contract-drift and E2E gates                                      | Those subjects do not exist yet                                                                                                                                                                     | PHASE 2 / 15                                                                                                                                                                                 |
+| 6   | Turborepo caches JS tasks only                                                   | Python gates run in ~2s                                                                                                                                                                             | Revisit if CI slows                                                                                                                                                                          |
+| 7   | Compose runs infrastructure only; app services are not containerised             | Their Dockerfiles depend on the PHASE 2 settings layer                                                                                                                                              | PHASE 23 (§69)                                                                                                                                                                               |
+| 8   | Storage uses single-PUT presigning, no multipart                                 | Covers the §12 limits (20 MB image / 500 MB video)                                                                                                                                                  | Revisit if limits rise                                                                                                                                                                       |
+| 9   | **Video uploads carry no SHA-256** — only the storage ETag                       | Hashing means streaming the whole object through the API, which is what §116 and the presigned flow exist to avoid                                                                                  | PHASE 9: the ingest worker hashes while it already has the file. An integration test asserts `checksum is None` for video so the gap stays visible.                                          |
+| 10  | Abandoned `PENDING` uploads leak a row and an orphan object                      | The §163 collector does not exist yet                                                                                                                                                               | PHASE 16 (§163). The partial index `(created_at) WHERE upload_status = 'PENDING'` it will scan is already in place.                                                                          |
+| 11  | `complete` runs ffprobe synchronously inside a request                           | The job system arrives in PHASE 9; the acceptance criterion needs a synchronous answer                                                                                                              | Bounded by `media_probe_timeout_seconds` and run off the event loop. Candidate to become a job in PHASE 9.                                                                                   |
+| 12  | **`AnthropicVisionProvider` has never run against the live API**                 | No key has been supplied. Request construction, downscaling, parsing and every error-mapping branch are tested against a stubbed client; whether the request shape is one the vendor accepts is not | Needs `ANTHROPIC_API_KEY` from the user. Until then `USE_MOCK_PROVIDERS=true` carries the whole flow (§170). Recorded in the module docstring too, so it cannot be rediscovered by surprise. |
+| 13  | Analysis runs synchronously inside the request                                   | §83 permits it for a short task, and the job system is PHASE 9                                                                                                                                      | PHASE 9. The API already returns a `ProductAnalysis` row rather than the intelligence, so the async shape needs no client change beyond polling.                                             |
+| 14  | The vendor JSON schema is hand-written beside the Pydantic model                 | Generating it from a model whose fields all have defaults produces a schema the structured-output API rejects                                                                                       | Kept in step by `test_the_schema_matches_the_pydantic_model`. Revisit if the vendor relaxes the `required` rule.                                                                             |
 
 ## Deviations from the taskbook
 

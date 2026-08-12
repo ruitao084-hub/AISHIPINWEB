@@ -233,7 +233,7 @@ jobs:
       - name: Verify .env.example carries no filled-in secrets
         run: |
           # Every credential-ish key in the template must have an empty value.
-          if grep -nE '^(JWT_SECRET|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|OPENAI_API_KEY|GOOGLE_AI_API_KEY|RUNWAY_API_KEY|TTS_API_KEY|SENTRY_DSN)=.+' .env.example; then
+          if grep -nE '^(JWT_SECRET|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|OPENAI_API_KEY|GOOGLE_AI_API_KEY|ANTHROPIC_API_KEY|RUNWAY_API_KEY|TTS_API_KEY|SENTRY_DSN)=.+' .env.example; then
             echo "::error::.env.example must not contain real values for secret keys (taskbook §7)."
             exit 1
           fi

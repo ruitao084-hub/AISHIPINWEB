@@ -1,12 +1,19 @@
 "use client";
 
 /**
- * Product detail: imagery, facts and claims (P5-T08).
+ * Product detail: imagery, analysis and review (P5-T08, P6-T08).
  *
  * The verification controls are the point of this screen. §13 requires a
  * person to confirm every fact before it can be used, so the review state is
  * shown on every row rather than hidden behind a filter — an unconfirmed fact
  * that *looks* confirmed is the failure this whole layer exists to prevent.
+ *
+ * P6-T08 adds the third disposition: **Edit + Verify**. A model that got a
+ * material almost right is the common case, and without it a reviewer's only
+ * options are to accept something wrong or to reject and retype it. The edit
+ * goes through the same `verify` flag the API already honours, so a corrected
+ * fact is recorded as USER_PROVIDED with the reviewer's name on it — not as
+ * something the AI got right.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -18,6 +25,7 @@ import {
   workspaceApi,
   type ClaimType,
   type FactType,
+  type ProductAnalysisResponse,
   type ProductAssetResponse,
   type ProductClaimResponse,
   type ProductFactResponse,
@@ -31,6 +39,7 @@ interface Loaded {
   assets: ProductAssetResponse[];
   facts: ProductFactResponse[];
   claims: ProductClaimResponse[];
+  analyses: ProductAnalysisResponse[];
 }
 
 type LoadState =
@@ -69,6 +78,9 @@ export default function ProductDetailPage({
   const [productId, setProductId] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [actionError, setActionError] = useState<string | null>(null);
+  // Guards the analyse button. The call costs money and takes seconds, so a
+  // double-click without this is two billable requests.
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     void params.then(({ productId: id }) => setProductId(id));
@@ -79,13 +91,21 @@ export default function ProductDetailPage({
     const workspace = workspaces[0];
     if (!workspace) throw new Error("You do not belong to a workspace yet.");
 
-    const [product, assets, facts, claims] = await Promise.all([
+    const [product, assets, facts, claims, analyses] = await Promise.all([
       productApi.get(workspace.id, id),
       productApi.assets(workspace.id, id),
       productApi.facts(workspace.id, id),
       productApi.claims(workspace.id, id),
+      productApi.analyses(workspace.id, id),
     ]);
-    return { workspaceId: workspace.id, product, assets, facts, claims };
+    return {
+      workspaceId: workspace.id,
+      product,
+      assets,
+      facts,
+      claims,
+      analyses,
+    };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -168,7 +188,9 @@ export default function ProductDetailPage({
     );
   }
 
-  const { workspaceId, product, assets, facts, claims } = state;
+  const { workspaceId, product, assets, facts, claims, analyses } = state;
+  const latestAnalysis = analyses[0] ?? null;
+  const imageCount = assets.length;
   const verifiedFacts = facts.filter(
     (fact) => fact.verification_status === "VERIFIED",
   );
@@ -253,6 +275,41 @@ export default function ProductDetailPage({
         </div>
       </section>
 
+      {/* --- analysis (P6-T08) --- */}
+      <section className="mt-12">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="text-sm font-medium tracking-wide uppercase">
+            AI analysis
+          </h2>
+          <button
+            type="button"
+            disabled={analyzing || imageCount === 0}
+            className="border-border rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+            onClick={() => {
+              setAnalyzing(true);
+              void act(() =>
+                productApi.analyze(workspaceId, product.id),
+              ).finally(() => setAnalyzing(false));
+            }}
+          >
+            {analyzing
+              ? "Analysing…"
+              : latestAnalysis
+                ? "Re-run analysis"
+                : "Analyse images"}
+          </button>
+        </div>
+        <p className="text-muted mt-1 text-xs">
+          {imageCount === 0
+            ? "Attach at least one image first."
+            : "Everything the model finds arrives unverified. Nothing below is usable until you confirm it."}
+        </p>
+
+        {latestAnalysis && (
+          <AnalysisSummary analysis={latestAnalysis} product={product} />
+        )}
+      </section>
+
       {/* --- facts --- */}
       <section className="mt-12">
         <h2 className="text-sm font-medium tracking-wide uppercase">Facts</h2>
@@ -274,6 +331,18 @@ export default function ProductDetailPage({
                 onReject={() =>
                   void act(() =>
                     productApi.rejectFact(workspaceId, product.id, fact.id),
+                  )
+                }
+                onEditAndVerify={(valueText) =>
+                  void act(() =>
+                    // `verify: true` in the same call: a reviewer who corrected
+                    // a value has taken responsibility for it, and a separate
+                    // verify step would leave a window where the corrected fact
+                    // sits unconfirmed.
+                    productApi.updateFact(workspaceId, product.id, fact.id, {
+                      value_text: valueText,
+                      verify: true,
+                    }),
                   )
                 }
               />
@@ -340,18 +409,117 @@ export default function ProductDetailPage({
   );
 }
 
+/**
+ * A summary of the most recent analysis run (§14, §15).
+ *
+ * Deliberately shows the provenance — provider, model, prompt version — beside
+ * the result. §15's point in recording those is that somebody can later ask
+ * "what produced this?", and a record nobody can see does not answer that.
+ */
+function AnalysisSummary({
+  analysis,
+  product,
+}: {
+  analysis: ProductAnalysisResponse;
+  product: ProductResponse;
+}) {
+  const dna = product.visual_dna as Record<string, string[] | undefined>;
+  const tone = dna.tone ?? [];
+  const palette = dna.palette ?? [];
+
+  return (
+    <div className="border-border mt-3 grid gap-3 rounded-xl border p-4">
+      <p className="text-sm">
+        {analysis.status === "SUCCEEDED"
+          ? `${analysis.created_fact_count} observations and ${analysis.created_claim_count} suggestions, all awaiting review.`
+          : `Last run ${analysis.status.toLowerCase()}${
+              analysis.error_code ? ` (${analysis.error_code})` : ""
+            }.`}
+      </p>
+
+      {product.ai_summary && (
+        <p className="text-muted text-sm">{product.ai_summary}</p>
+      )}
+
+      {(tone.length > 0 || palette.length > 0) && (
+        <p className="text-muted text-xs">
+          Visual direction: {[...tone, ...palette].join(" · ")}
+        </p>
+      )}
+
+      <p className="text-muted text-xs">
+        {analysis.provider}
+        {analysis.model ? ` · ${analysis.model}` : ""} ·{" "}
+        {analysis.prompt_key} v{analysis.prompt_version} ·{" "}
+        {analysis.analyzed_asset_ids.length} image
+        {analysis.analyzed_asset_ids.length === 1 ? "" : "s"}
+        {analysis.latency_ms === null ? "" : ` · ${analysis.latency_ms}ms`}
+      </p>
+    </div>
+  );
+}
+
 function FactRow({
   fact,
   onVerify,
   onReject,
+  onEditAndVerify,
 }: {
   fact: ProductFactResponse;
   onVerify: () => void;
   onReject: () => void;
+  onEditAndVerify: (valueText: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(fact.value_text);
+
   const settled =
     fact.verification_status === "VERIFIED" ||
     fact.verification_status === "REJECTED";
+  const fromAI = fact.source_type.startsWith("AI_");
+
+  if (editing) {
+    return (
+      <li className="border-border rounded-lg border px-3 py-2">
+        <form
+          className="grid gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setEditing(false);
+            onEditAndVerify(draft);
+          }}
+        >
+          <label className="grid gap-1 text-sm">
+            <span className="text-muted text-xs">{fact.key}</span>
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              required
+              // The row was replaced by this form on the reviewer's own click,
+              // so focus belongs where they were already looking.
+              autoFocus
+              className="border-border rounded-md border bg-transparent px-2 py-1.5 text-sm"
+            />
+          </label>
+          <span className="flex gap-3 text-xs">
+            <button type="submit" className="underline">
+              Save and verify
+            </button>
+            <button
+              type="button"
+              className="text-muted underline"
+              onClick={() => {
+                setDraft(fact.value_text);
+                setEditing(false);
+              }}
+            >
+              Cancel
+            </button>
+          </span>
+        </form>
+      </li>
+    );
+  }
 
   return (
     <li className="border-border flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
@@ -361,12 +529,24 @@ function FactRow({
         </p>
         <p className="text-muted mt-0.5 text-xs">
           {fact.fact_type} · {fact.verification_status}
+          {fromAI && fact.verification_status === "AI_INFERRED"
+            ? " · the AI observed this, nobody has confirmed it"
+            : ""}
         </p>
       </div>
       <span className="flex shrink-0 gap-3 text-xs">
         {fact.verification_status !== "VERIFIED" && (
           <button type="button" className="underline" onClick={onVerify}>
             Verify
+          </button>
+        )}
+        {!settled && (
+          <button
+            type="button"
+            className="underline"
+            onClick={() => setEditing(true)}
+          >
+            Edit
           </button>
         )}
         {!settled && (

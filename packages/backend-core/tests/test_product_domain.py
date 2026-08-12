@@ -38,6 +38,14 @@ class TestProductTransitions:
         assert can_transition_product(ProductStatus.ANALYZING, ProductStatus.REVIEW_REQUIRED)
         assert can_transition_product(ProductStatus.REVIEW_REQUIRED, ProductStatus.READY)
 
+    def test_a_product_under_review_can_be_re_analysed(self) -> None:
+        """§103 rules 4 and 10 — the reviewer adds a better photo and re-runs.
+
+        Symmetrical with READY, which has always allowed it. A product still
+        under review is the *more* likely one to need another pass.
+        """
+        assert can_transition_product(ProductStatus.REVIEW_REQUIRED, ProductStatus.ANALYZING)
+
     def test_a_hand_entered_product_may_skip_analysis(self) -> None:
         """§13 treats user-supplied data as the strongest source, so a product
         whose facts were all typed in never needs the analyser."""

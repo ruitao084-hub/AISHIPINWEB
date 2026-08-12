@@ -49,6 +49,8 @@ export type ClaimType = Schemas["ClaimType"];
 export type VerificationStatus = Schemas["VerificationStatus"];
 export type ClaimStatus = Schemas["ClaimStatus"];
 export type ProductAssetRole = Schemas["ProductAssetRole"];
+export type ProductAnalysisResponse = Schemas["ProductAnalysisResponse"];
+export type AnalysisStatus = Schemas["AnalysisStatus"];
 
 /** An error carrying the API's `code`, so callers branch on it rather than text. */
 export class ApiError extends Error {
@@ -388,6 +390,27 @@ export const productApi = {
     apiRequest<ProductClaimResponse>(
       `/api/v1/workspaces/${workspaceId}/products/${productId}/claims/${claimId}/reject`,
       { method: "POST" },
+    ),
+
+  // -- analysis (§14) --
+
+  /**
+   * Run vision analysis over the product's images.
+   *
+   * Costs money and takes seconds, so callers must disable their trigger while
+   * it is in flight — a double-click is two billable calls. PHASE 9 moves this
+   * behind the job queue, at which point the response arrives PENDING and the
+   * client polls instead of waiting.
+   */
+  analyze: (workspaceId: string, productId: string) =>
+    apiRequest<ProductAnalysisResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/analyze`,
+      { method: "POST" },
+    ),
+
+  analyses: (workspaceId: string, productId: string) =>
+    apiRequest<ProductAnalysisResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/analyses`,
     ),
 };
 

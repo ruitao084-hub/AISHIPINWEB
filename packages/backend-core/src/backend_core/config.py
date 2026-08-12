@@ -22,6 +22,25 @@ AppEnv = Literal["development", "test", "staging", "production"]
 QualityMode = Literal["FAST", "STANDARD", "HIGH", "PREMIUM"]
 MockVideoMode = Literal["success", "fail", "timeout", "slow"]
 
+#: Failure injection for the mock vision provider (§172). Each mode reaches a
+#: different branch in the caller: `malformed` is a 200 whose body fails schema
+#: validation, which must not be mistaken for a transport failure, and `empty`
+#: is a provider that worked and found nothing.
+MockVisionMode = Literal[
+    "success",
+    "unavailable",
+    "rate_limited",
+    "rejected",
+    "malformed",
+    "empty",
+]
+
+#: How much reasoning the vision model spends per call. Product analysis is
+#: description, not deduction, so the cheap end of the ladder is the honest
+#: default; the setting exists because a customer with difficult imagery can
+#: raise it without a deploy (§122).
+VisionEffort = Literal["low", "medium", "high", "xhigh", "max"]
+
 
 class Settings(BaseSettings):
     """Environment-backed configuration."""
@@ -82,6 +101,7 @@ class Settings(BaseSettings):
     # --- AI providers (§20, §138) -----------------------------------------
     openai_api_key: SecretStr = SecretStr("")
     google_ai_api_key: SecretStr = SecretStr("")
+    anthropic_api_key: SecretStr = SecretStr("")
     runway_api_key: SecretStr = SecretStr("")
     tts_provider: str = "mock"
     tts_api_key: SecretStr = SecretStr("")
@@ -89,6 +109,22 @@ class Settings(BaseSettings):
     default_llm_provider: str = "mock"
     default_vision_provider: str = "mock"
     default_image_provider: str = "mock"
+
+    # --- Vision analysis (§14, §20) ---------------------------------------
+    #: Pinned rather than floating: §15 records the prompt version of every
+    #: call so results stay explainable, and a model that silently changed
+    #: underneath would make that record a half-truth.
+    anthropic_vision_model: str = "claude-opus-5"
+    anthropic_vision_effort: VisionEffort = "medium"
+
+    #: Cap on images per analysis call. Vision pricing is per image, and a
+    #: product with forty photographs produces an expensive request whose extra
+    #: frames add nothing — the first few cover it from every useful angle.
+    vision_max_images: int = Field(default=6, ge=1, le=20)
+    #: Wall-clock budget for one vision call, generous because a thinking model
+    #: on six images is not fast, but bounded so a hung request cannot pin a
+    #: worker thread indefinitely (§24).
+    vision_timeout_seconds: float = Field(default=180.0, gt=0)
 
     # --- Media toolchain (§4.7, §35) --------------------------------------
     ffmpeg_path: str = "ffmpeg"
@@ -134,6 +170,7 @@ class Settings(BaseSettings):
     # --- Feature flags (§122, §170) ---------------------------------------
     use_mock_providers: bool = True
     enable_real_video_provider: bool = False
+    enable_real_vision_provider: bool = False
     enable_qc: bool = False
     enable_credits: bool = False
     enable_multi_provider: bool = False
@@ -141,6 +178,7 @@ class Settings(BaseSettings):
 
     # --- Mock failure injection (§172) ------------------------------------
     mock_video_mode: MockVideoMode = "success"
+    mock_vision_mode: MockVisionMode = "success"
 
     # -- computed ----------------------------------------------------------
 
@@ -206,12 +244,29 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _validate_provider_selection(self) -> Self:
         """A real provider must not be selected without a key to call it with."""
-        if self.use_mock_providers or not self.enable_real_video_provider:
+        if self.use_mock_providers:
             return self
-        if self.default_video_provider == "mock":
+
+        if self.enable_real_video_provider and self.default_video_provider == "mock":
             raise ValueError(
                 "ENABLE_REAL_VIDEO_PROVIDER is true but DEFAULT_VIDEO_PROVIDER is 'mock'"
             )
+
+        # Checked at boot rather than at the first analysis: a missing key
+        # discovered mid-request costs a user their upload flow, whereas one
+        # discovered here costs a deploy that was going to fail anyway.
+        if self.enable_real_vision_provider:
+            if self.default_vision_provider == "mock":
+                raise ValueError(
+                    "ENABLE_REAL_VISION_PROVIDER is true but DEFAULT_VISION_PROVIDER is 'mock'"
+                )
+            if (
+                self.default_vision_provider == "anthropic"
+                and not self.anthropic_api_key.get_secret_value()
+            ):
+                raise ValueError(
+                    "DEFAULT_VISION_PROVIDER is 'anthropic' but ANTHROPIC_API_KEY is not set"
+                )
         return self
 
 

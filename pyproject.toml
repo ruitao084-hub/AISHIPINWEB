@@ -26,6 +26,10 @@ dev = [
     "pytest-cov>=7.1.0",
     # starlette's TestClient requires httpx2; plain httpx is deprecated there.
     "httpx2>=2.10.0",
+    # The anthropic SDK builds its APIStatusError from an httpx.Response, so
+    # the tests that exercise §20's error mapping need httpx explicitly rather
+    # than by accident through that SDK's own dependency tree.
+    "httpx>=0.28.1",
     # Typed boto3 — required for `mypy --strict` to see through the SDK.
     "boto3-stubs[s3]>=1.43.68",
     # Local S3 double. CI integration tests run against a real MinIO service
@@ -65,6 +69,14 @@ ignore = [
     "ANN401",  # allow explicit `Any` in narrowly-typed decorator plumbing
     "S101",    # `assert` is how pytest asserts; re-enabled for src/ below
 ]
+
+# RUF001-003 exist to catch homoglyph attacks — a Cyrillic "а" hiding in an
+# identifier. But zh-CN is a first-class product language here (§128), so
+# fullwidth CJK punctuation in copy and docstrings is correct text, not a
+# lookalike. Allowing exactly these characters keeps the check useful for the
+# Latin homoglyphs it was written for, instead of training everyone to add
+# `noqa` to every Chinese string.
+allowed-confusables = ["，", "。", "：", "；", "（", "）", "、", "！", "？", "“", "”"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests may assert, use fixtures with shadowing names, and hardcode sample data.

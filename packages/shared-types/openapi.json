@@ -17,6 +17,12 @@
         "title": "AddMemberRequest",
         "type": "object"
       },
+      "AnalysisStatus": {
+        "description": "Outcome of one product analysis run (§14, P6-T06).\n\nRecorded even when it fails: §15 requires the prompt key and version of\nevery call, and a failed call is exactly the one someone will want to\nexplain later.",
+        "enum": ["PENDING", "SUCCEEDED", "FAILED"],
+        "title": "AnalysisStatus",
+        "type": "string"
+      },
       "ApiInfo": {
         "description": "What this API version is and what it can currently do.",
         "properties": {
@@ -786,6 +792,125 @@
         },
         "required": ["asset", "upload_url", "headers", "expires_in"],
         "title": "PresignResponse",
+        "type": "object"
+      },
+      "ProductAnalysisResponse": {
+        "properties": {
+          "analyzed_asset_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Analyzed Asset Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_claim_count": {
+            "title": "Created Claim Count",
+            "type": "integer"
+          },
+          "created_fact_count": {
+            "title": "Created Fact Count",
+            "type": "integer"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Tokens"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
+          },
+          "prompt_key": {
+            "description": "Which registered prompt produced this result (§15).",
+            "title": "Prompt Key",
+            "type": "string"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "provider",
+          "prompt_key",
+          "prompt_version",
+          "model",
+          "analyzed_asset_ids",
+          "created_fact_count",
+          "created_claim_count",
+          "input_tokens",
+          "output_tokens",
+          "latency_ms",
+          "error_code",
+          "created_at"
+        ],
+        "title": "ProductAnalysisResponse",
         "type": "object"
       },
       "ProductAssetResponse": {
@@ -3556,6 +3681,236 @@
           }
         ],
         "summary": "Edit a product",
+        "tags": ["products"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/analyses": {
+      "get": {
+        "description": "Past runs, newest first, failures included.\n\nA refused or timed-out attempt is exactly what a reviewer needs to see;\nhiding it would make the product look as though nothing had been tried.",
+        "operationId": "list_analyses_api_v1_workspaces__workspace_id__products__product_id__analyses_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductAnalysisResponse"
+                  },
+                  "title": "Response List Analyses Api V1 Workspaces  Workspace Id  Products  Product Id  Analyses Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Analysis history",
+        "tags": ["products"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/analyze": {
+      "post": {
+        "description": "Run vision analysis and file the results for review (§14).\n\nEverything the model observes lands as an `AI_INFERRED` fact and everything\nit suggests lands as a `SUGGESTED` claim — nothing here is publishable, and\nthe product moves to `REVIEW_REQUIRED` rather than to a ready state.\n\nSynchronous for now, which §83 permits at this length. PHASE 9 moves it\nbehind the job queue, at which point this returns the analysis in `PENDING`\nand the client polls.",
+        "operationId": "analyze_product_api_v1_workspaces__workspace_id__products__product_id__analyze_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Analyse the product's images",
         "tags": ["products"]
       }
     },

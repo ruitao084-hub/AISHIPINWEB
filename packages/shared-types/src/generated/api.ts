@@ -330,6 +330,57 @@ export interface paths {
         patch: operations["update_product_api_v1_workspaces__workspace_id__products__product_id__patch"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/analyses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Analysis history
+         * @description Past runs, newest first, failures included.
+         *
+         *     A refused or timed-out attempt is exactly what a reviewer needs to see;
+         *     hiding it would make the product look as though nothing had been tried.
+         */
+        get: operations["list_analyses_api_v1_workspaces__workspace_id__products__product_id__analyses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyse the product's images
+         * @description Run vision analysis and file the results for review (§14).
+         *
+         *     Everything the model observes lands as an `AI_INFERRED` fact and everything
+         *     it suggests lands as a `SUGGESTED` claim — nothing here is publishable, and
+         *     the product moves to `REVIEW_REQUIRED` rather than to a ready state.
+         *
+         *     Synchronous for now, which §83 permits at this length. PHASE 9 moves it
+         *     behind the job queue, at which point this returns the analysis in `PENDING`
+         *     and the client polls.
+         */
+        post: operations["analyze_product_api_v1_workspaces__workspace_id__products__product_id__analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/products/{product_id}/archive": {
         parameters: {
             query?: never;
@@ -738,6 +789,16 @@ export interface components {
             role: components["schemas"]["WorkspaceRole"];
         };
         /**
+         * AnalysisStatus
+         * @description Outcome of one product analysis run (§14, P6-T06).
+         *
+         *     Recorded even when it fails: §15 requires the prompt key and version of
+         *     every call, and a failed call is exactly the one someone will want to
+         *     explain later.
+         * @enum {string}
+         */
+        AnalysisStatus: "PENDING" | "SUCCEEDED" | "FAILED";
+        /**
          * ApiInfo
          * @description What this API version is and what it can currently do.
          */
@@ -1109,6 +1170,45 @@ export interface components {
              * @description Presigned URL. Send the file body here with PUT.
              */
             upload_url: string;
+        };
+        /** ProductAnalysisResponse */
+        ProductAnalysisResponse: {
+            /** Analyzed Asset Ids */
+            analyzed_asset_ids: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created Claim Count */
+            created_claim_count: number;
+            /** Created Fact Count */
+            created_fact_count: number;
+            /** Error Code */
+            error_code: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Input Tokens */
+            input_tokens: number | null;
+            /** Latency Ms */
+            latency_ms: number | null;
+            /** Model */
+            model: string | null;
+            /** Output Tokens */
+            output_tokens: number | null;
+            /**
+             * Prompt Key
+             * @description Which registered prompt produced this result (§15).
+             */
+            prompt_key: string;
+            /** Prompt Version */
+            prompt_version: number;
+            /** Provider */
+            provider: string;
+            status: components["schemas"]["AnalysisStatus"];
         };
         /** ProductAssetResponse */
         ProductAssetResponse: {
@@ -2919,6 +3019,162 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_analyses_api_v1_workspaces__workspace_id__products__product_id__analyses_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAnalysisResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    analyze_product_api_v1_workspaces__workspace_id__products__product_id__analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAnalysisResponse"];
                 };
             };
             /** @description Invalid request */

@@ -121,7 +121,19 @@ _PRODUCT_TRANSITIONS: dict[ProductStatus, frozenset[ProductStatus]] = {
             ProductStatus.ARCHIVED,
         }
     ),
-    ProductStatus.REVIEW_REQUIRED: frozenset({ProductStatus.READY, ProductStatus.ARCHIVED}),
+    ProductStatus.REVIEW_REQUIRED: frozenset(
+        {
+            ProductStatus.READY,
+            # Re-analysis. §103 rule 10 wants one-click regeneration and rule 4
+            # wants the user to be able to go back; a reviewer who adds a
+            # clearer photograph and re-runs the analyser is the ordinary case.
+            # Its absence here was an oversight rather than a policy: READY
+            # already allows this, and it would be strange for a *finished*
+            # product to be re-analysable while one still under review was not.
+            ProductStatus.ANALYZING,
+            ProductStatus.ARCHIVED,
+        }
+    ),
     ProductStatus.READY: frozenset(
         {
             # Editing facts can invalidate claims and send a product back for
@@ -147,6 +159,19 @@ def can_transition_product(current: ProductStatus, target: ProductStatus) -> boo
 def allowed_product_transitions(current: ProductStatus) -> frozenset[ProductStatus]:
     """Every status reachable from ``current`` in one step."""
     return _PRODUCT_TRANSITIONS[current]
+
+
+class AnalysisStatus(StrEnum):
+    """Outcome of one product analysis run (§14, P6-T06).
+
+    Recorded even when it fails: §15 requires the prompt key and version of
+    every call, and a failed call is exactly the one someone will want to
+    explain later.
+    """
+
+    PENDING = "PENDING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
 
 
 class ProductAssetRole(StrEnum):

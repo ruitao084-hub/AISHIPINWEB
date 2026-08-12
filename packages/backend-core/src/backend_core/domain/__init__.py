@@ -14,6 +14,7 @@ is what lets Alembic autogeneration see the full schema.
 from backend_core.domain.enums import (
     FACT_BACKED_CLAIM_TYPES,
     ROLE_PERMISSIONS,
+    AnalysisStatus,
     AssetSourceType,
     AssetType,
     ClaimRiskLevel,
@@ -41,6 +42,7 @@ from backend_core.domain.enums import (
 from backend_core.domain.models import (
     MediaAsset,
     Product,
+    ProductAnalysis,
     ProductAsset,
     ProductClaim,
     ProductFact,
@@ -52,6 +54,7 @@ from backend_core.domain.models import (
 __all__ = [
     "FACT_BACKED_CLAIM_TYPES",
     "ROLE_PERMISSIONS",
+    "AnalysisStatus",
     "AssetSourceType",
     "AssetType",
     "ClaimRiskLevel",
@@ -63,6 +66,7 @@ __all__ = [
     "Permission",
     "PlanCode",
     "Product",
+    "ProductAnalysis",
     "ProductAsset",
     "ProductAssetRole",
     "ProductClaim",

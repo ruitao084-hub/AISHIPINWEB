@@ -29,6 +29,7 @@ from backend_core.domain.enums import (
 from backend_core.domain.models import (
     MediaAsset,
     Product,
+    ProductAnalysis,
     ProductAsset,
     ProductClaim,
     ProductFact,
@@ -375,5 +376,41 @@ class ProductRepository:
                 ProductClaim.status == ClaimStatus.VERIFIED,
                 ProductClaim.source_fact_ids.op("@>")(func.jsonb_build_array(str(fact_id))),
             )
+        )
+        return list(result.scalars().all())
+
+    # -- analyses ----------------------------------------------------------
+
+    async def latest_analysis(
+        self, workspace_id: uuid.UUID, product_id: uuid.UUID
+    ) -> ProductAnalysis | None:
+        """The most recent analysis run, successful or not.
+
+        Failures are included deliberately: "the last attempt was refused" is
+        what a reviewer needs to see, and hiding it would leave the product
+        page looking as though nothing had ever been tried.
+        """
+        result = await self._session.execute(
+            select(ProductAnalysis)
+            .where(
+                ProductAnalysis.product_id == product_id,
+                ProductAnalysis.workspace_id == workspace_id,
+            )
+            .order_by(ProductAnalysis.created_at.desc(), ProductAnalysis.id.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_analyses(
+        self, workspace_id: uuid.UUID, product_id: uuid.UUID, *, limit: int = 20
+    ) -> list[ProductAnalysis]:
+        result = await self._session.execute(
+            select(ProductAnalysis)
+            .where(
+                ProductAnalysis.product_id == product_id,
+                ProductAnalysis.workspace_id == workspace_id,
+            )
+            .order_by(ProductAnalysis.created_at.desc())
+            .limit(limit)
         )
         return list(result.scalars().all())

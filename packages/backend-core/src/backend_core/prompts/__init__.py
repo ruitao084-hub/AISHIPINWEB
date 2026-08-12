@@ -8,5 +8,5 @@ and rollback possible.
 Product text and OCR output are untrusted content (§108): any template
 embedding them states that they are data, not instructions.
 
-Populated from PHASE 6.
+Populated from PHASE 6. See :mod:`backend_core.prompts.registry`.
 """

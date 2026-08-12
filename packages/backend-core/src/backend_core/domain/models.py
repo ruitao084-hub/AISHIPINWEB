@@ -35,6 +35,7 @@ from backend_core.db.base import (
     workspace_scoped_index,
 )
 from backend_core.domain.enums import (
+    AnalysisStatus,
     AssetSourceType,
     AssetType,
     ClaimRiskLevel,
@@ -639,5 +640,91 @@ class ProductClaim(WorkspaceEntity):
     def __repr__(self) -> str:
         return (
             f"ProductClaim(id={self.id!r}, type={self.claim_type.value!r}, "
+            f"status={self.status.value!r})"
+        )
+
+
+class ProductAnalysis(WorkspaceEntity):
+    """One run of the vision analyser against a product's imagery (§14, §15).
+
+    Not in §10's table list, and added deliberately. §15 requires the prompt
+    key and version to be recorded on *every* call, and §10.16's
+    `provider_jobs` cannot serve: it hangs off `generation_job_id`, which is a
+    video-generation concept from PHASE 9. Without a row here, "which prompt
+    produced this claim?" has no answer — and that question is the whole point
+    of versioning prompts.
+
+    Failed runs are recorded too. A call that was refused or timed out is the
+    one most likely to need explaining later.
+    """
+
+    __tablename__ = "product_analyses"
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    status: Mapped[AnalysisStatus] = mapped_column(
+        _pg_enum(AnalysisStatus, "analysis_status"),
+        nullable=False,
+        default=AnalysisStatus.PENDING,
+        server_default=AnalysisStatus.PENDING.value,
+    )
+
+    #: Adapter name, e.g. ``mock``. Not the vendor model id — that lives in
+    #: `model` and can differ from what was asked for (§20).
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    prompt_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    #: The validated `ProductIntelligence`. Stored whole so a reviewer can see
+    #: what the model actually said, including the fields it declined to fill.
+    result: Mapped[dict[str, Any] | None] = mapped_column(postgresql.JSONB, nullable=True)
+
+    #: Which product images were analysed. A later re-run against different
+    #: imagery should be distinguishable from a re-run against the same set.
+    analyzed_asset_ids: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+
+    # Cost metadata §20 requires a provider to report, so PHASE 18's credits
+    # bill against measurements rather than an estimate invented later.
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    #: How many facts and claims this run produced, so the review queue can be
+    #: sized without re-reading the result blob.
+    created_fact_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    created_claim_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+    product: Mapped[Product] = relationship(lazy="raise")
+
+    __table_args__ = (
+        CheckConstraint("prompt_version > 0", name="prompt_version_positive"),
+        CheckConstraint(
+            "status <> 'SUCCEEDED' OR result IS NOT NULL",
+            name="successful_analyses_have_a_result",
+        ),
+        workspace_scoped_index("product_analyses", "product_id"),
+        Index("ix_product_analyses_product_id_created_at", "product_id", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"ProductAnalysis(id={self.id!r}, provider={self.provider!r}, "
             f"status={self.status.value!r})"
         )

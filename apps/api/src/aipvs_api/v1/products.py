@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from aipvs_api.dependencies import CurrentUser, SessionDep, require_permission
 from backend_core.domain.enums import (
+    AnalysisStatus,
     ClaimRiskLevel,
     ClaimStatus,
     ClaimType,
@@ -28,7 +29,14 @@ from backend_core.domain.enums import (
     ProductStatus,
     VerificationStatus,
 )
-from backend_core.domain.models import Product, ProductAsset, ProductClaim, ProductFact
+from backend_core.domain.models import (
+    Product,
+    ProductAnalysis,
+    ProductAsset,
+    ProductClaim,
+    ProductFact,
+)
+from backend_core.services.product_analysis import ProductAnalysisService
 from backend_core.services.product_truth import ProductTruthService
 from backend_core.services.products import ProductService
 
@@ -672,3 +680,99 @@ async def reject_claim(
         workspace_id=workspace_id, product_id=product_id, claim_id=claim_id, user=user
     )
     return ProductClaimResponse.of(claim)
+
+
+# --- analysis (P6-T06, P6-T07) ---------------------------------------------
+
+
+class ProductAnalysisResponse(BaseModel):
+    id: uuid.UUID
+    status: AnalysisStatus
+    provider: str
+    prompt_key: str = Field(description="Which registered prompt produced this result (§15).")
+    prompt_version: int
+    model: str | None
+    analyzed_asset_ids: list[uuid.UUID]
+    created_fact_count: int
+    created_claim_count: int
+    input_tokens: int | None
+    output_tokens: int | None
+    latency_ms: int | None
+    error_code: str | None
+    created_at: datetime
+
+    @classmethod
+    def of(cls, analysis: ProductAnalysis) -> ProductAnalysisResponse:
+        return cls(
+            id=analysis.id,
+            status=analysis.status,
+            provider=analysis.provider,
+            prompt_key=analysis.prompt_key,
+            prompt_version=analysis.prompt_version,
+            model=analysis.model,
+            analyzed_asset_ids=[uuid.UUID(value) for value in analysis.analyzed_asset_ids],
+            created_fact_count=analysis.created_fact_count,
+            created_claim_count=analysis.created_claim_count,
+            input_tokens=analysis.input_tokens,
+            output_tokens=analysis.output_tokens,
+            latency_ms=analysis.latency_ms,
+            # `error_message` is deliberately absent: it can carry a provider's
+            # verbatim complaint about the customer's own imagery, and §62 keeps
+            # that out of a response a whole workspace can read. The code is
+            # enough to act on; the message stays in the row for support.
+            error_code=analysis.error_code,
+            created_at=analysis.created_at,
+        )
+
+
+@router.post(
+    "/{product_id}/analyze",
+    response_model=ProductAnalysisResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Analyse the product's images",
+    # GENERATION_RUN, not PRODUCT_WRITE: a vision call costs money, and §40
+    # deliberately does not let write access imply spending it.
+    dependencies=[require_permission(Permission.GENERATION_RUN)],
+)
+async def analyze_product(
+    workspace_id: uuid.UUID,
+    product_id: uuid.UUID,
+    session: SessionDep,
+) -> ProductAnalysisResponse:
+    """Run vision analysis and file the results for review (§14).
+
+    Everything the model observes lands as an `AI_INFERRED` fact and everything
+    it suggests lands as a `SUGGESTED` claim — nothing here is publishable, and
+    the product moves to `REVIEW_REQUIRED` rather than to a ready state.
+
+    Synchronous for now, which §83 permits at this length. PHASE 9 moves it
+    behind the job queue, at which point this returns the analysis in `PENDING`
+    and the client polls.
+    """
+    analysis = await ProductAnalysisService(session).analyze(
+        workspace_id=workspace_id, product_id=product_id
+    )
+    return ProductAnalysisResponse.of(analysis)
+
+
+@router.get(
+    "/{product_id}/analyses",
+    response_model=list[ProductAnalysisResponse],
+    summary="Analysis history",
+    dependencies=[require_permission(Permission.PRODUCT_READ)],
+)
+async def list_analyses(
+    workspace_id: uuid.UUID,
+    product_id: uuid.UUID,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> list[ProductAnalysisResponse]:
+    """Past runs, newest first, failures included.
+
+    A refused or timed-out attempt is exactly what a reviewer needs to see;
+    hiding it would make the product look as though nothing had been tried.
+    """
+    analyses = await ProductAnalysisService(session).history(
+        workspace_id=workspace_id, product_id=product_id, limit=limit
+    )
+    return [ProductAnalysisResponse.of(analysis) for analysis in analyses]
