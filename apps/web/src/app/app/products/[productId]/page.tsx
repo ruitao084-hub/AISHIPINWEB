@@ -11,9 +11,11 @@
  * P6-T08 adds the third disposition: **Edit + Verify**. A model that got a
  * material almost right is the common case, and without it a reviewer's only
  * options are to accept something wrong or to reject and retype it. The edit
- * goes through the same `verify` flag the API already honours, so a corrected
- * fact is recorded as USER_PROVIDED with the reviewer's name on it — not as
- * something the AI got right.
+ * goes through the same `verify` flag the API already honours, which sets the
+ * fact VERIFIED and stamps the reviewer on it. Its `source_type` stays
+ * `AI_VISION`: that field records where the assertion came from, not who
+ * vouched for it, and rewriting provenance on edit would erase the fact that a
+ * model proposed this in the first place.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -449,9 +451,8 @@ function AnalysisSummary({
 
       <p className="text-muted text-xs">
         {analysis.provider}
-        {analysis.model ? ` · ${analysis.model}` : ""} ·{" "}
-        {analysis.prompt_key} v{analysis.prompt_version} ·{" "}
-        {analysis.analyzed_asset_ids.length} image
+        {analysis.model ? ` · ${analysis.model}` : ""} · {analysis.prompt_key} v
+        {analysis.prompt_version} · {analysis.analyzed_asset_ids.length} image
         {analysis.analyzed_asset_ids.length === 1 ? "" : "s"}
         {analysis.latency_ms === null ? "" : ` · ${analysis.latency_ms}ms`}
       </p>

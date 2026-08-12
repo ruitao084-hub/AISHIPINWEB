@@ -264,6 +264,39 @@ class TestTruthLayerBoundary:
         assert response.json()["verification_status"] == "VERIFIED"
         assert response.json()["verified_at"] is not None
 
+    def test_edit_and_verify_moves_accountability_without_rewriting_provenance(
+        self, client: TestClient
+    ) -> None:
+        """P6-T08's third disposition, and the distinction underneath it.
+
+        A reviewer who corrects a value takes responsibility for it, so the
+        fact becomes VERIFIED with their name on it. `source_type` stays
+        `AI_VISION`, because that field answers "where did this assertion come
+        from" — a different question from "who vouched for it". Rewriting it on
+        edit would erase the fact that a model proposed this at all, which is
+        exactly the audit trail §13 exists to keep.
+        """
+        user = register_user(client, prefix="pm")
+        workspace_id = sole_workspace_id(user)
+        product_id = product_with_images(user, workspace_id)
+        analyze(user, workspace_id, product_id)
+
+        fact = facts(user, workspace_id, product_id)[0]
+        assert fact["source_type"] == "AI_VISION"
+
+        response = user.client.patch(
+            f"/api/v1/workspaces/{workspace_id}/products/{product_id}/facts/{fact['id']}",
+            headers=user.auth,
+            json={"value_text": "阳极氧化铝（人工核对）", "verify": True},
+        )
+        assert response.status_code == 200, response.text
+        edited = response.json()
+
+        assert edited["value_text"] == "阳极氧化铝（人工核对）"
+        assert edited["verification_status"] == "VERIFIED"
+        assert edited["verified_at"] is not None
+        assert edited["source_type"] == "AI_VISION"
+
     def test_the_visual_dna_lands_on_the_product_without_verification(
         self, client: TestClient
     ) -> None:

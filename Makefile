@@ -67,8 +67,12 @@ dev-api: ## Run only the FastAPI API
 lint: lint-web lint-api ## Lint everything
 
 .PHONY: lint-web
-lint-web: ## ESLint over the web app
+lint-web: ## ESLint + Prettier check over the JS side
 	pnpm run lint
+	@# CI runs this too, so omitting it here made `make verify` a weaker gate
+	@# than the one that actually blocks a merge — which is the failure mode a
+	@# local gate exists to prevent. `make format` fixes what this reports.
+	pnpm run format:check
 
 .PHONY: lint-api
 lint-api: ## Ruff lint + format check over all Python

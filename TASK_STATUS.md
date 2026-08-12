@@ -293,16 +293,16 @@ that cited it.
 
 ### Completed
 
-| Task   | Delivered                                                                                                                                                                                                           |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P6-T01 | `VisionProvider` Protocol with `ProviderImage` / `ProviderUsage` / `VisionAnalysis`; §20's error taxonomy mapped at the adapter boundary                                                                            |
-| P6-T02 | Versioned prompt registry; `product_analyze_v1` v1; single-pass `{{name}}` substitution so an untrusted product name cannot inject a placeholder (§108)                                                             |
-| P6-T03 | `ProductIntelligence` / `VisualDNA`, `extra="forbid"`, and the `OBSERVED_FIELDS` / `INFERRED_FIELDS` split that makes §109's boundary structural                                                                    |
-| P6-T04 | `MockVisionProvider` — deterministic from product name + image bytes, five failure modes via `MOCK_VISION_MODE` (§172), and `visible_text` left empty because a mock inventing legible text is exactly §13's danger |
-| P6-T05 | `AnthropicVisionProvider` — structured outputs, image downscaling to the model's resolution tier, refusal checked before content, full §20 error mapping. **Never run against the live API** (see below)            |
-| P6-T06 | `ProductAnalysisService.analyze` + `POST /products/{id}/analyze` + `GET /products/{id}/analyses`; `product_analyses` table records prompt key/version, model, tokens, latency and failures                          |
-| P6-T07 | Observed fields → `AI_INFERRED` facts, `possible_selling_points` → `SUGGESTED` claims. The inferred fields cannot reach `create_fact`: `_fact_specs` iterates `OBSERVED_FIELDS` only                                |
-| P6-T08 | Review UI: analysis panel with provenance, plus Verify / **Edit + Verify** / Reject per fact. A corrected value is recorded as the reviewer's, not as the AI having been right                                      |
+| Task   | Delivered                                                                                                                                                                                                                                                  |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P6-T01 | `VisionProvider` Protocol with `ProviderImage` / `ProviderUsage` / `VisionAnalysis`; §20's error taxonomy mapped at the adapter boundary                                                                                                                   |
+| P6-T02 | Versioned prompt registry; `product_analyze_v1` v1; single-pass `{{name}}` substitution so an untrusted product name cannot inject a placeholder (§108)                                                                                                    |
+| P6-T03 | `ProductIntelligence` / `VisualDNA`, `extra="forbid"`, and the `OBSERVED_FIELDS` / `INFERRED_FIELDS` split that makes §109's boundary structural                                                                                                           |
+| P6-T04 | `MockVisionProvider` — deterministic from product name + image bytes, five failure modes via `MOCK_VISION_MODE` (§172), and `visible_text` left empty because a mock inventing legible text is exactly §13's danger                                        |
+| P6-T05 | `AnthropicVisionProvider` — structured outputs, image downscaling to the model's resolution tier, refusal checked before content, full §20 error mapping. **Never run against the live API** (see below)                                                   |
+| P6-T06 | `ProductAnalysisService.analyze` + `POST /products/{id}/analyze` + `GET /products/{id}/analyses`; `product_analyses` table records prompt key/version, model, tokens, latency and failures                                                                 |
+| P6-T07 | Observed fields → `AI_INFERRED` facts, `possible_selling_points` → `SUGGESTED` claims. The inferred fields cannot reach `create_fact`: `_fact_specs` iterates `OBSERVED_FIELDS` only                                                                       |
+| P6-T08 | Review UI: analysis panel with provenance, plus Verify / **Edit + Verify** / Reject per fact. A corrected value is stamped VERIFIED with the reviewer on it, while `source_type` stays `AI_VISION` — provenance and accountability are different questions |
 
 ### Tests
 
