@@ -178,6 +178,16 @@ jobs:
           done
           echo "::error::MinIO did not become ready"; docker logs minio; exit 1
 
+      - name: Install ffmpeg
+        # §35 — ffprobe reads the duration, resolution and frame rate of every
+        # upload, and the render pipeline (PHASE 13) needs ffmpeg itself. The
+        # probe tests assert the binary is present rather than skipping, so a
+        # missing toolchain fails the job instead of silently dropping tests.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffprobe -version | head -1
+
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:

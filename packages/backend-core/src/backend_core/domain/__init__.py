@@ -13,8 +13,11 @@ is what lets Alembic autogeneration see the full schema.
 
 from backend_core.domain.enums import (
     ROLE_PERMISSIONS,
+    AssetSourceType,
+    AssetType,
     Permission,
     PlanCode,
+    UploadStatus,
     UserStatus,
     WorkspaceRole,
     WorkspaceStatus,
@@ -22,12 +25,16 @@ from backend_core.domain.enums import (
     role_has_permission,
     role_rank,
 )
-from backend_core.domain.models import User, Workspace, WorkspaceMember
+from backend_core.domain.models import MediaAsset, User, Workspace, WorkspaceMember
 
 __all__ = [
     "ROLE_PERMISSIONS",
+    "AssetSourceType",
+    "AssetType",
+    "MediaAsset",
     "Permission",
     "PlanCode",
+    "UploadStatus",
     "User",
     "UserStatus",
     "Workspace",

@@ -191,6 +191,46 @@ export interface paths {
         patch: operations["update_workspace_api_v1_workspaces__workspace_id__patch"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List media assets
+         * @description Finished assets in this workspace, newest first.
+         */
+        get: operations["list_assets_api_v1_workspaces__workspace_id__assets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/assets/{asset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one asset with a download URL
+         * @description One asset, with a short-lived signed URL to fetch its bytes.
+         */
+        get: operations["get_asset_api_v1_workspaces__workspace_id__assets__asset_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/members": {
         parameters: {
             query?: never;
@@ -243,6 +283,72 @@ export interface paths {
          *     billed, deleted, or have its membership managed.
          */
         patch: operations["update_member_role_api_v1_workspaces__workspace_id__members__member_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/uploads/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What may be uploaded
+         * @description The accepted formats and limits for this deployment.
+         */
+        get: operations["upload_config_api_v1_workspaces__workspace_id__uploads_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/uploads/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start an upload
+         * @description Reserve a key and sign a PUT the browser performs itself.
+         *
+         *     Creates the asset in `PENDING`. Nothing is served from it until
+         *     `complete` has verified the object.
+         */
+        post: operations["presign_upload_api_v1_workspaces__workspace_id__uploads_presign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/uploads/{asset_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish an upload
+         * @description Validate the uploaded object and make the asset usable.
+         *
+         *     Idempotent: completing an asset that is already `READY` returns it
+         *     unchanged, so a retry after a lost response is safe.
+         */
+        post: operations["complete_upload_api_v1_workspaces__workspace_id__uploads__asset_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/health": {
@@ -324,6 +430,12 @@ export interface components {
              */
             version: string;
         };
+        /**
+         * AssetType
+         * @description What kind of media an asset holds (§10.17).
+         * @enum {string}
+         */
+        AssetType: "IMAGE" | "VIDEO" | "AUDIO" | "SUBTITLE" | "DOCUMENT" | "THUMBNAIL";
         /** CreateWorkspaceRequest */
         CreateWorkspaceRequest: {
             /** Name */
@@ -411,6 +523,94 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * MediaAssetDetailResponse
+         * @description An asset plus a short-lived URL to fetch it (§110).
+         */
+        MediaAssetDetailResponse: {
+            asset_type: components["schemas"]["AssetType"];
+            /** Checksum */
+            checksum: string | null;
+            /** Codec */
+            codec: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Download Url */
+            download_url: string;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Fps */
+            fps: number | null;
+            /** Height */
+            height: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Mime Type */
+            mime_type: string;
+            /** Original Filename */
+            original_filename: string | null;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /** Upload Status */
+            upload_status: string;
+            /** Width */
+            width: number | null;
+        };
+        /**
+         * MediaAssetResponse
+         * @description An asset as the client sees it.
+         *
+         *     Deliberately does **not** expose `bucket` or `object_key`. Those are
+         *     infrastructure: revealing them tells a client where files live and invites
+         *     code that constructs storage paths instead of asking for a signed URL.
+         */
+        MediaAssetResponse: {
+            asset_type: components["schemas"]["AssetType"];
+            /** Checksum */
+            checksum: string | null;
+            /** Codec */
+            codec: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Fps */
+            fps: number | null;
+            /** Height */
+            height: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Mime Type */
+            mime_type: string;
+            /** Original Filename */
+            original_filename: string | null;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /** Upload Status */
+            upload_status: string;
+            /** Width */
+            width: number | null;
+        };
         /** MemberResponse */
         MemberResponse: {
             /**
@@ -430,6 +630,48 @@ export interface components {
              * Format: uuid
              */
             user_id: string;
+        };
+        /** PresignRequest */
+        PresignRequest: {
+            /** Filename */
+            filename: string;
+            /** Mime Type */
+            mime_type: string;
+            /**
+             * Size Bytes
+             * @description The file's size as the client sees it. Checked again against the stored object at completion — this is an early rejection, not the authoritative limit.
+             */
+            size_bytes: number;
+        };
+        /**
+         * PresignResponse
+         * @description Instructions for the browser's direct-to-storage PUT.
+         */
+        PresignResponse: {
+            asset: components["schemas"]["MediaAssetResponse"];
+            /**
+             * Expires In
+             * @description Seconds until the URL stops working.
+             */
+            expires_in: number;
+            /**
+             * Headers
+             * @description Headers that must accompany the PUT. They are part of the signature, so omitting or changing one makes storage reject the upload.
+             */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Method
+             * @description HTTP method the signature covers.
+             * @default PUT
+             */
+            method: string;
+            /**
+             * Upload Url
+             * @description Presigned URL. Send the file body here with PUT.
+             */
+            upload_url: string;
         };
         /**
          * ReadyResponse
@@ -487,6 +729,26 @@ export interface components {
         UpdateWorkspaceRequest: {
             /** Name */
             name: string;
+        };
+        /**
+         * UploadConfigResponse
+         * @description What this deployment accepts.
+         *
+         *     Served so the file picker and the validator agree by construction. A
+         *     hardcoded client-side list drifts from the server's and turns a policy
+         *     change into a confusing rejection after the transfer.
+         */
+        UploadConfigResponse: {
+            /** Max Image Bytes */
+            max_image_bytes: number;
+            /** Max Image Megapixels */
+            max_image_megapixels: number;
+            /** Max Video Bytes */
+            max_video_bytes: number;
+            /** Max Video Duration Seconds */
+            max_video_duration_seconds: number;
+            /** Mime Types */
+            mime_types: string[];
         };
         /** UserResponse */
         UserResponse: {
@@ -1325,6 +1587,163 @@ export interface operations {
             };
         };
     };
+    list_assets_api_v1_workspaces__workspace_id__assets_get: {
+        parameters: {
+            query?: {
+                asset_type?: components["schemas"]["AssetType"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaAssetResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_asset_api_v1_workspaces__workspace_id__assets__asset_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaAssetDetailResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_members_api_v1_workspaces__workspace_id__members_get: {
         parameters: {
             query?: never;
@@ -1579,6 +1998,239 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    upload_config_api_v1_workspaces__workspace_id__uploads_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadConfigResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    presign_upload_api_v1_workspaces__workspace_id__uploads_presign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresignResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    complete_upload_api_v1_workspaces__workspace_id__uploads__asset_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                asset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaAssetResponse"];
                 };
             };
             /** @description Invalid request */

@@ -41,6 +41,46 @@ class PlanCode(StrEnum):
     ENTERPRISE = "ENTERPRISE"
 
 
+class AssetType(StrEnum):
+    """What kind of media an asset holds (§10.17)."""
+
+    IMAGE = "IMAGE"
+    VIDEO = "VIDEO"
+    AUDIO = "AUDIO"
+    SUBTITLE = "SUBTITLE"
+    DOCUMENT = "DOCUMENT"
+    THUMBNAIL = "THUMBNAIL"
+
+
+class AssetSourceType(StrEnum):
+    """Where an asset came from (§10.17).
+
+    This is provenance, and it matters beyond bookkeeping: a `USER_UPLOAD` is
+    untrusted input that must be validated, while `AI_GENERATED` content was
+    fetched from a provider and re-hosted by a worker (§27). Retention policy
+    (§113) and the orphan collector (§163) both branch on it.
+    """
+
+    USER_UPLOAD = "USER_UPLOAD"
+    AI_GENERATED = "AI_GENERATED"
+    RENDERED = "RENDERED"
+    DERIVED = "DERIVED"
+
+
+class UploadStatus(StrEnum):
+    """Where an asset sits in the two-phase upload handshake (§12).
+
+    A presigned URL is handed out before any bytes exist, so a row is created
+    in `PENDING` and only becomes `READY` once the server has confirmed the
+    object is actually in storage and passed validation. Anything left
+    `PENDING` is an abandoned upload for the GC to reclaim (§163).
+    """
+
+    PENDING = "PENDING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
 class WorkspaceRole(StrEnum):
     """Membership role (§40).
 
@@ -89,6 +129,7 @@ class Permission(StrEnum):
     GENERATION_RUN = "generation:run"
 
     # Assets
+    ASSET_UPLOAD = "asset:upload"
     ASSET_DOWNLOAD = "asset:download"
 
 
@@ -109,6 +150,10 @@ _EDITOR_PERMISSIONS: frozenset[Permission] = _VIEWER_PERMISSIONS | {
     Permission.PRODUCT_WRITE,
     Permission.PROJECT_WRITE,
     Permission.GENERATION_RUN,
+    # Separate from PRODUCT_WRITE because an upload consumes storage the
+    # workspace pays for, and because media outlives the product it was
+    # uploaded against — the quota question is about the asset, not the owner.
+    Permission.ASSET_UPLOAD,
 }
 
 _ADMIN_PERMISSIONS: frozenset[Permission] = _EDITOR_PERMISSIONS | {

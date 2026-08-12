@@ -43,6 +43,19 @@
         "title": "ApiInfo",
         "type": "object"
       },
+      "AssetType": {
+        "description": "What kind of media an asset holds (§10.17).",
+        "enum": [
+          "IMAGE",
+          "VIDEO",
+          "AUDIO",
+          "SUBTITLE",
+          "DOCUMENT",
+          "THUMBNAIL"
+        ],
+        "title": "AssetType",
+        "type": "string"
+      },
       "CreateWorkspaceRequest": {
         "properties": {
           "name": {
@@ -202,6 +215,285 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "MediaAssetDetailResponse": {
+        "description": "An asset plus a short-lived URL to fetch it (§110).",
+        "properties": {
+          "asset_type": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum"
+          },
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "download_url": {
+            "title": "Download Url",
+            "type": "string"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "original_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Filename"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "upload_status": {
+            "title": "Upload Status",
+            "type": "string"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "id",
+          "asset_type",
+          "upload_status",
+          "mime_type",
+          "original_filename",
+          "size_bytes",
+          "width",
+          "height",
+          "duration_ms",
+          "fps",
+          "codec",
+          "checksum",
+          "metadata",
+          "created_at",
+          "download_url"
+        ],
+        "title": "MediaAssetDetailResponse",
+        "type": "object"
+      },
+      "MediaAssetResponse": {
+        "description": "An asset as the client sees it.\n\nDeliberately does **not** expose `bucket` or `object_key`. Those are\ninfrastructure: revealing them tells a client where files live and invites\ncode that constructs storage paths instead of asking for a signed URL.",
+        "properties": {
+          "asset_type": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum"
+          },
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "original_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Filename"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "upload_status": {
+            "title": "Upload Status",
+            "type": "string"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "id",
+          "asset_type",
+          "upload_status",
+          "mime_type",
+          "original_filename",
+          "size_bytes",
+          "width",
+          "height",
+          "duration_ms",
+          "fps",
+          "codec",
+          "checksum",
+          "metadata",
+          "created_at"
+        ],
+        "title": "MediaAssetResponse",
+        "type": "object"
+      },
       "MemberResponse": {
         "properties": {
           "created_at": {
@@ -226,6 +518,66 @@
         },
         "required": ["id", "user_id", "role", "created_at"],
         "title": "MemberResponse",
+        "type": "object"
+      },
+      "PresignRequest": {
+        "properties": {
+          "filename": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "mime_type": {
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "size_bytes": {
+            "description": "The file's size as the client sees it. Checked again against the stored object at completion — this is an early rejection, not the authoritative limit.",
+            "exclusiveMinimum": 0.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": ["filename", "mime_type", "size_bytes"],
+        "title": "PresignRequest",
+        "type": "object"
+      },
+      "PresignResponse": {
+        "description": "Instructions for the browser's direct-to-storage PUT.",
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/MediaAssetResponse"
+          },
+          "expires_in": {
+            "description": "Seconds until the URL stops working.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers that must accompany the PUT. They are part of the signature, so omitting or changing one makes storage reject the upload.",
+            "title": "Headers",
+            "type": "object"
+          },
+          "method": {
+            "default": "PUT",
+            "description": "HTTP method the signature covers.",
+            "title": "Method",
+            "type": "string"
+          },
+          "upload_url": {
+            "description": "Presigned URL. Send the file body here with PUT.",
+            "title": "Upload Url",
+            "type": "string"
+          }
+        },
+        "required": ["asset", "upload_url", "headers", "expires_in"],
+        "title": "PresignResponse",
         "type": "object"
       },
       "ReadyResponse": {
@@ -318,6 +670,43 @@
         },
         "required": ["name"],
         "title": "UpdateWorkspaceRequest",
+        "type": "object"
+      },
+      "UploadConfigResponse": {
+        "description": "What this deployment accepts.\n\nServed so the file picker and the validator agree by construction. A\nhardcoded client-side list drifts from the server's and turns a policy\nchange into a confusing rejection after the transfer.",
+        "properties": {
+          "max_image_bytes": {
+            "title": "Max Image Bytes",
+            "type": "integer"
+          },
+          "max_image_megapixels": {
+            "title": "Max Image Megapixels",
+            "type": "integer"
+          },
+          "max_video_bytes": {
+            "title": "Max Video Bytes",
+            "type": "integer"
+          },
+          "max_video_duration_seconds": {
+            "title": "Max Video Duration Seconds",
+            "type": "integer"
+          },
+          "mime_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mime Types",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mime_types",
+          "max_image_bytes",
+          "max_video_bytes",
+          "max_image_megapixels",
+          "max_video_duration_seconds"
+        ],
+        "title": "UploadConfigResponse",
         "type": "object"
       },
       "UserResponse": {
@@ -1367,6 +1756,253 @@
         "tags": ["workspaces"]
       }
     },
+    "/api/v1/workspaces/{workspace_id}/assets": {
+      "get": {
+        "description": "Finished assets in this workspace, newest first.",
+        "operationId": "list_assets_api_v1_workspaces__workspace_id__assets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AssetType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Asset Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MediaAssetResponse"
+                  },
+                  "title": "Response List Assets Api V1 Workspaces  Workspace Id  Assets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "List media assets",
+        "tags": ["media"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/assets/{asset_id}": {
+      "get": {
+        "description": "One asset, with a short-lived signed URL to fetch its bytes.",
+        "operationId": "get_asset_api_v1_workspaces__workspace_id__assets__asset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaAssetDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Get one asset with a download URL",
+        "tags": ["media"]
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/members": {
       "get": {
         "operationId": "list_members_api_v1_workspaces__workspace_id__members_get",
@@ -1785,6 +2421,317 @@
         ],
         "summary": "Change a member's role",
         "tags": ["workspaces"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/uploads/config": {
+      "get": {
+        "description": "The accepted formats and limits for this deployment.",
+        "operationId": "upload_config_api_v1_workspaces__workspace_id__uploads_config_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "What may be uploaded",
+        "tags": ["media"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/uploads/presign": {
+      "post": {
+        "description": "Reserve a key and sign a PUT the browser performs itself.\n\nCreates the asset in `PENDING`. Nothing is served from it until\n`complete` has verified the object.",
+        "operationId": "presign_upload_api_v1_workspaces__workspace_id__uploads_presign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Start an upload",
+        "tags": ["media"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/uploads/{asset_id}/complete": {
+      "post": {
+        "description": "Validate the uploaded object and make the asset usable.\n\nIdempotent: completing an asset that is already `READY` returns it\nunchanged, so a retry after a lost response is safe.",
+        "operationId": "complete_upload_api_v1_workspaces__workspace_id__uploads__asset_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaAssetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Finish an upload",
+        "tags": ["media"]
       }
     },
     "/health": {

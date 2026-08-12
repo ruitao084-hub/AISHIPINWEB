@@ -7,6 +7,108 @@ are useful to know later but too small for an ADR.
 
 ---
 
+## 2026-08-12 — PHASE 4: Media + Upload + Storage
+
+The phase where §116 stops being a principle and becomes a constraint the code
+has to live with: the API is no longer allowed to see the file. Everything
+below follows from that.
+
+### The bytes go around the API, so validation happens afterwards
+
+`presign` → browser PUTs to storage → `complete`. The interesting consequence
+is that a malicious file genuinely exists in the bucket between the second and
+third step. Three things contain it: the bucket is private (§110), nothing is
+served from a `PENDING` asset, and a failed check deletes the object. Written
+up properly in **ADR-0007** because it is the kind of tradeoff that looks like
+an oversight to whoever reads the code next.
+
+`complete` reads **64 bytes** to check the magic number, not the whole file.
+The storage Protocol gained `read_prefix` for that — a ranged GET keeps the
+check O(bytes examined) instead of O(file size), which for video is the
+difference between 64 bytes and half a gigabyte.
+
+### A rejected upload's FAILED status was being rolled back
+
+The cleanup test failed with `PENDING` where it expected `FAILED`, and the
+reason is worth writing down: rejection is _raised_, the request-scoped session
+rolls back on any exception, so the status write was undone on the way out —
+while the object deletion, not being transactional, went through anyway. The
+result was a `PENDING` row pointing at nothing, which is worse than either
+clean outcome: the client's retry finds no object, and the future GC cannot
+tell an abandoned upload from a rejected one.
+
+The failure record is now committed in its own transaction, the way an audit
+entry is. The fact that the request failed is precisely why the record has to
+survive it.
+
+### `require_permission` had never actually been used
+
+PHASE 3 wrote the dependency, documented it with a usage example, and then
+enforced permissions inside the services instead. Wiring the first route
+through it found two defects at once: the return type was `object` (FastAPI
+wants `params.Depends`), and the docstring's example wrapped it in `Depends()`
+a second time. Both would have been caught the first time it was used — which
+is the point. This is the same shape as the PHASE 2 contract guard that only
+ever ran green.
+
+### A literal `%` in a CHECK constraint arrived as `%%`
+
+`object_key LIKE 'workspaces/' || workspace_id::text || '/%'` reached Postgres
+with a doubled wildcard. Semantically harmless — `%%` matches the same as `%` —
+but wrong in the stored definition and confusing to read back. Replaced with
+`starts_with()`, which expresses the same predicate with no metacharacter at
+all. Found by querying `pg_get_constraintdef` after the migration rather than
+by trusting that the DDL round-tripped.
+
+### ffprobe is a subprocess, and subprocesses are an attack surface
+
+Three guards, each for a real class of problem: the argv is a list and a source
+beginning with `-` is refused (argument injection); `-protocol_whitelist` is
+narrowed per call site, `file` for a path and `http,https,tcp,tls` for a URL,
+so a crafted playlist cannot cross between them; and every invocation carries a
+timeout, because a file whose index sits at the end forces a full seek.
+
+Frame rates are parsed as rationals. `30000/1001` becomes `29.97002997…`, not
+`29.97` — three decimals drift visibly across a multi-shot render.
+
+### Images are checked before they are decoded
+
+`Image.open` parses the header and stops, so dimensions are available before
+any pixel data is touched. That is what makes the decompression-bomb ceiling a
+cheap gate rather than a post-hoc check: a 400-megapixel PNG of one flat colour
+is under 20 MB on the wire and would otherwise be decoded before anyone
+noticed. There is an integration test that uploads exactly that.
+
+### Video hashing is deferred, and the test says so
+
+§12 asks for a file hash. Images get SHA-256 for free — the bytes are already
+in memory for the dimension probe. Video does not, because hashing would mean
+streaming the whole object through the API, which is the thing this entire
+design exists to avoid. It moves to the ingest worker in PHASE 9. Rather than
+leave that implicit, an integration test asserts `checksum is None` for video,
+so the gap reads as a decision instead of as coverage.
+
+### Client
+
+`XMLHttpRequest` rather than `fetch` for the upload, for exactly one reason:
+`fetch` still has no upload-progress event in any shipping browser. Everything
+else in the client stays on `fetch`.
+
+Three concurrent uploads, not unlimited — twenty parallel PUTs divide the same
+bandwidth into twenty simultaneously-stalling transfers and make every progress
+bar useless at once. Accepted types and limits come from `/uploads/config`
+rather than a hardcoded list, so the picker's filter cannot drift from the
+server's whitelist.
+
+### ffmpeg in CI
+
+The integration job now installs ffmpeg, and the probe test **asserts the
+binary exists** rather than skipping when it is missing. A test that quietly
+disappears is worse than no test: the phase that depends on it would look
+covered. This also clears the PHASE 13 blocker early.
+
+---
+
 ## 2026-08-11 — PHASE 3: Auth + Workspace + RBAC
 
 The first phase with real database schema, real credentials and real

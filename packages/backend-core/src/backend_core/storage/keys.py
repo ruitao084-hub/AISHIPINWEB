@@ -77,6 +77,18 @@ def _workspace_prefix(workspace_id: UUID) -> str:
     return f"workspaces/{workspace_id}"
 
 
+def upload_key(workspace_id: UUID, extension: str) -> str:
+    """Key for a file a user uploaded before it has been attached to anything.
+
+    Media arrives ahead of the thing it belongs to: a user drags in photos and
+    *then* creates the product. Filing uploads under their own prefix keeps
+    that possible without inventing a placeholder parent, and gives the orphan
+    collector (§163) one place to look for assets nothing ever referenced.
+    """
+    ext = _validate_extension(extension)
+    return f"{_workspace_prefix(workspace_id)}/uploads/{uuid4()}.{ext}"
+
+
 def product_original_key(workspace_id: UUID, product_id: UUID, extension: str) -> str:
     """Key for an image exactly as the user uploaded it."""
     ext = _validate_extension(extension)

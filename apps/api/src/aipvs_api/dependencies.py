@@ -12,7 +12,7 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Path, Request
+from fastapi import Depends, Path, Request, params
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,18 +90,19 @@ async def get_workspace_role(
 WorkspaceRoleDep = Annotated[WorkspaceRole, Depends(get_workspace_role)]
 
 
-def require_permission(permission: Permission) -> object:
+def require_permission(permission: Permission) -> params.Depends:
     """Build a dependency asserting the caller holds ``permission``.
 
     Handlers declare the capability they need rather than the roles that happen
     to have it today, so widening a role is one edit to the matrix in
     :mod:`backend_core.domain.enums` instead of a hunt through conditionals.
 
-    Usage::
+    Returns a ready-made dependency marker, so it goes straight into the route
+    rather than being wrapped in ``Depends`` again::
 
         @router.delete(
             "/{workspace_id}",
-            dependencies=[Depends(require_permission(Permission.WORKSPACE_DELETE))],
+            dependencies=[require_permission(Permission.WORKSPACE_DELETE)],
         )
     """
 
@@ -109,4 +110,7 @@ def require_permission(permission: Permission) -> object:
         ensure_permission(role, permission)
         return role
 
-    return Depends(dependency)
+    # `params.Depends` is what `Depends(...)` constructs; building it directly
+    # keeps the declared return type honest, since FastAPI types the `Depends`
+    # helper as `Any` so it can serve as a default value for any parameter.
+    return params.Depends(dependency=dependency)

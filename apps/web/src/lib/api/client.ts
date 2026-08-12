@@ -30,6 +30,12 @@ export type WorkspaceResponse = Schemas["WorkspaceResponse"];
 export type MemberResponse = Schemas["MemberResponse"];
 export type RegisterRequest = Schemas["RegisterRequest"];
 export type LoginRequest = Schemas["LoginRequest"];
+export type MediaAssetResponse = Schemas["MediaAssetResponse"];
+export type MediaAssetDetailResponse = Schemas["MediaAssetDetailResponse"];
+export type PresignRequest = Schemas["PresignRequest"];
+export type PresignResponse = Schemas["PresignResponse"];
+export type UploadConfigResponse = Schemas["UploadConfigResponse"];
+export type AssetType = Schemas["AssetType"];
 
 /** An error carrying the API's `code`, so callers branch on it rather than text. */
 export class ApiError extends Error {
@@ -201,3 +207,130 @@ export const workspaceApi = {
   members: (id: string) =>
     apiRequest<MemberResponse[]>(`/api/v1/workspaces/${id}/members`),
 };
+
+// --- Uploads and media (§12) -----------------------------------------------
+
+export const uploadApi = {
+  /** What this deployment accepts. Fetched rather than hardcoded so the
+   * picker's filter and the server's whitelist cannot drift apart. */
+  config: (workspaceId: string) =>
+    apiRequest<UploadConfigResponse>(
+      `/api/v1/workspaces/${workspaceId}/uploads/config`,
+    ),
+
+  presign: (workspaceId: string, payload: PresignRequest) =>
+    apiRequest<PresignResponse>(
+      `/api/v1/workspaces/${workspaceId}/uploads/presign`,
+      { method: "POST", body: payload },
+    ),
+
+  complete: (workspaceId: string, assetId: string) =>
+    apiRequest<MediaAssetResponse>(
+      `/api/v1/workspaces/${workspaceId}/uploads/${assetId}/complete`,
+      { method: "POST" },
+    ),
+
+  list: (workspaceId: string, assetType?: AssetType) => {
+    const query = assetType ? `?asset_type=${assetType}` : "";
+    return apiRequest<MediaAssetResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/assets${query}`,
+    );
+  },
+
+  get: (workspaceId: string, assetId: string) =>
+    apiRequest<MediaAssetDetailResponse>(
+      `/api/v1/workspaces/${workspaceId}/assets/${assetId}`,
+    ),
+};
+
+export interface UploadTransfer {
+  /** Resolves when storage has accepted the whole body. */
+  done: Promise<void>;
+  /** Aborts the transfer; `done` rejects with an `UploadAbortedError`. */
+  cancel: () => void;
+}
+
+export class StorageUploadError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "StorageUploadError";
+    this.status = status;
+  }
+}
+
+export class UploadAbortedError extends Error {
+  constructor() {
+    super("Upload canceled.");
+    this.name = "UploadAbortedError";
+  }
+}
+
+/**
+ * PUT a file straight to object storage.
+ *
+ * Uses `XMLHttpRequest` rather than `fetch` for one reason: `fetch` still has
+ * no upload-progress event in any shipping browser, and a progress bar that
+ * jumps from 0% to 100% on a 200 MB video is not a progress bar. The rest of
+ * the client uses `fetch`; this is the one place the older API earns its keep.
+ *
+ * No credentials are attached. The URL carries its own signature (§12), and
+ * sending cookies to the storage origin would be both useless and a leak.
+ */
+export function uploadToStorage(
+  url: string,
+  file: File,
+  headers: Record<string, string>,
+  onProgress?: (fraction: number) => void,
+): UploadTransfer {
+  const request = new XMLHttpRequest();
+
+  const done = new Promise<void>((resolve, reject) => {
+    request.open("PUT", url, true);
+    for (const [name, value] of Object.entries(headers)) {
+      request.setRequestHeader(name, value);
+    }
+
+    request.upload.addEventListener("progress", (event) => {
+      // `lengthComputable` is false for a chunked body; reporting 0 then is
+      // honest, where a fabricated estimate would not be.
+      if (event.lengthComputable && event.total > 0) {
+        onProgress?.(event.loaded / event.total);
+      }
+    });
+
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress?.(1);
+        resolve();
+        return;
+      }
+      reject(
+        new StorageUploadError(
+          request.status,
+          `Storage rejected the upload (HTTP ${request.status}).`,
+        ),
+      );
+    });
+
+    request.addEventListener("error", () => {
+      // The browser withholds the cause of a cross-origin network failure, so
+      // there is nothing more specific to say here than that it failed.
+      reject(new StorageUploadError(0, "The connection to storage failed."));
+    });
+
+    request.addEventListener("abort", () => {
+      reject(new UploadAbortedError());
+    });
+
+    request.send(file);
+  });
+
+  return {
+    done,
+    cancel: () => {
+      request.abort();
+    },
+  };
+}

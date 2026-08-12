@@ -14,6 +14,7 @@
  * the refresh cookie has been exchanged.
  */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
@@ -48,9 +49,22 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="border-border flex items-center justify-between border-b px-6 py-3">
-        <span className="text-sm font-semibold tracking-tight">
-          AI Product Video Studio
-        </span>
+        <div className="flex items-center gap-6">
+          <span className="text-sm font-semibold tracking-tight">
+            AI Product Video Studio
+          </span>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/app" className="underline-offset-4 hover:underline">
+              Workspaces
+            </Link>
+            <Link
+              href="/app/media"
+              className="underline-offset-4 hover:underline"
+            >
+              Media
+            </Link>
+          </nav>
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-muted text-sm">{user.display_name}</span>
           <button

@@ -1,4 +1,4 @@
-"""ORM models for users, workspaces and membership (taskbook §10.1-§10.3)."""
+"""ORM models for users, workspaces, membership and media (taskbook §10.1-§10.3, §10.17)."""
 
 from __future__ import annotations
 
@@ -7,19 +7,36 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend_core.db.base import BaseEntity
-from backend_core.domain.enums import PlanCode, UserStatus, WorkspaceRole, WorkspaceStatus
+from backend_core.db.base import (
+    BaseEntity,
+    SoftDeleteMixin,
+    WorkspaceEntity,
+    workspace_scoped_index,
+)
+from backend_core.domain.enums import (
+    AssetSourceType,
+    AssetType,
+    PlanCode,
+    UploadStatus,
+    UserStatus,
+    WorkspaceRole,
+    WorkspaceStatus,
+)
 
 
 def _pg_enum(enum_type: type[Any], name: str) -> Enum:
@@ -186,4 +203,136 @@ class WorkspaceMember(BaseEntity):
         return (
             f"WorkspaceMember(workspace_id={self.workspace_id!r}, "
             f"user_id={self.user_id!r}, role={self.role.value!r})"
+        )
+
+
+class MediaAsset(WorkspaceEntity, SoftDeleteMixin):
+    """One object in storage, with everything known about it (§10.17).
+
+    This is the only table that may point at binary content: §9 forbids storing
+    video or image bytes in Postgres, so what lives here is a *reference* —
+    bucket plus key — alongside the metadata the product needs to reason about
+    the file without fetching it.
+
+    Every path that produces media converges on this row: a browser upload
+    (§12), a provider result re-hosted by a worker (§27), a render output
+    (§10.23) and a derived thumbnail all become ``MediaAsset`` records that
+    differ only by :class:`AssetSourceType`. Downstream code therefore never
+    needs to know where a file came from in order to serve, download or
+    garbage-collect it.
+    """
+
+    __tablename__ = "media_assets"
+
+    asset_type: Mapped[AssetType] = mapped_column(
+        _pg_enum(AssetType, "asset_type"),
+        nullable=False,
+    )
+    source_type: Mapped[AssetSourceType] = mapped_column(
+        _pg_enum(AssetSourceType, "asset_source_type"),
+        nullable=False,
+    )
+
+    # Not in §10.17's column list, but §12's handshake demands it: the row is
+    # created when the presigned URL is issued, which is *before* any bytes
+    # exist. Without a status, a PENDING row is indistinguishable from a
+    # complete one and the API would happily serve a key that 404s.
+    upload_status: Mapped[UploadStatus] = mapped_column(
+        _pg_enum(UploadStatus, "upload_status"),
+        nullable=False,
+        default=UploadStatus.PENDING,
+        server_default=UploadStatus.PENDING.value,
+    )
+
+    # Recorded per row rather than read from settings at access time. Buckets
+    # get migrated and regions get split; an asset written last year must still
+    # resolve to the bucket it was actually written to (§11).
+    bucket: Mapped[str] = mapped_column(String(128), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+
+    # Display only. The key is server-generated (§11) precisely so this string
+    # is never used to address anything.
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    mime_type: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # BigInteger: a 4K master render passes the 2 GiB signed-int ceiling.
+    # Nullable because it is unknown until the upload is confirmed.
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Milliseconds, not seconds: cut points and audio sync are specified in ms
+    # throughout the timeline model, and a float duration would accumulate
+    # rounding error across a multi-shot concatenation.
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Double precision rather than a 3-decimal numeric, because real footage is
+    # 30000/1001 and storing 29.970 would drift over a long render.
+    fps: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    codec: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # SHA-256 hex. Used for integrity after a worker re-hosts a provider file
+    # (§27) and for detecting a re-upload of the same bytes.
+    checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    # Named ``asset_metadata`` in Python because ``metadata`` is taken by
+    # SQLAlchemy's declarative machinery; the column keeps the §10.17 name.
+    asset_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        postgresql.JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+
+    __table_args__ = (
+        # One row per object. Two assets sharing a key would make deletion
+        # unsound: removing one would break the other.
+        UniqueConstraint("bucket", "object_key", name="uq_media_asset_object"),
+        # §61 — a key must live under its own workspace prefix. Enforced in
+        # code by `belongs_to_workspace`, and again here so a bug in a service
+        # cannot write a cross-tenant key at all.
+        #
+        # `starts_with` rather than `LIKE '...%'`: a literal `%` in a constraint
+        # string is escaped to `%%` on its way through SQLAlchemy and lands in
+        # the stored definition that way. Harmless in LIKE, but confusing to
+        # read back — and this predicate needs no wildcard in the first place.
+        CheckConstraint(
+            "starts_with(object_key, 'workspaces/' || workspace_id::text || '/')",
+            name="object_key_is_workspace_scoped",
+        ),
+        CheckConstraint("size_bytes IS NULL OR size_bytes >= 0", name="size_bytes_non_negative"),
+        CheckConstraint("width IS NULL OR width > 0", name="width_positive"),
+        CheckConstraint("height IS NULL OR height > 0", name="height_positive"),
+        CheckConstraint("duration_ms IS NULL OR duration_ms >= 0", name="duration_non_negative"),
+        CheckConstraint("fps IS NULL OR fps > 0", name="fps_positive"),
+        # A READY asset is one the server has confirmed; serving code reads
+        # these columns without null checks, so the database guarantees them.
+        CheckConstraint(
+            "upload_status <> 'READY' OR size_bytes IS NOT NULL",
+            name="ready_assets_have_size",
+        ),
+        # "Show me this workspace's images" is the library view's only query.
+        workspace_scoped_index("media_assets", "asset_type"),
+        # §163's orphan collector scans for uploads that were presigned and
+        # then abandoned. Partial, so it stays tiny — PENDING is a transient
+        # state and the healthy steady-state row count is near zero.
+        Index(
+            "ix_media_assets_pending_created_at",
+            "created_at",
+            postgresql_where=text("upload_status = 'PENDING'"),
+        ),
+    )
+
+    @property
+    def is_ready(self) -> bool:
+        return self.upload_status is UploadStatus.READY and self.deleted_at is None
+
+    def __repr__(self) -> str:
+        return (
+            f"MediaAsset(id={self.id!r}, type={self.asset_type.value!r}, "
+            f"status={self.upload_status.value!r})"
         )

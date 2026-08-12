@@ -105,6 +105,21 @@ class Settings(BaseSettings):
     max_upload_video_mb: int = Field(default=500, ge=1)
     max_project_duration_seconds: int = Field(default=120, ge=1)
 
+    #: Decompression-bomb ceiling. A 200 KB PNG can declare 60000x60000 and
+    #: expand to tens of gigabytes when decoded, so the byte limit above does
+    #: not bound memory on its own (§12 "图片像素", §151).
+    max_upload_image_megapixels: int = Field(default=50, ge=1)
+    #: Single-dimension cap. Beyond this, encoders and browsers start failing
+    #: regardless of total pixel count.
+    max_upload_image_dimension: int = Field(default=16384, ge=1)
+    #: Source footage longer than this is rejected at upload rather than
+    #: discovered during a render (§12 "视频时长").
+    max_upload_video_duration_seconds: int = Field(default=900, ge=1)
+    #: Wall-clock budget for probing an uploaded file. ffprobe reads container
+    #: headers over ranged HTTP, so this bounds a pathological file (moov atom
+    #: at the end, deeply fragmented) rather than a normal one.
+    media_probe_timeout_seconds: int = Field(default=30, ge=1)
+
     # --- Worker concurrency (§25) -----------------------------------------
     video_generation_concurrency: int = Field(default=4, ge=1)
     tts_concurrency: int = Field(default=4, ge=1)
@@ -143,6 +158,11 @@ class Settings(BaseSettings):
     @property
     def max_upload_video_bytes(self) -> int:
         return self.max_upload_video_mb * 1024 * 1024
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def max_upload_image_pixels(self) -> int:
+        return self.max_upload_image_megapixels * 1_000_000
 
     # -- validation --------------------------------------------------------
 

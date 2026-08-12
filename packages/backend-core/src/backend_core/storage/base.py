@@ -46,6 +46,18 @@ class ObjectStorage(Protocol):
         """Fetch an object into memory. Only for small objects."""
         ...
 
+    def read_prefix(self, key: str, length: int) -> bytes:
+        """Fetch the first ``length`` bytes of an object.
+
+        Content sniffing needs a container header, never a whole file (§12
+        "恶意文件"). A ranged read keeps that check O(bytes examined) instead of
+        O(file size), which is the difference between a few hundred bytes and
+        half a gigabyte for a video.
+
+        Returns fewer bytes than requested when the object is shorter.
+        """
+        ...
+
     def upload_file(self, source: Path, key: str, content_type: str) -> ObjectMetadata:
         """Stream a local file into the store."""
         ...
