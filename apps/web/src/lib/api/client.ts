@@ -78,6 +78,12 @@ export type DownloadResponse = Schemas["DownloadResponse"];
 export type CreditAccountResponse = Schemas["CreditAccountResponse"];
 export type CreditTransactionResponse = Schemas["CreditTransactionResponse"];
 export type CostEstimateResponse = Schemas["CostEstimateResponse"];
+export type AnalyticsResponse = Schemas["AnalyticsResponse"];
+export type AdminJobResponse = Schemas["AdminJobResponse"];
+export type ProviderConfigResponse = Schemas["ProviderConfigResponse"];
+export type CapabilityResponse = Schemas["CapabilityResponse"];
+export type PromptVersionResponse = Schemas["PromptVersionResponse"];
+export type WorkspaceSummary = Schemas["WorkspaceSummary"];
 
 /** Job states that will never change again (§106). Polling stops at these. */
 export const TERMINAL_JOB_STATUSES: readonly JobStatus[] = [
@@ -673,6 +679,41 @@ export const generationApi = {
       `/api/v1/workspaces/${workspaceId}/projects/${projectId}/download` +
         (renderId ? `?render_id=${renderId}` : ""),
     ),
+};
+
+/**
+ * Platform-staff endpoints (§99).
+ *
+ * Guarded server-side by `require_platform_admin`, which is a flag on the user
+ * rather than a workspace role — no role inside one workspace should confer
+ * the ability to read another's jobs. The client does not gate on it: a 403 is
+ * the answer, and a UI that hid the page would still not be a permission.
+ */
+export const adminApi = {
+  analytics: (hours = 24) =>
+    apiRequest<AnalyticsResponse>(`/api/v1/admin/analytics?hours=${hours}`),
+
+  providers: () =>
+    apiRequest<ProviderConfigResponse[]>(`/api/v1/admin/providers`),
+
+  capabilities: () =>
+    apiRequest<CapabilityResponse[]>(`/api/v1/admin/providers/capabilities`),
+
+  setProviderEnabled: (provider: string, enabled: boolean, notes?: string) =>
+    apiRequest<ProviderConfigResponse>(
+      `/api/v1/admin/providers/${provider}/enabled`,
+      { method: "POST", body: { enabled, notes: notes ?? null } },
+    ),
+
+  failedJobs: (hours = 24, limit = 50) =>
+    apiRequest<AdminJobResponse[]>(
+      `/api/v1/admin/jobs/failed?hours=${hours}&limit=${limit}`,
+    ),
+
+  workspaces: (limit = 50) =>
+    apiRequest<WorkspaceSummary[]>(`/api/v1/admin/workspaces?limit=${limit}`),
+
+  prompts: () => apiRequest<PromptVersionResponse[]>(`/api/v1/admin/prompts`),
 };
 
 /** Balance, ledger and pre-generation quotes (§95). */

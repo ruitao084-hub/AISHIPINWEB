@@ -3172,6 +3172,34 @@
         "title": "ProjectStatus",
         "type": "string"
       },
+      "PromptVersionResponse": {
+        "properties": {
+          "active": {
+            "description": "Whether this is the version now being sent.",
+            "title": "Active",
+            "type": "boolean"
+          },
+          "characters": {
+            "title": "Characters",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": ["key", "version", "active", "characters", "text"],
+        "title": "PromptVersionResponse",
+        "type": "object"
+      },
       "ProviderConfigResponse": {
         "properties": {
           "attempts": {
@@ -6128,6 +6156,95 @@
           }
         ],
         "summary": "Recent failures",
+        "tags": ["admin"]
+      }
+    },
+    "/api/v1/admin/prompts": {
+      "get": {
+        "description": "§15's registry, every version (P22-T06).\n\nRead-only, and that is the design rather than an omission. §15 makes a\nversion immutable: a job records the key and version it sent, and an\nendpoint that could edit that text would let someone change what a recorded\ncall *claims* to have sent. Shipping a new prompt is a deploy, which leaves\na commit; editing one through an API would not.\n\nSuperseded versions are listed alongside the active one, because the\nquestion this view answers is usually \"what did that job actually send\",\nand the answer is often not the current text.",
+        "operationId": "list_prompts_api_v1_admin_prompts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PromptVersionResponse"
+                  },
+                  "title": "Response List Prompts Api V1 Admin Prompts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "The prompt registry",
         "tags": ["admin"]
       }
     },

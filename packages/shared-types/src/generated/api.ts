@@ -98,6 +98,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The prompt registry
+         * @description §15's registry, every version (P22-T06).
+         *
+         *     Read-only, and that is the design rather than an omission. §15 makes a
+         *     version immutable: a job records the key and version it sent, and an
+         *     endpoint that could edit that text would let someone change what a recorded
+         *     call *claims* to have sent. Shipping a new prompt is a deploy, which leaves
+         *     a commit; editing one through an API would not.
+         *
+         *     Superseded versions are listed alongside the active one, because the
+         *     question this view answers is usually "what did that job actually send",
+         *     and the answer is often not the current text.
+         */
+        get: operations["list_prompts_api_v1_admin_prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/providers": {
         parameters: {
             query?: never;
@@ -3239,6 +3269,22 @@ export interface components {
          * @enum {string}
          */
         ProjectStatus: "DRAFT" | "ANALYZING" | "CREATIVE_PLANNING" | "SCRIPTING" | "STORYBOARDING" | "GENERATING" | "COMPOSITING" | "QC" | "READY" | "FAILED" | "ARCHIVED";
+        /** PromptVersionResponse */
+        PromptVersionResponse: {
+            /**
+             * Active
+             * @description Whether this is the version now being sent.
+             */
+            active: boolean;
+            /** Characters */
+            characters: number;
+            /** Key */
+            key: string;
+            /** Text */
+            text: string;
+            /** Version */
+            version: number;
+        };
         /** ProviderConfigResponse */
         ProviderConfigResponse: {
             /**
@@ -4535,6 +4581,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminJobResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_prompts_api_v1_admin_prompts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptVersionResponse"][];
                 };
             };
             /** @description Invalid request */

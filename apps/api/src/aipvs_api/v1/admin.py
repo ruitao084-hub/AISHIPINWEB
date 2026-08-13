@@ -449,6 +449,50 @@ async def analytics(session: SessionDep, hours: int = 24) -> AnalyticsResponse:
     )
 
 
+# --- prompt registry (§15, P22-T06) -----------------------------------------
+
+
+class PromptVersionResponse(BaseModel):
+    key: str
+    version: int
+    active: bool = Field(description="Whether this is the version now being sent.")
+    characters: int
+    text: str
+
+
+@router.get(
+    "/prompts",
+    response_model=list[PromptVersionResponse],
+    summary="The prompt registry",
+    dependencies=[_admin_only()],
+)
+async def list_prompts() -> list[PromptVersionResponse]:
+    """§15's registry, every version (P22-T06).
+
+    Read-only, and that is the design rather than an omission. §15 makes a
+    version immutable: a job records the key and version it sent, and an
+    endpoint that could edit that text would let someone change what a recorded
+    call *claims* to have sent. Shipping a new prompt is a deploy, which leaves
+    a commit; editing one through an API would not.
+
+    Superseded versions are listed alongside the active one, because the
+    question this view answers is usually "what did that job actually send",
+    and the answer is often not the current text.
+    """
+    from backend_core.prompts.registry import active_version, catalogue
+
+    return [
+        PromptVersionResponse(
+            key=prompt.key,
+            version=prompt.version,
+            active=prompt.version == active_version(prompt.key),
+            characters=len(prompt.text),
+            text=prompt.text,
+        )
+        for prompt in catalogue()
+    ]
+
+
 class WorkspaceSummary(BaseModel):
     id: uuid.UUID
     name: str

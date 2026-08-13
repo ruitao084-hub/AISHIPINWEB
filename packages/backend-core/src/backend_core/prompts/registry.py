@@ -547,3 +547,27 @@ def active_version(key: str) -> int:
 def registered_keys() -> tuple[str, ...]:
     """Every prompt key with at least one registered version."""
     return tuple(sorted({key for key, _ in _REGISTRY}))
+
+
+def versions_for(key: str) -> tuple[int, ...]:
+    """Every registered version of one key, oldest first.
+
+    §15 makes versions immutable, so this is a complete history rather than a
+    changelog that could disagree with what actually ran. A job recorded as
+    using `product_analyze_v1` v1 can still be shown the exact text it sent,
+    even after v2 became active.
+    """
+    return tuple(sorted(version for registered, version in _REGISTRY if registered == key))
+
+
+def catalogue() -> tuple[Prompt, ...]:
+    """Every registered prompt, for §99's admin view (P22-T06).
+
+    Read-only by construction. §15 forbids editing a version in place, so an
+    admin surface that could write would be a way to change what a recorded
+    call *claims* to have sent — which is the one thing the version number
+    exists to prevent.
+    """
+    return tuple(
+        _REGISTRY[(key, version)] for key in registered_keys() for version in versions_for(key)
+    )
