@@ -53,6 +53,8 @@ celery_app.conf.update(
         "aipvs.render.compose": {"queue": QueueName.RENDER.value},
         "aipvs.qc.check": {"queue": QueueName.QC.value},
         "aipvs.maintenance.reap_stuck_jobs": {"queue": QueueName.DEFAULT.value},
+        "aipvs.batch.dispatch": {"queue": QueueName.DEFAULT.value},
+        "aipvs.batch.run_item": {"queue": QueueName.DEFAULT.value},
     },
     # §161's periodic recovery. Every five minutes, which is frequent enough
     # that a user notices a stuck job resolving rather than a support ticket,
@@ -172,11 +174,55 @@ def reap_stuck_jobs(self: Any, limit: int = 100) -> dict[str, Any]:
     }
 
 
+@celery_app.task(name="aipvs.batch.dispatch", bind=True, max_retries=0)
+def dispatch_batch(self: Any, workspace_id: str, batch_id: str) -> dict[str, Any]:
+    """Claim and start as many batch items as concurrency allows (§98, P21-T05).
+
+    Re-enqueues itself while work remains rather than looping in one task: a
+    task that held a worker slot for a five-hundred-row batch would block the
+    default queue for an hour, and a crash would lose the whole run.
+    """
+    from backend_core.jobs.batch_runner import dispatch
+
+    outcome = _run(dispatch(uuid.UUID(workspace_id), uuid.UUID(batch_id)))
+
+    if outcome.started:
+        for item_id in outcome.started:
+            run_batch_item.apply_async(
+                args=[workspace_id, str(item_id)], queue=QueueName.DEFAULT.value
+            )
+
+    if outcome.remaining:
+        # Come back when the current tranche has had time to finish. The delay
+        # matters: dispatching in a tight loop would spin on a full batch,
+        # claiming nothing and burning a worker.
+        dispatch_batch.apply_async(
+            args=[workspace_id, batch_id], countdown=30, queue=QueueName.DEFAULT.value
+        )
+
+    return {
+        "batch_id": batch_id,
+        "started": len(outcome.started),
+        "remaining": outcome.remaining,
+    }
+
+
+@celery_app.task(name="aipvs.batch.run_item", bind=True, max_retries=0)
+def run_batch_item(self: Any, workspace_id: str, item_id: str) -> dict[str, Any]:
+    """Turn one imported row into a product and project (§98, P21-T05)."""
+    from backend_core.jobs.batch_runner import run_item
+
+    outcome = _run(run_item(uuid.UUID(workspace_id), uuid.UUID(item_id)))
+    return {"item_id": item_id, "status": outcome.status.value}
+
+
 __all__ = [
     "celery_app",
     "compose_render",
+    "dispatch_batch",
     "generate_video",
     "reap_stuck_jobs",
+    "run_batch_item",
     "run_quality_check",
     "synthesize_speech",
 ]

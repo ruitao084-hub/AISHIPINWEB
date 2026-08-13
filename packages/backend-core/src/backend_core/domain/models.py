@@ -41,6 +41,8 @@ from backend_core.domain.enums import (
     AssetSourceType,
     AssetType,
     AuditAction,
+    BatchItemStatus,
+    BatchStatus,
     BrandTone,
     ClaimRiskLevel,
     ClaimStatus,
@@ -2124,3 +2126,145 @@ class ProviderConfig(BaseEntity):
 
     def __repr__(self) -> str:
         return f"ProviderConfig(provider={self.provider!r}, enabled={self.enabled})"
+
+
+# ---------------------------------------------------------------------------
+# §98 — bulk SKU import (PHASE 21)
+# ---------------------------------------------------------------------------
+
+
+class Batch(WorkspaceEntity):
+    """One bulk import (§98, P21-T04).
+
+    Holds the *plan*, not the work. Each row becomes a `BatchItem`, and the
+    items are what get queued — so a batch of fifty is fifty independent jobs
+    that can fail, be retried and be inspected on their own. A batch modelled
+    as one job would make "row 34 failed" unanswerable and "retry row 34"
+    impossible.
+    """
+
+    __tablename__ = "batches"
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[BatchStatus] = mapped_column(
+        _pg_enum(BatchStatus, "batch_status"),
+        nullable=False,
+        server_default=BatchStatus.DRAFT.value,
+    )
+
+    #: The template every row is generated from. Required: a batch without one
+    #: would need a creative direction per row, which is not a bulk operation.
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    brand_kit_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("brand_kits.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    source_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_format: Mapped[str] = mapped_column(String(16), nullable=False, server_default="csv")
+
+    total_items: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    completed_items: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    failed_items: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+
+    #: How many of this batch's items may run at once (§98, P21-T08). Bounded
+    #: so one tenant's import of two hundred SKUs cannot fill every queue and
+    #: starve every other workspace's single video.
+    max_concurrency: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("3"))
+
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    items: Mapped[list[BatchItem]] = relationship(
+        back_populates="batch",
+        cascade="all, delete-orphan",
+        lazy="raise",
+        order_by="BatchItem.row_number",
+    )
+
+    __table_args__ = (
+        workspace_scoped_index("batches", "status"),
+        CheckConstraint(
+            "max_concurrency >= 1 AND max_concurrency <= 20",
+            name="max_concurrency_range",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"Batch(id={self.id!r}, name={self.name!r}, status={self.status.value!r})"
+
+
+class BatchItem(WorkspaceEntity):
+    """One row of an import (§98, P21-T06).
+
+    `row_number` is the *source* row, kept so an error message can say "row 34"
+    and mean the line the user is looking at in their spreadsheet. Numbering
+    items 1..n after dropping invalid rows would make every message point at
+    the wrong line.
+    """
+
+    __tablename__ = "batch_items"
+
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("batches.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    row_number: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    status: Mapped[BatchItemStatus] = mapped_column(
+        _pg_enum(BatchItemStatus, "batch_item_status"),
+        nullable=False,
+        server_default=BatchItemStatus.PENDING.value,
+    )
+
+    #: The row as parsed, before it became a product. Kept verbatim so a
+    #: failure can be re-read against what was actually imported rather than
+    #: against what the importer decided it meant.
+    source_row: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    #: Why this row cannot be used. Populated for `INVALID` by the validation
+    #: preview, before anything is queued (P21-T03).
+    validation_errors: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+
+    product_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    batch: Mapped[Batch] = relationship(back_populates="items", lazy="raise")
+
+    __table_args__ = (
+        UniqueConstraint("batch_id", "row_number", name="uq_batch_items_row"),
+        Index("ix_batch_items_batch_status", "batch_id", "status"),
+        workspace_scoped_index("batch_items", "status"),
+    )
+
+    def __repr__(self) -> str:
+        return f"BatchItem(row={self.row_number}, status={self.status.value!r})"

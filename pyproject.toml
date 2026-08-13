@@ -133,6 +133,13 @@ module = ["celery.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# openpyxl ships no stubs. Its use is confined to `services/batch.parse_xlsx`,
+# which converts every cell to a string immediately — so nothing untyped from
+# it escapes that function.
+module = ["openpyxl.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 # Tests get the same strictness minus the ceremony of annotating every fixture.
 module = ["tests.*", "*.tests.*"]
 disallow_untyped_defs = false

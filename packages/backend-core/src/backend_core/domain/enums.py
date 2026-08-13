@@ -1186,3 +1186,50 @@ class CreditTransactionType(StrEnum):
 DEBIT_TRANSACTIONS: frozenset[CreditTransactionType] = frozenset(
     {CreditTransactionType.CAPTURE, CreditTransactionType.EXPIRY}
 )
+
+
+class BatchStatus(StrEnum):
+    """Where a bulk import has got to (§98, P21-T04).
+
+    `VALIDATING` and `READY` are distinct from `RUNNING` because §98 asks for a
+    validation *preview*: the rows are parsed and checked before anybody
+    commits to generating dozens of videos, and a batch that went straight from
+    upload to running would spend money on rows a person would have rejected.
+    """
+
+    DRAFT = "DRAFT"
+    VALIDATING = "VALIDATING"
+    READY = "READY"
+    RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    #: Some items succeeded and some did not. Distinct from `FAILED` because a
+    #: batch of fifty with two failures is a success with a follow-up, not a
+    #: failed import, and collapsing them would hide forty-eight finished
+    #: videos behind a red banner.
+    PARTIAL = "PARTIAL"
+    FAILED = "FAILED"
+    CANCELED = "CANCELED"
+
+
+class BatchItemStatus(StrEnum):
+    """One row's progress (§98, P21-T06)."""
+
+    PENDING = "PENDING"
+    INVALID = "INVALID"
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+
+
+#: Item states that will not change without someone acting.
+TERMINAL_BATCH_ITEM: frozenset[BatchItemStatus] = frozenset(
+    {
+        BatchItemStatus.COMPLETED,
+        BatchItemStatus.FAILED,
+        BatchItemStatus.INVALID,
+        BatchItemStatus.SKIPPED,
+    }
+)

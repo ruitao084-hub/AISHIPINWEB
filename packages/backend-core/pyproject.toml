@@ -10,6 +10,9 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "boto3>=1.43.68",
     "httpx>=0.28.1",
+    # XLSX import (§98, P21-T02). Read-only use; no chart or macro support
+    # is needed, and `read_only=True` keeps a 10k-row sheet off the heap.
+    "openpyxl>=3.1.5",
     "email-validator>=2.3.0",
     "pillow>=11.4.0",
     "psycopg[binary]>=3.3.4",
