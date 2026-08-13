@@ -397,6 +397,175 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List batches */
+        get: operations["list_batches_api_v1_workspaces__workspace_id__batches_get"];
+        put?: never;
+        /**
+         * Import a spreadsheet as a batch
+         * @description Create the batch and its items (P21-T04).
+         *
+         *     Invalid rows are stored as `INVALID` items rather than dropped, so the
+         *     count a user sees matches the file they uploaded.
+         */
+        post: operations["create_batch_api_v1_workspaces__workspace_id__batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a spreadsheet without importing it
+         * @description §98's validation preview (P21-T03).
+         *
+         *     Writes nothing. Every row's verdict is returned so a user can fix their
+         *     spreadsheet before committing to generating dozens of videos.
+         */
+        post: operations["preview_import_api_v1_workspaces__workspace_id__batches_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a batch */
+        get: operations["get_batch_api_v1_workspaces__workspace_id__batches__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a batch
+         * @description Stop a batch. Rows already running are left to finish — interrupting a
+         *     generation mid-flight wastes what has already been paid for.
+         */
+        post: operations["cancel_batch_api_v1_workspaces__workspace_id__batches__batch_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Per-row status
+         * @description §98's per-item status (P21-T06). `row_number` is the source line.
+         */
+        get: operations["list_items_api_v1_workspaces__workspace_id__batches__batch_id__items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Batch progress */
+        get: operations["batch_progress_api_v1_workspaces__workspace_id__batches__batch_id__progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry failed rows
+         * @description P21-T07. Retries `FAILED` rows only.
+         *
+         *     `INVALID` rows are not retried: their row is wrong, and running it again
+         *     produces the same wrong row. Those need a corrected file.
+         */
+        post: operations["retry_batch_api_v1_workspaces__workspace_id__batches__batch_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start processing a batch
+         * @description Queue the first tranche (P21-T05).
+         *
+         *     Only up to `max_concurrency` items are claimed here; the worker claims the
+         *     next as each finishes. Queuing all five hundred at once would fill every
+         *     queue with one tenant's work, which is exactly what P21-T08 forbids.
+         */
+        post: operations["start_batch_api_v1_workspaces__workspace_id__batches__batch_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/brand-kits": {
         parameters: {
             query?: never;
@@ -1891,6 +2060,107 @@ export interface components {
              */
             media_asset_id: string;
         };
+        /** BatchItemResponse */
+        BatchItemResponse: {
+            /** Attempts */
+            attempts: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Product Id */
+            product_id: string | null;
+            /** Project Id */
+            project_id: string | null;
+            /** Row Number */
+            row_number: number;
+            /** Source Row */
+            source_row: {
+                [key: string]: unknown;
+            };
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["BatchItemStatus"];
+            /** Validation Errors */
+            validation_errors: string[];
+        };
+        /**
+         * BatchItemStatus
+         * @description One row's progress (§98, P21-T06).
+         * @enum {string}
+         */
+        BatchItemStatus: "PENDING" | "INVALID" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "SKIPPED";
+        /** BatchProgressResponse */
+        BatchProgressResponse: {
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Completed */
+            completed: number;
+            /** Failed */
+            failed: number;
+            /** Finished */
+            finished: boolean;
+            /** Invalid */
+            invalid: number;
+            /** Pending */
+            pending: number;
+            /** Running */
+            running: number;
+            /** Total */
+            total: number;
+        };
+        /** BatchResponse */
+        BatchResponse: {
+            /** Brand Kit Id */
+            brand_kit_id: string | null;
+            /** Completed Items */
+            completed_items: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Message */
+            error_message: string | null;
+            /** Failed Items */
+            failed_items: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Max Concurrency */
+            max_concurrency: number;
+            /** Name */
+            name: string;
+            /** Source Filename */
+            source_filename: string | null;
+            /** Source Format */
+            source_format: string;
+            status: components["schemas"]["BatchStatus"];
+            /** Template Id */
+            template_id: string | null;
+            /** Total Items */
+            total_items: number;
+        };
+        /**
+         * BatchStatus
+         * @description Where a bulk import has got to (§98, P21-T04).
+         *
+         *     `VALIDATING` and `READY` are distinct from `RUNNING` because §98 asks for a
+         *     validation *preview*: the rows are parsed and checked before anybody
+         *     commits to generating dozens of videos, and a batch that went straight from
+         *     upload to running would spend money on rows a person would have rejected.
+         * @enum {string}
+         */
+        BatchStatus: "DRAFT" | "VALIDATING" | "READY" | "RUNNING" | "PAUSED" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELED";
         /**
          * BlueprintSlot
          * @description One shot's shape, before a product fills it in (§57).
@@ -1933,6 +2203,30 @@ export interface components {
             /** Sequence No */
             sequence_no: number;
             shot_type: components["schemas"]["ShotType"];
+        };
+        /** Body_create_batch_api_v1_workspaces__workspace_id__batches_post */
+        Body_create_batch_api_v1_workspaces__workspace_id__batches_post: {
+            /** Brand Kit Id */
+            brand_kit_id?: string | null;
+            /** File */
+            file: string;
+            /**
+             * Max Concurrency
+             * @default 3
+             */
+            max_concurrency: number;
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id?: string | null;
+        };
+        /** Body_preview_import_api_v1_workspaces__workspace_id__batches_preview_post */
+        Body_preview_import_api_v1_workspaces__workspace_id__batches_preview_post: {
+            /**
+             * File
+             * @description A .csv or .xlsx file.
+             */
+            file: string;
         };
         /** BrandKitRequest */
         BrandKitRequest: {
@@ -2201,6 +2495,11 @@ export interface components {
         CreateWorkspaceRequest: {
             /** Name */
             name: string;
+        };
+        /** CreatedBatchResponse */
+        CreatedBatchResponse: {
+            batch: components["schemas"]["BatchResponse"];
+            preview: components["schemas"]["PreviewResponse"];
         };
         /** CreativePlanResponse */
         CreativePlanResponse: {
@@ -2696,6 +2995,34 @@ export interface components {
              */
             upload_url: string;
         };
+        /**
+         * PreviewResponse
+         * @description What an import would do, before it does it (P21-T03).
+         */
+        PreviewResponse: {
+            /** Invalid Rows */
+            invalid_rows: number;
+            /** Max Rows */
+            max_rows: number;
+            /**
+             * Missing Columns
+             * @description Required columns absent from the file. Fatal for the whole import.
+             */
+            missing_columns: string[];
+            /** Required Columns */
+            required_columns: string[];
+            /** Rows */
+            rows: components["schemas"]["RowPreview"][];
+            /** Total Rows */
+            total_rows: number;
+            /**
+             * Unknown Columns
+             * @description Columns the importer does not understand. Reported rather than ignored — a misspelled header is silently dropped data otherwise.
+             */
+            unknown_columns: string[];
+            /** Valid Rows */
+            valid_rows: number;
+        };
         /** ProductAnalysisResponse */
         ProductAnalysisResponse: {
             /** Analyzed Asset Ids */
@@ -3162,6 +3489,22 @@ export interface components {
         ReviseScriptRequest: {
             document: components["schemas"]["ScriptDocument"];
         };
+        /** RowPreview */
+        RowPreview: {
+            /** Errors */
+            errors: string[];
+            /**
+             * Row Number
+             * @description The line in the source file, header included.
+             */
+            row_number: number;
+            /** Valid */
+            valid: boolean;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+        };
         /**
          * ScriptDocument
          * @description A complete script (§17).
@@ -3394,6 +3737,17 @@ export interface components {
          * @enum {string}
          */
         ShotType: "HOOK" | "PRODUCT_HERO" | "MACRO" | "ROTATION" | "USAGE" | "MATERIAL" | "FEATURE" | "EXPLODED" | "BEFORE_AFTER" | "LIFESTYLE" | "BRAND_ENDING" | "CUSTOM";
+        /**
+         * StartBatchRequest
+         * @description Nothing configurable yet; `max_concurrency` is set at import.
+         */
+        StartBatchRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+        };
         /** StoryboardResponse */
         StoryboardResponse: {
             /**
@@ -5334,6 +5688,712 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaAssetDetailResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_batches_api_v1_workspaces__workspace_id__batches_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_batch_api_v1_workspaces__workspace_id__batches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_batch_api_v1_workspaces__workspace_id__batches_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedBatchResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    preview_import_api_v1_workspaces__workspace_id__batches_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_import_api_v1_workspaces__workspace_id__batches_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_batch_api_v1_workspaces__workspace_id__batches__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cancel_batch_api_v1_workspaces__workspace_id__batches__batch_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_items_api_v1_workspaces__workspace_id__batches__batch_id__items_get: {
+        parameters: {
+            query?: {
+                item_status?: components["schemas"]["BatchItemStatus"] | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchItemResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    batch_progress_api_v1_workspaces__workspace_id__batches__batch_id__progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchProgressResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    retry_batch_api_v1_workspaces__workspace_id__batches__batch_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchProgressResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_batch_api_v1_workspaces__workspace_id__batches__batch_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchProgressResponse"];
                 };
             };
             /** @description Invalid request */
