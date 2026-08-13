@@ -189,7 +189,34 @@ it is written.
 
 ---
 
-## 9. Before you go live
+## 9. Where the runbooks are
+
+- **Deploying, rolling back, restoring** — [`runbooks.md`](runbooks.md)
+  (P23-T08, P23-T09, P23-T10).
+- **What to alert on and what not to** — [`monitoring.md`](monitoring.md)
+  (P23-T11, P23-T12).
+- **Images and topology** — `infra/docker/*.Dockerfile`,
+  `docker-compose.prod.yml`, `infra/nginx/nginx.conf` (P23-T01, P23-T07).
+
+## 10. What is not built yet
+
+Four of §100's tasks need an account somebody has to create, and each is left
+as configuration rather than guessed at:
+
+|         | Task             | What it needs                               |
+| ------- | ---------------- | ------------------------------------------- |
+| P23-T03 | Managed Postgres | a provider account; set `DATABASE_URL`      |
+| P23-T04 | Managed Redis    | a provider account; set `REDIS_URL`         |
+| P23-T05 | S3 or R2         | a bucket and scoped credentials             |
+| P23-T06 | Secret manager   | a vault holding the above plus `JWT_SECRET` |
+
+`docker-compose.prod.yml` has the datastores commented out rather than absent,
+so which of these you have chosen is visible in one place. The `deploy` job in
+`.github/workflows/release.yml` is a comment for the same reason: a deploy job
+written against an imagined target sits green for months and fails the first
+time it matters.
+
+## 11. Before you go live
 
 Run once, against production, with a real product:
 
