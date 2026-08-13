@@ -1161,3 +1161,28 @@ class LogoPosition(StrEnum):
 #: rule. Narrow on purpose: §35 forbids user text becoming filter arguments,
 #: and a hex triple is the one colour format with no metacharacters in it.
 HEX_COLOR_PATTERN: str = r"^#[0-9A-Fa-f]{6}$"
+
+
+class CreditTransactionType(StrEnum):
+    """Why credits moved (§10.29, PHASE 18).
+
+    Reserve, capture and release are three separate rows rather than one
+    mutated balance, because §95's acceptance — no double charge, no negative
+    balance, no charge on failure — is only checkable if each step left a
+    record. A single `balance` column can be wrong; a ledger that disagrees
+    with its own sum cannot hide.
+    """
+
+    GRANT = "GRANT"
+    RESERVE = "RESERVE"
+    CAPTURE = "CAPTURE"
+    RELEASE = "RELEASE"
+    REFUND = "REFUND"
+    ADJUSTMENT = "ADJUSTMENT"
+    EXPIRY = "EXPIRY"
+
+
+#: Transaction types that move credits *out* of a workspace's balance.
+DEBIT_TRANSACTIONS: frozenset[CreditTransactionType] = frozenset(
+    {CreditTransactionType.CAPTURE, CreditTransactionType.EXPIRY}
+)

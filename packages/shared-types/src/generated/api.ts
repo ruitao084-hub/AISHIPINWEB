@@ -272,6 +272,77 @@ export interface paths {
         patch: operations["update_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__patch"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Credit balance
+         * @description The workspace's balance (P18-T08).
+         *
+         *     Creates the account on first read rather than 404ing. A workspace that has
+         *     never generated anything has no account row, and "you have no account" is a
+         *     worse answer than "you have your signup grant".
+         */
+        get: operations["get_balance_api_v1_workspaces__workspace_id__credits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/credits/grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add credits
+         * @description Top up a workspace. `BILLING_MANAGE` — owners only (§40).
+         *
+         *     Audited as a `CREDIT_ADJUSTMENT` (§60): moving money is the category of
+         *     action a trail exists for.
+         */
+        post: operations["grant_credits_api_v1_workspaces__workspace_id__credits_grant_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/credits/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Credit history
+         * @description The ledger, newest first (P18-T08).
+         *
+         *     Every movement, including reservations that were released. A history that
+         *     showed only charges would leave a user unable to explain why their
+         *     available balance dipped during a generation that failed.
+         */
+        get: operations["list_transactions_api_v1_workspaces__workspace_id__credits_transactions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -805,6 +876,35 @@ export interface paths {
         put?: never;
         /** Archive a project */
         post: operations["archive_project_api_v1_workspaces__workspace_id__projects__project_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/cost-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What generating this project will cost
+         * @description §95's pre-generation quote (P18-T07).
+         *
+         *     Estimated from the approved storyboard's actual shot durations when one
+         *     exists, and from the project's target duration when it does not — so the
+         *     number a user sees before writing a storyboard is a rough guide, and the
+         *     one they see before pressing Generate is derived from the shots that will
+         *     actually be generated.
+         *
+         *     Reserves nothing. This is a quote, and a GET that took money would be a
+         *     surprising GET.
+         */
+        get: operations["estimate_cost_api_v1_workspaces__workspace_id__projects__project_id__cost_estimate_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1649,6 +1749,38 @@ export interface components {
          * @enum {string}
          */
         ClaimType: "FUNCTIONAL" | "PERFORMANCE" | "COMPARATIVE" | "CERTIFICATION" | "SAFETY" | "EMOTIONAL";
+        /**
+         * CostEstimateResponse
+         * @description A quote, and whether the workspace can cover it (P18-T07).
+         */
+        CostEstimateResponse: {
+            /**
+             * Affordable
+             * @description Whether `maximum` fits in the available balance right now.
+             */
+            affordable: boolean;
+            /** Available */
+            available: number;
+            /**
+             * Expected
+             * @description What this is likely to cost.
+             */
+            expected: number;
+            /** Lines */
+            lines: components["schemas"]["CostLine"][];
+            /**
+             * Maximum
+             * @description What will be reserved. Higher than `expected` because providers round up and a retry costs again.
+             */
+            maximum: number;
+        };
+        /** CostLine */
+        CostLine: {
+            /** Credits */
+            credits: number;
+            /** Label */
+            label: string;
+        };
         /** CreateClaimRequest */
         CreateClaimRequest: {
             /** Claim Text */
@@ -1768,6 +1900,67 @@ export interface components {
             /** Visual Direction */
             visual_direction: string;
         };
+        /** CreditAccountResponse */
+        CreditAccountResponse: {
+            /**
+             * Available
+             * @description What a new job may be charged against.
+             */
+            available: number;
+            /**
+             * Balance
+             * @description Credits held, including reserved.
+             */
+            balance: number;
+            /** Lifetime Granted */
+            lifetime_granted: number;
+            /** Lifetime Spent */
+            lifetime_spent: number;
+            /**
+             * Reserved
+             * @description The part already promised to jobs in flight.
+             */
+            reserved: number;
+        };
+        /** CreditTransactionResponse */
+        CreditTransactionResponse: {
+            /**
+             * Amount
+             * @description Always positive; the type says which way it moved.
+             */
+            amount: number;
+            /** Balance After */
+            balance_after: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Id */
+            job_id: string | null;
+            /** Reserved After */
+            reserved_after: number;
+            transaction_type: components["schemas"]["CreditTransactionType"];
+        };
+        /**
+         * CreditTransactionType
+         * @description Why credits moved (§10.29, PHASE 18).
+         *
+         *     Reserve, capture and release are three separate rows rather than one
+         *     mutated balance, because §95's acceptance — no double charge, no negative
+         *     balance, no charge on failure — is only checkable if each step left a
+         *     record. A single `balance` column can be wrong; a ledger that disagrees
+         *     with its own sum cannot hide.
+         * @enum {string}
+         */
+        CreditTransactionType: "GRANT" | "RESERVE" | "CAPTURE" | "RELEASE" | "REFUND" | "ADJUSTMENT" | "EXPIRY";
         /**
          * DependencyStatus
          * @description Result of a single readiness probe.
@@ -1866,6 +2059,21 @@ export interface components {
          * @enum {string}
          */
         FactType: "SPEC" | "MATERIAL" | "FEATURE" | "PERFORMANCE" | "CERTIFICATION" | "INGREDIENT" | "COMPATIBILITY" | "WARRANTY" | "PRICING" | "APPEARANCE" | "OTHER";
+        /** GrantRequest */
+        GrantRequest: {
+            /** Amount */
+            amount: number;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Idempotency Key
+             * @description Required. A grant has no natural id, so this key is the only thing between a retried purchase webhook and a doubled balance.
+             */
+            idempotency_key: string;
+        };
         /**
          * HealthResponse
          * @description Liveness payload.
@@ -4351,6 +4559,240 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BrandKitResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_balance_api_v1_workspaces__workspace_id__credits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditAccountResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    grant_credits_api_v1_workspaces__workspace_id__credits_grant_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditAccountResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_transactions_api_v1_workspaces__workspace_id__credits_transactions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditTransactionResponse"][];
                 };
             };
             /** @description Invalid request */
@@ -6944,6 +7386,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    estimate_cost_api_v1_workspaces__workspace_id__projects__project_id__cost_estimate_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostEstimateResponse"];
                 };
             };
             /** @description Invalid request */

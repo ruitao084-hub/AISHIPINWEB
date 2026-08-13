@@ -75,6 +75,9 @@ export type RenderRequest = Schemas["RenderRequest"];
 export type VoiceoverResponse = Schemas["VoiceoverResponse"];
 export type QualityCheckResponse = Schemas["QualityCheckResponse"];
 export type DownloadResponse = Schemas["DownloadResponse"];
+export type CreditAccountResponse = Schemas["CreditAccountResponse"];
+export type CreditTransactionResponse = Schemas["CreditTransactionResponse"];
+export type CostEstimateResponse = Schemas["CostEstimateResponse"];
 
 /** Job states that will never change again (§106). Polling stops at these. */
 export const TERMINAL_JOB_STATUSES: readonly JobStatus[] = [
@@ -669,6 +672,31 @@ export const generationApi = {
     apiRequest<DownloadResponse>(
       `/api/v1/workspaces/${workspaceId}/projects/${projectId}/download` +
         (renderId ? `?render_id=${renderId}` : ""),
+    ),
+};
+
+/** Balance, ledger and pre-generation quotes (§95). */
+export const creditsApi = {
+  balance: (workspaceId: string) =>
+    apiRequest<CreditAccountResponse>(
+      `/api/v1/workspaces/${workspaceId}/credits`,
+    ),
+
+  transactions: (workspaceId: string, limit = 100) =>
+    apiRequest<CreditTransactionResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/credits/transactions?limit=${limit}`,
+    ),
+
+  /**
+   * What generating this project will cost, before anything is spent.
+   *
+   * Reserves nothing — it is a quote. Fetched fresh each time the panel opens
+   * because the storyboard\u2019s shots, and therefore the price, change as it is
+   * edited.
+   */
+  estimate: (workspaceId: string, projectId: string) =>
+    apiRequest<CostEstimateResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/cost-estimate`,
     ),
 };
 

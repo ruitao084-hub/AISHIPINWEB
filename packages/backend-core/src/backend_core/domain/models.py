@@ -45,6 +45,7 @@ from backend_core.domain.enums import (
     ClaimRiskLevel,
     ClaimStatus,
     ClaimType,
+    CreditTransactionType,
     FactSourceType,
     FactType,
     JobStatus,
@@ -1726,7 +1727,7 @@ class ModerationResult(WorkspaceEntity):
         Index("ix_moderation_results_target_id", "target_id"),
         CheckConstraint(
             "score IS NULL OR (score >= 0 AND score <= 1)",
-            name="ck_moderation_results_score_range",
+            name="score_range",
         ),
     )
 
@@ -1907,9 +1908,146 @@ class Template(WorkspaceEntity, SoftDeleteMixin):
         Index("ix_templates_preset_category", "is_preset", "category"),
         CheckConstraint(
             "duration_seconds > 0 AND duration_seconds <= 600",
-            name="ck_templates_duration_range",
+            name="duration_range",
         ),
     )
 
     def __repr__(self) -> str:
         return f"Template(id={self.id!r}, name={self.name!r}, preset={self.is_preset})"
+
+
+# ---------------------------------------------------------------------------
+# §10.28-§10.29 — credits (PHASE 18)
+# ---------------------------------------------------------------------------
+
+
+class CreditAccount(BaseEntity):
+    """One workspace's balance (§95, P18-T01).
+
+    Two numbers, not one. `balance` is what the workspace has; `reserved` is
+    the part of it already promised to jobs in flight. Spendable is the
+    difference, and keeping them apart is what makes §22's three-step protocol
+    expressible: reserving moves nothing out of `balance`, it only makes part
+    of it unavailable, so a job that fails gives back exactly what it held.
+
+    A single "available" column would work until two jobs were queued at once,
+    at which point the second would either overdraw or the first's failure
+    would credit money that was never debited.
+
+    Not a `WorkspaceEntity`: the workspace relationship is one-to-one and
+    carries its own unique constraint, which the shared mixin's plain index
+    would not give.
+    """
+
+    __tablename__ = "credit_accounts"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+
+    #: Credits held. Never negative — a CHECK enforces it, because §95 names a
+    #: negative balance as a defect and an application-only guard would be one
+    #: `UPDATE` away from being bypassed.
+    balance: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
+    #: The part of `balance` promised to jobs that have not finished.
+    reserved: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
+
+    #: Lifetime totals, for §99's cost dashboard. Derivable from the ledger,
+    #: kept here because "how much has this workspace ever spent" is asked on
+    #: every billing screen and summing the whole ledger for it does not scale.
+    lifetime_granted: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
+    lifetime_spent: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
+
+    #: A soft ceiling on concurrent spend, independent of balance (§121).
+    #: `None` means the balance is the only limit.
+    monthly_limit: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("balance >= 0", name="balance_non_negative"),
+        CheckConstraint("reserved >= 0", name="reserved_non_negative"),
+        # Reservations can never exceed the balance backing them. This is the
+        # constraint that makes "no negative balance" true even if the
+        # application's arithmetic is wrong.
+        CheckConstraint("reserved <= balance", name="reserved_within_balance"),
+    )
+
+    @property
+    def available(self) -> float:
+        """What a new job may be charged against."""
+        return round(self.balance - self.reserved, 4)
+
+    def __repr__(self) -> str:
+        return (
+            f"CreditAccount(workspace_id={self.workspace_id!r}, "
+            f"balance={self.balance}, reserved={self.reserved})"
+        )
+
+
+class CreditTransaction(WorkspaceEntity):
+    """One movement of credits (§10.29, P18-T02).
+
+    Append-only. Correcting a mistake is a compensating row, never an edit —
+    an ledger you can edit answers "what is the balance" and not "how did it
+    get there", and the second question is the one that gets asked during a
+    billing dispute.
+
+    `idempotency_key` is what makes §95's "no double charge" a database fact
+    rather than an application intention. Every reserve, capture and release
+    derives its key from `(job_id, type)`, so a retried worker writing the same
+    capture twice violates a unique constraint instead of billing twice.
+    """
+
+    __tablename__ = "credit_transactions"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("credit_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    transaction_type: Mapped[CreditTransactionType] = mapped_column(
+        _pg_enum(CreditTransactionType, "credit_transaction_type"), nullable=False
+    )
+
+    #: Always positive. The *type* says which way it moves; a signed amount
+    #: plus a type is two sources of truth that can disagree.
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+
+    #: The balance after this row was applied, for reconciliation. When the
+    #: running sum and this column diverge, the ledger has been written to by
+    #: something that did not go through the service.
+    balance_after: Mapped[float] = mapped_column(Float, nullable=False)
+    reserved_after: Mapped[float] = mapped_column(Float, nullable=False)
+
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("generation_jobs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    #: Who did it, for an ADJUSTMENT. Null for anything the system did itself.
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False, server_default="")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id", "idempotency_key", name="uq_credit_transactions_idempotency"
+        ),
+        workspace_scoped_index("credit_transactions", "created_at"),
+        Index("ix_credit_transactions_job_id", "job_id"),
+        Index("ix_credit_transactions_account_created", "account_id", "created_at"),
+        CheckConstraint("amount >= 0", name="amount_non_negative"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"CreditTransaction(type={self.transaction_type.value!r}, "
+            f"amount={self.amount}, after={self.balance_after})"
+        )

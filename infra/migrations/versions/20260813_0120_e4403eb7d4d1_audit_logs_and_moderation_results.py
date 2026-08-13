@@ -160,7 +160,7 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "score IS NULL OR (score >= 0 AND score <= 1)",
-            name=op.f("ck_moderation_results_ck_moderation_results_score_range"),
+            name=op.f("ck_moderation_results_score_range"),
         ),
         sa.ForeignKeyConstraint(
             ["workspace_id"],

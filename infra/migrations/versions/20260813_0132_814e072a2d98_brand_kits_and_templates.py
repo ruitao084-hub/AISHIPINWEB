@@ -260,7 +260,7 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
             "duration_seconds > 0 AND duration_seconds <= 600",
-            name=op.f("ck_templates_ck_templates_duration_range"),
+            name=op.f("ck_templates_duration_range"),
         ),
         sa.ForeignKeyConstraint(
             ["preview_asset_id"],

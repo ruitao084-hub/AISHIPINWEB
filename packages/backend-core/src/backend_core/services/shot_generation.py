@@ -20,12 +20,13 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend_core.config import Settings, get_settings
-from backend_core.domain.enums import JobType, ShotStatus, StoryboardStatus
+from backend_core.domain.enums import JobType, QualityMode, ShotStatus, StoryboardStatus
 from backend_core.domain.models import GenerationJob, Shot
 from backend_core.errors import ValidationError
 from backend_core.observability import get_logger
 from backend_core.providers.video import get_video_provider
 from backend_core.repositories.storyboards import StoryboardRepository
+from backend_core.services.cost import estimate_shot
 from backend_core.services.jobs import JobService
 from backend_core.services.projects import ProjectService
 
@@ -119,7 +120,7 @@ class ShotGenerationService:
                 "shot_type": shot.shot_type.value,
                 "identity_lock": shot.identity_lock,
             },
-            estimated_cost=_estimated_cost(shot.duration_seconds, project.quality_mode.value),
+            estimated_cost=_estimated_cost(shot.duration_seconds, project.quality_mode),
         )
 
         if created and shot.status is ShotStatus.PENDING:
@@ -143,15 +144,15 @@ def _shot_key(shot: Shot) -> str:
     return f"shot:{shot.id}:{digest.hexdigest()[:16]}"
 
 
-def _estimated_cost(duration_seconds: float, quality_mode: str) -> float:
-    """A cost estimate in credits, for §22's reservation.
+def _estimated_cost(duration_seconds: float, quality_mode: QualityMode) -> float:
+    """What to reserve for one shot (§22, P18-T06).
 
-    Linear in duration and stepped by quality tier. Deliberately crude: PHASE
-    18 replaces it with real provider pricing, and a precise-looking number
-    derived from guesses would be worse than an obviously approximate one.
+    The *maximum*, not the expected value. A reservation exists to stop a job
+    starting that cannot be paid for, and reserving the expected cost would let
+    a shot that overran its estimate be discovered at capture — by which point
+    the provider has already been paid.
     """
-    multiplier = {"FAST": 0.5, "STANDARD": 1.0, "HIGH": 2.0, "PREMIUM": 4.0}.get(quality_mode, 1.0)
-    return round(duration_seconds * multiplier, 2)
+    return estimate_shot(duration_seconds, quality_mode).maximum
 
 
 __all__ = ["ShotGenerationService"]

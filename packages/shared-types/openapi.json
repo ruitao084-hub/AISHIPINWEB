@@ -522,6 +522,55 @@
         "title": "ClaimType",
         "type": "string"
       },
+      "CostEstimateResponse": {
+        "description": "A quote, and whether the workspace can cover it (P18-T07).",
+        "properties": {
+          "affordable": {
+            "description": "Whether `maximum` fits in the available balance right now.",
+            "title": "Affordable",
+            "type": "boolean"
+          },
+          "available": {
+            "title": "Available",
+            "type": "number"
+          },
+          "expected": {
+            "description": "What this is likely to cost.",
+            "title": "Expected",
+            "type": "number"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CostLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "maximum": {
+            "description": "What will be reserved. Higher than `expected` because providers round up and a retry costs again.",
+            "title": "Maximum",
+            "type": "number"
+          }
+        },
+        "required": ["expected", "maximum", "lines", "available", "affordable"],
+        "title": "CostEstimateResponse",
+        "type": "object"
+      },
+      "CostLine": {
+        "properties": {
+          "credits": {
+            "title": "Credits",
+            "type": "number"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": ["label", "credits"],
+        "title": "CostLine",
+        "type": "object"
+      },
       "CreateClaimRequest": {
         "additionalProperties": false,
         "properties": {
@@ -821,6 +870,114 @@
         "title": "CreativePlanResponse",
         "type": "object"
       },
+      "CreditAccountResponse": {
+        "properties": {
+          "available": {
+            "description": "What a new job may be charged against.",
+            "title": "Available",
+            "type": "number"
+          },
+          "balance": {
+            "description": "Credits held, including reserved.",
+            "title": "Balance",
+            "type": "number"
+          },
+          "lifetime_granted": {
+            "title": "Lifetime Granted",
+            "type": "number"
+          },
+          "lifetime_spent": {
+            "title": "Lifetime Spent",
+            "type": "number"
+          },
+          "reserved": {
+            "description": "The part already promised to jobs in flight.",
+            "title": "Reserved",
+            "type": "number"
+          }
+        },
+        "required": [
+          "balance",
+          "reserved",
+          "available",
+          "lifetime_granted",
+          "lifetime_spent"
+        ],
+        "title": "CreditAccountResponse",
+        "type": "object"
+      },
+      "CreditTransactionResponse": {
+        "properties": {
+          "amount": {
+            "description": "Always positive; the type says which way it moved.",
+            "title": "Amount",
+            "type": "number"
+          },
+          "balance_after": {
+            "title": "Balance After",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "reserved_after": {
+            "title": "Reserved After",
+            "type": "number"
+          },
+          "transaction_type": {
+            "$ref": "#/components/schemas/CreditTransactionType"
+          }
+        },
+        "required": [
+          "id",
+          "transaction_type",
+          "amount",
+          "balance_after",
+          "reserved_after",
+          "job_id",
+          "description",
+          "created_at"
+        ],
+        "title": "CreditTransactionResponse",
+        "type": "object"
+      },
+      "CreditTransactionType": {
+        "description": "Why credits moved (§10.29, PHASE 18).\n\nReserve, capture and release are three separate rows rather than one\nmutated balance, because §95's acceptance — no double charge, no negative\nbalance, no charge on failure — is only checkable if each step left a\nrecord. A single `balance` column can be wrong; a ledger that disagrees\nwith its own sum cannot hide.",
+        "enum": [
+          "GRANT",
+          "RESERVE",
+          "CAPTURE",
+          "RELEASE",
+          "REFUND",
+          "ADJUSTMENT",
+          "EXPIRY"
+        ],
+        "title": "CreditTransactionType",
+        "type": "string"
+      },
       "DependencyStatus": {
         "description": "Result of a single readiness probe.",
         "properties": {
@@ -1019,6 +1176,33 @@
         ],
         "title": "FactType",
         "type": "string"
+      },
+      "GrantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Required. A grant has no natural id, so this key is the only thing between a retried purchase webhook and a doubled balance.",
+            "maxLength": 160,
+            "minLength": 8,
+            "title": "Idempotency Key",
+            "type": "string"
+          }
+        },
+        "required": ["amount", "idempotency_key"],
+        "title": "GrantRequest",
+        "type": "object"
       },
       "HealthResponse": {
         "description": "Liveness payload.",
@@ -5829,6 +6013,321 @@
         "tags": ["branding"]
       }
     },
+    "/api/v1/workspaces/{workspace_id}/credits": {
+      "get": {
+        "description": "The workspace's balance (P18-T08).\n\nCreates the account on first read rather than 404ing. A workspace that has\nnever generated anything has no account row, and \"you have no account\" is a\nworse answer than \"you have your signup grant\".",
+        "operationId": "get_balance_api_v1_workspaces__workspace_id__credits_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditAccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Credit balance",
+        "tags": ["credits"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/credits/grant": {
+      "post": {
+        "description": "Top up a workspace. `BILLING_MANAGE` — owners only (§40).\n\nAudited as a `CREDIT_ADJUSTMENT` (§60): moving money is the category of\naction a trail exists for.",
+        "operationId": "grant_credits_api_v1_workspaces__workspace_id__credits_grant_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditAccountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Add credits",
+        "tags": ["credits"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/credits/transactions": {
+      "get": {
+        "description": "The ledger, newest first (P18-T08).\n\nEvery movement, including reservations that were released. A history that\nshowed only charges would leave a user unable to explain why their\navailable balance dipped during a generation that failed.",
+        "operationId": "list_transactions_api_v1_workspaces__workspace_id__credits_transactions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CreditTransactionResponse"
+                  },
+                  "title": "Response List Transactions Api V1 Workspaces  Workspace Id  Credits Transactions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Credit history",
+        "tags": ["credits"]
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/jobs/{job_id}": {
       "get": {
         "description": "§26's polling endpoint. The frontend calls this every few seconds.",
@@ -9595,6 +10094,113 @@
         ],
         "summary": "Archive a project",
         "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/cost-estimate": {
+      "get": {
+        "description": "§95's pre-generation quote (P18-T07).\n\nEstimated from the approved storyboard's actual shot durations when one\nexists, and from the project's target duration when it does not — so the\nnumber a user sees before writing a storyboard is a rough guide, and the\none they see before pressing Generate is derived from the shots that will\nactually be generated.\n\nReserves nothing. This is a quote, and a GET that took money would be a\nsurprising GET.",
+        "operationId": "estimate_cost_api_v1_workspaces__workspace_id__projects__project_id__cost_estimate_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstimateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "What generating this project will cost",
+        "tags": ["credits"]
       }
     },
     "/api/v1/workspaces/{workspace_id}/projects/{project_id}/creative-plans": {

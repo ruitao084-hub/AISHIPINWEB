@@ -9,6 +9,7 @@ from aipvs_api.errors import ErrorResponse
 from aipvs_api.v1 import (
     auth,
     branding,
+    credits,
     jobs,
     products,
     projects,
@@ -85,3 +86,4 @@ api_v1_router.include_router(storyboards.router)
 api_v1_router.include_router(jobs.router)
 api_v1_router.include_router(renders.router)
 api_v1_router.include_router(branding.router)
+api_v1_router.include_router(credits.router)

@@ -21,11 +21,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ApiError,
+  creditsApi,
   generationApi,
   isJobFinished,
   type JobResponse,
   type QualityCheckResponse,
   type RenderResponse,
+  type CostEstimateResponse,
   type ShotResponse,
   type StoryboardResponse,
   type VoiceoverResponse,
@@ -44,9 +46,16 @@ interface Snapshot {
   renders: RenderResponse[];
   checks: QualityCheckResponse[];
   voiceover: VoiceoverResponse | null;
+  /** §95's quote. Null when credits are off — then there is nothing to show. */
+  estimate: CostEstimateResponse | null;
 }
 
-const EMPTY: Snapshot = { renders: [], checks: [], voiceover: null };
+const EMPTY: Snapshot = {
+  renders: [],
+  checks: [],
+  voiceover: null,
+  estimate: null,
+};
 
 interface Props {
   workspaceId: string;
@@ -89,7 +98,16 @@ export function ProductionPanel({
       if (!(cause instanceof ApiError && cause.status === 404)) throw cause;
     }
 
-    return { renders, checks, voiceover };
+    let estimate: CostEstimateResponse | null = null;
+    try {
+      estimate = await creditsApi.estimate(workspaceId, projectId);
+    } catch {
+      // The quote is advisory. A failure to price the work should not stop
+      // someone reading the state of a generation already under way.
+      estimate = null;
+    }
+
+    return { renders, checks, voiceover, estimate };
   }, [workspaceId, projectId]);
 
   useEffect(() => {
@@ -135,7 +153,7 @@ export function ProductionPanel({
     [poll, refreshAll],
   );
 
-  const { renders, checks, voiceover } = data;
+  const { renders, checks, voiceover, estimate } = data;
   const approved = storyboard?.status === "APPROVED";
   const readyShots = shots.filter((shot) => shot.status === "READY").length;
   const shotsDone = shots.length > 0 && readyShots === shots.length;
@@ -164,6 +182,8 @@ export function ProductionPanel({
         Each step queues background work and reports back. You can leave this
         page — progress is kept on the server.
       </p>
+
+      {estimate && <CostSummary estimate={estimate} />}
 
       {error && (
         <p
@@ -349,6 +369,47 @@ export function ProductionPanel({
         </p>
       )}
     </section>
+  );
+}
+
+function CostSummary({ estimate }: { estimate: CostEstimateResponse }) {
+  return (
+    <div className="border-border mt-4 rounded-xl border p-4">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-sm">
+          About {estimate.expected} credits to generate this
+        </span>
+        <span className="text-muted shrink-0 text-xs">
+          {estimate.available} available
+        </span>
+      </div>
+
+      <p className="text-muted mt-1 text-xs">
+        Up to {estimate.maximum} is held while the work runs — providers round
+        up and a retry costs again. Anything unused is returned.
+      </p>
+
+      {!estimate.affordable && (
+        <p role="alert" className="mt-2 text-xs">
+          That is more than this workspace has available. Add credits before
+          starting, or the first shot will be refused.
+        </p>
+      )}
+
+      {estimate.lines.length > 0 && (
+        <dl className="mt-3 grid gap-1 text-xs">
+          {estimate.lines.map((line) => (
+            <div
+              key={line.label}
+              className="flex items-baseline justify-between gap-4"
+            >
+              <dt className="text-muted">{line.label}</dt>
+              <dd className="shrink-0">{line.credits}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
   );
 }
 

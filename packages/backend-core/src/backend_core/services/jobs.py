@@ -75,7 +75,7 @@ class JobService:
         self._session = session
         self._settings = settings or get_settings()
         self._repo = JobRepository(session)
-        self._credits = credits or get_credit_service(self._settings)
+        self._credits = credits or get_credit_service(session, self._settings)
 
     # -- creation (§22, §23) ------------------------------------------------
 
@@ -141,7 +141,9 @@ class JobService:
         # §22's ordering. Raises InsufficientCreditsError, which §24 classifies
         # as permanent — retrying a job a workspace cannot afford fails the
         # same way every time.
-        self._credits.reserve(workspace_id=workspace_id, job_id=job.id, amount=estimated_cost)
+        await self._credits.reserve(
+            workspace_id=workspace_id, job_id=job.id, amount=estimated_cost
+        )
 
         logger.info(
             "job_created",
@@ -252,7 +254,7 @@ class JobService:
         job.actual_cost = actual_cost if actual_cost is not None else job.estimated_cost
 
         await self.transition(job, JobStatus.COMPLETED)
-        self._credits.capture(
+        await self._credits.capture(
             workspace_id=job.workspace_id, job_id=job.id, amount=job.actual_cost or 0.0
         )
         return job
@@ -298,7 +300,7 @@ class JobService:
         await self.transition(
             job, JobStatus.FAILED, error_code=error_code, error_message=error_message
         )
-        self._credits.release(workspace_id=job.workspace_id, job_id=job.id)
+        await self._credits.release(workspace_id=job.workspace_id, job_id=job.id)
         logger.warning(
             "job_failed",
             extra={
@@ -333,7 +335,7 @@ class JobService:
             return job
 
         await self.transition(job, JobStatus.CANCELED)
-        self._credits.release(workspace_id=workspace_id, job_id=job.id)
+        await self._credits.release(workspace_id=workspace_id, job_id=job.id)
         return job
 
     def backoff_seconds(self, attempt: int) -> float:
