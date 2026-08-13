@@ -265,6 +265,36 @@ def get_video_provider(settings: Settings | None = None) -> VideoProvider:
     raise ProviderUnavailableError(f"Unknown video provider: {name!r}")
 
 
+def build_video_provider(name: str, settings: Settings | None = None) -> VideoProvider:
+    """Build a provider *by name*, for §55's router (PHASE 19).
+
+    Separate from `get_video_provider`, which answers "what is configured".
+    This one answers "give me this specific one", because a router that has
+    chosen Runway cannot express that through a setting.
+
+    The three-switch rule (§20, §170) still applies to the real providers: a
+    router choosing one when its feature flag is off is a misconfiguration, and
+    silently substituting the mock would ship a customer a placeholder video.
+    """
+    resolved = settings or get_settings()
+
+    if name == "mock":
+        return MockVideoProvider(resolved)
+
+    if not resolved.enable_real_video_provider:
+        raise ProviderUnavailableError(
+            f"The router chose {name!r} but ENABLE_REAL_VIDEO_PROVIDER is off."
+        )
+
+    if name == "runway":
+        from backend_core.providers.runway_video import RunwayVideoProvider
+
+        provider: VideoProvider = RunwayVideoProvider(resolved)
+        return provider
+
+    raise ProviderUnavailableError(f"Unknown video provider: {name!r}")
+
+
 __all__ = [
     "MockVideoProvider",
     "ProviderJobState",
@@ -273,5 +303,6 @@ __all__ = [
     "VideoRequest",
     "VideoStatus",
     "VideoSubmission",
+    "build_video_provider",
     "get_video_provider",
 ]

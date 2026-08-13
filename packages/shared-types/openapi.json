@@ -18,11 +18,174 @@
         "title": "AddMemberRequest",
         "type": "object"
       },
+      "AdminJobResponse": {
+        "properties": {
+          "actual_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Cost"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "estimated_cost": {
+            "title": "Estimated Cost",
+            "type": "number"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_type": {
+            "$ref": "#/components/schemas/JobType"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "retry_count": {
+            "title": "Retry Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "job_type",
+          "status",
+          "provider",
+          "model",
+          "retry_count",
+          "error_code",
+          "estimated_cost",
+          "actual_cost",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "AdminJobResponse",
+        "type": "object"
+      },
       "AnalysisStatus": {
         "description": "Outcome of one product analysis run (§14, P6-T06).\n\nRecorded even when it fails: §15 requires the prompt key and version of\nevery call, and a failed call is exactly the one someone will want to\nexplain later.",
         "enum": ["PENDING", "SUCCEEDED", "FAILED"],
         "title": "AnalysisStatus",
         "type": "string"
+      },
+      "AnalyticsResponse": {
+        "description": "§99's four numbers: volume, success rate, cost, failure rate.",
+        "properties": {
+          "by_job_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Job Type",
+            "type": "object"
+          },
+          "by_provider": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderUsage"
+            },
+            "title": "By Provider",
+            "type": "array"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "failure_rate": {
+            "title": "Failure Rate",
+            "type": "number"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "success_rate": {
+            "title": "Success Rate",
+            "type": "number"
+          },
+          "total_jobs": {
+            "title": "Total Jobs",
+            "type": "integer"
+          },
+          "total_spend": {
+            "title": "Total Spend",
+            "type": "number"
+          },
+          "window_hours": {
+            "title": "Window Hours",
+            "type": "integer"
+          },
+          "workspaces_active": {
+            "title": "Workspaces Active",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "window_hours",
+          "total_jobs",
+          "succeeded",
+          "failed",
+          "success_rate",
+          "failure_rate",
+          "total_spend",
+          "workspaces_active",
+          "by_provider",
+          "by_job_type"
+        ],
+        "title": "AnalyticsResponse",
+        "type": "object"
       },
       "ApiInfo": {
         "description": "What this API version is and what it can currently do.",
@@ -496,6 +659,108 @@
         ],
         "title": "BrandTone",
         "type": "string"
+      },
+      "CapabilityResponse": {
+        "description": "§140's schema, as the admin sees it (P19-T02).",
+        "properties": {
+          "audio": {
+            "title": "Audio",
+            "type": "boolean"
+          },
+          "cancel": {
+            "title": "Cancel",
+            "type": "boolean"
+          },
+          "cost_per_second": {
+            "title": "Cost Per Second",
+            "type": "number"
+          },
+          "durations": {
+            "description": "Exact lengths offered. Empty means continuous up to the maximum.",
+            "items": {
+              "type": "number"
+            },
+            "title": "Durations",
+            "type": "array"
+          },
+          "image_to_video": {
+            "title": "Image To Video",
+            "type": "boolean"
+          },
+          "max_duration_seconds": {
+            "title": "Max Duration Seconds",
+            "type": "number"
+          },
+          "max_reference_images": {
+            "title": "Max Reference Images",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "quality_modes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Quality Modes",
+            "type": "array"
+          },
+          "ratios": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ratios",
+            "type": "array"
+          },
+          "reference_images": {
+            "title": "Reference Images",
+            "type": "boolean"
+          },
+          "resolutions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resolutions",
+            "type": "array"
+          },
+          "text_to_video": {
+            "title": "Text To Video",
+            "type": "boolean"
+          },
+          "typical_latency_seconds": {
+            "title": "Typical Latency Seconds",
+            "type": "number"
+          },
+          "webhook": {
+            "title": "Webhook",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "text_to_video",
+          "image_to_video",
+          "reference_images",
+          "max_reference_images",
+          "durations",
+          "max_duration_seconds",
+          "ratios",
+          "resolutions",
+          "audio",
+          "cancel",
+          "webhook",
+          "cost_per_second",
+          "typical_latency_seconds",
+          "quality_modes"
+        ],
+        "title": "CapabilityResponse",
+        "type": "object"
       },
       "ClaimRiskLevel": {
         "description": "How much substantiation a claim needs before it is safe to broadcast.\n\nRecorded per claim so the review UI can order the queue by consequence:\nan unverified `HIGH` claim about infant safety deserves attention before a\n`LOW` one about colour.",
@@ -2435,6 +2700,158 @@
         "title": "ProjectStatus",
         "type": "string"
       },
+      "ProviderConfigResponse": {
+        "properties": {
+          "attempts": {
+            "default": 0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "circuit_open_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set by the breaker, not by an operator. Null means closed.",
+            "title": "Circuit Open Until"
+          },
+          "circuit_trip_count": {
+            "title": "Circuit Trip Count",
+            "type": "integer"
+          },
+          "consecutive_failures": {
+            "default": 0,
+            "title": "Consecutive Failures",
+            "type": "integer"
+          },
+          "cost_per_second": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Per Second"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "failure_rate": {
+            "default": 0.0,
+            "title": "Failure Rate",
+            "type": "number"
+          },
+          "failures": {
+            "default": 0,
+            "title": "Failures",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_concurrency": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Concurrency"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "model",
+          "kind",
+          "enabled",
+          "priority",
+          "cost_per_second",
+          "max_concurrency",
+          "circuit_open_until",
+          "circuit_trip_count",
+          "notes"
+        ],
+        "title": "ProviderConfigResponse",
+        "type": "object"
+      },
+      "ProviderUsage": {
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "spend": {
+            "title": "Spend",
+            "type": "number"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "success_rate": {
+            "title": "Success Rate",
+            "type": "number"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider",
+          "total",
+          "succeeded",
+          "failed",
+          "success_rate",
+          "spend"
+        ],
+        "title": "ProviderUsage",
+        "type": "object"
+      },
       "QCCheckType": {
         "description": "§37's two families.\n\n`TECHNICAL` is decidable — a file either decodes or it does not. `VISUAL`\nis a model's opinion, and §37.2 exists because the technical checks pass\nhappily on a video of the wrong product.",
         "enum": ["TECHNICAL", "VISUAL"],
@@ -2860,6 +3277,30 @@
         "enum": ["DRAFT", "APPROVED", "SUPERSEDED"],
         "title": "ScriptStatus",
         "type": "string"
+      },
+      "SetProviderEnabledRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "required": ["enabled"],
+        "title": "SetProviderEnabledRequest",
+        "type": "object"
       },
       "ShotReferenceResponse": {
         "properties": {
@@ -4310,6 +4751,56 @@
         "enum": ["OWNER", "ADMIN", "EDITOR", "VIEWER"],
         "title": "WorkspaceRole",
         "type": "string"
+      },
+      "WorkspaceSummary": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_count": {
+            "title": "Job Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plan_code": {
+            "title": "Plan Code",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "spend": {
+            "title": "Spend",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "plan_code",
+          "status",
+          "created_at",
+          "job_count",
+          "spend"
+        ],
+        "title": "WorkspaceSummary",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -4404,6 +4895,776 @@
         },
         "summary": "API version information",
         "tags": ["meta"]
+      }
+    },
+    "/api/v1/admin/analytics": {
+      "get": {
+        "description": "§99's acceptance: 生成量, 成功率, 成本, 失败率 (P22-T07, P22-T08).\n\nComputed with aggregates rather than by loading jobs and counting in\nPython. The difference does not matter at a thousand jobs and decides\nwhether this page loads at a million.",
+        "operationId": "analytics_api_v1_admin_analytics_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "hours",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "title": "Hours",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Generation volume, success rate and cost",
+        "tags": ["admin"]
+      }
+    },
+    "/api/v1/admin/jobs": {
+      "get": {
+        "description": "§99's job monitor (P22-T03).\n\nCross-tenant, which is why this router is guarded by platform admin rather\nthan by a workspace role.",
+        "operationId": "list_jobs_api_v1_admin_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "job_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Job Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminJobResponse"
+                  },
+                  "title": "Response List Jobs Api V1 Admin Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Jobs across every workspace",
+        "tags": ["admin"]
+      }
+    },
+    "/api/v1/admin/jobs/failed": {
+      "get": {
+        "description": "§99's failure view (P22-T04).\n\nSeparate from `/jobs?status=FAILED` because it also covers `TIMEOUT`, and\nbecause a time bound is the difference between a page that loads and one\nthat scans a year of history.",
+        "operationId": "list_failed_jobs_api_v1_admin_jobs_failed_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "hours",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "title": "Hours",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminJobResponse"
+                  },
+                  "title": "Response List Failed Jobs Api V1 Admin Jobs Failed Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Recent failures",
+        "tags": ["admin"]
+      }
+    },
+    "/api/v1/admin/providers": {
+      "get": {
+        "description": "§54's config with §55's observed health folded in (P19-T04, P22-T05).\n\nOne endpoint rather than two, because the only question anyone asks here is\n\"which of these is working\" — and answering it from two screens means\nreading a config that says enabled next to a health page that says failing.",
+        "operationId": "list_providers_api_v1_admin_providers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderConfigResponse"
+                  },
+                  "title": "Response List Providers Api V1 Admin Providers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Provider configuration and health",
+        "tags": ["admin"]
+      }
+    },
+    "/api/v1/admin/providers/capabilities": {
+      "get": {
+        "description": "§140's matrix (P19-T02).\n\nRead from code rather than the database: capabilities change when a vendor\nships a model, and a row an operator could edit would let someone claim a\nprovider does 7-second clips when it does not.",
+        "operationId": "list_capabilities_api_v1_admin_providers_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CapabilityResponse"
+                  },
+                  "title": "Response List Capabilities Api V1 Admin Providers Capabilities Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "The capability matrix",
+        "tags": ["admin"]
+      }
+    },
+    "/api/v1/admin/providers/{provider}/enabled": {
+      "post": {
+        "description": "§54's switch (P19-T07).\n\nEnabling also clears the breaker: someone turning a provider back on means\n\"try this again now\", and leaving a breaker open would make the switch\nappear to do nothing.",
+        "operationId": "set_provider_enabled_api_v1_admin_providers__provider__enabled_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "default": "video",
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProviderEnabledRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Enable or disable a provider",
+        "tags": ["admin"]
+      }
+    },
+    "/api/v1/admin/workspaces": {
+      "get": {
+        "description": "§99's user list (P22-T02).\n\nWorkspaces rather than users, because usage and cost are billed to a\nworkspace and a user in three of them is three different customers.",
+        "operationId": "list_workspaces_api_v1_admin_workspaces_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceSummary"
+                  },
+                  "title": "Response List Workspaces Api V1 Admin Workspaces Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Workspaces and what they have spent",
+        "tags": ["admin"]
       }
     },
     "/api/v1/auth/login": {

@@ -141,9 +141,7 @@ class JobService:
         # §22's ordering. Raises InsufficientCreditsError, which §24 classifies
         # as permanent — retrying a job a workspace cannot afford fails the
         # same way every time.
-        await self._credits.reserve(
-            workspace_id=workspace_id, job_id=job.id, amount=estimated_cost
-        )
+        await self._credits.reserve(workspace_id=workspace_id, job_id=job.id, amount=estimated_cost)
 
         logger.info(
             "job_created",

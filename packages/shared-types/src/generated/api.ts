@@ -27,6 +27,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Generation volume, success rate and cost
+         * @description §99's acceptance: 生成量, 成功率, 成本, 失败率 (P22-T07, P22-T08).
+         *
+         *     Computed with aggregates rather than by loading jobs and counting in
+         *     Python. The difference does not matter at a thousand jobs and decides
+         *     whether this page loads at a million.
+         */
+        get: operations["analytics_api_v1_admin_analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jobs across every workspace
+         * @description §99's job monitor (P22-T03).
+         *
+         *     Cross-tenant, which is why this router is guarded by platform admin rather
+         *     than by a workspace role.
+         */
+        get: operations["list_jobs_api_v1_admin_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent failures
+         * @description §99's failure view (P22-T04).
+         *
+         *     Separate from `/jobs?status=FAILED` because it also covers `TIMEOUT`, and
+         *     because a time bound is the difference between a page that loads and one
+         *     that scans a year of history.
+         */
+        get: operations["list_failed_jobs_api_v1_admin_jobs_failed_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Provider configuration and health
+         * @description §54's config with §55's observed health folded in (P19-T04, P22-T05).
+         *
+         *     One endpoint rather than two, because the only question anyone asks here is
+         *     "which of these is working" — and answering it from two screens means
+         *     reading a config that says enabled next to a health page that says failing.
+         */
+        get: operations["list_providers_api_v1_admin_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The capability matrix
+         * @description §140's matrix (P19-T02).
+         *
+         *     Read from code rather than the database: capabilities change when a vendor
+         *     ships a model, and a row an operator could edit would let someone claim a
+         *     provider does 7-second clips when it does not.
+         */
+        get: operations["list_capabilities_api_v1_admin_providers_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{provider}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable or disable a provider
+         * @description §54's switch (P19-T07).
+         *
+         *     Enabling also clears the breaker: someone turning a provider back on means
+         *     "try this again now", and leaving a breaker open would make the switch
+         *     appear to do nothing.
+         */
+        post: operations["set_provider_enabled_api_v1_admin_providers__provider__enabled_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workspaces and what they have spent
+         * @description §99's user list (P22-T02).
+         *
+         *     Workspaces rather than users, because usage and cost are billed to a
+         *     workspace and a user in three of them is three different customers.
+         */
+        get: operations["list_workspaces_api_v1_admin_workspaces_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -1521,6 +1687,40 @@ export interface components {
             /** @default VIEWER */
             role: components["schemas"]["WorkspaceRole"];
         };
+        /** AdminJobResponse */
+        AdminJobResponse: {
+            /** Actual Cost */
+            actual_cost: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Estimated Cost */
+            estimated_cost: number;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            job_type: components["schemas"]["JobType"];
+            /** Model */
+            model: string | null;
+            /** Provider */
+            provider: string;
+            /** Retry Count */
+            retry_count: number;
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
         /**
          * AnalysisStatus
          * @description Outcome of one product analysis run (§14, P6-T06).
@@ -1531,6 +1731,34 @@ export interface components {
          * @enum {string}
          */
         AnalysisStatus: "PENDING" | "SUCCEEDED" | "FAILED";
+        /**
+         * AnalyticsResponse
+         * @description §99's four numbers: volume, success rate, cost, failure rate.
+         */
+        AnalyticsResponse: {
+            /** By Job Type */
+            by_job_type: {
+                [key: string]: number;
+            };
+            /** By Provider */
+            by_provider: components["schemas"]["ProviderUsage"][];
+            /** Failed */
+            failed: number;
+            /** Failure Rate */
+            failure_rate: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Success Rate */
+            success_rate: number;
+            /** Total Jobs */
+            total_jobs: number;
+            /** Total Spend */
+            total_spend: number;
+            /** Window Hours */
+            window_hours: number;
+            /** Workspaces Active */
+            workspaces_active: number;
+        };
         /**
          * ApiInfo
          * @description What this API version is and what it can currently do.
@@ -1721,6 +1949,47 @@ export interface components {
          * @enum {string}
          */
         BrandTone: "PROFESSIONAL" | "FRIENDLY" | "LUXURY" | "PLAYFUL" | "TECHNICAL" | "WARM" | "BOLD";
+        /**
+         * CapabilityResponse
+         * @description §140's schema, as the admin sees it (P19-T02).
+         */
+        CapabilityResponse: {
+            /** Audio */
+            audio: boolean;
+            /** Cancel */
+            cancel: boolean;
+            /** Cost Per Second */
+            cost_per_second: number;
+            /**
+             * Durations
+             * @description Exact lengths offered. Empty means continuous up to the maximum.
+             */
+            durations: number[];
+            /** Image To Video */
+            image_to_video: boolean;
+            /** Max Duration Seconds */
+            max_duration_seconds: number;
+            /** Max Reference Images */
+            max_reference_images: number;
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Quality Modes */
+            quality_modes: string[];
+            /** Ratios */
+            ratios: string[];
+            /** Reference Images */
+            reference_images: boolean;
+            /** Resolutions */
+            resolutions: string[];
+            /** Text To Video */
+            text_to_video: boolean;
+            /** Typical Latency Seconds */
+            typical_latency_seconds: number;
+            /** Webhook */
+            webhook: boolean;
+        };
         /**
          * ClaimRiskLevel
          * @description How much substantiation a claim needs before it is safe to broadcast.
@@ -2565,6 +2834,72 @@ export interface components {
          * @enum {string}
          */
         ProjectStatus: "DRAFT" | "ANALYZING" | "CREATIVE_PLANNING" | "SCRIPTING" | "STORYBOARDING" | "GENERATING" | "COMPOSITING" | "QC" | "READY" | "FAILED" | "ARCHIVED";
+        /** ProviderConfigResponse */
+        ProviderConfigResponse: {
+            /**
+             * Attempts
+             * @default 0
+             */
+            attempts: number;
+            /**
+             * Circuit Open Until
+             * @description Set by the breaker, not by an operator. Null means closed.
+             */
+            circuit_open_until: string | null;
+            /** Circuit Trip Count */
+            circuit_trip_count: number;
+            /**
+             * Consecutive Failures
+             * @default 0
+             */
+            consecutive_failures: number;
+            /** Cost Per Second */
+            cost_per_second: number | null;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Failure Rate
+             * @default 0
+             */
+            failure_rate: number;
+            /**
+             * Failures
+             * @default 0
+             */
+            failures: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Max Concurrency */
+            max_concurrency: number | null;
+            /** Model */
+            model: string;
+            /** Notes */
+            notes: string | null;
+            /** Priority */
+            priority: number;
+            /** Provider */
+            provider: string;
+        };
+        /** ProviderUsage */
+        ProviderUsage: {
+            /** Failed */
+            failed: number;
+            /** Provider */
+            provider: string;
+            /** Spend */
+            spend: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Success Rate */
+            success_rate: number;
+            /** Total */
+            total: number;
+        };
         /**
          * QCCheckType
          * @description §37's two families.
@@ -2793,6 +3128,13 @@ export interface components {
          * @enum {string}
          */
         ScriptStatus: "DRAFT" | "APPROVED" | "SUPERSEDED";
+        /** SetProviderEnabledRequest */
+        SetProviderEnabledRequest: {
+            /** Enabled */
+            enabled: boolean;
+            /** Notes */
+            notes?: string | null;
+        };
         /** ShotReferenceResponse */
         ShotReferenceResponse: {
             /**
@@ -3300,6 +3642,31 @@ export interface components {
          * @enum {string}
          */
         WorkspaceRole: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+        /** WorkspaceSummary */
+        WorkspaceSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Count */
+            job_count: number;
+            /** Name */
+            name: string;
+            /** Plan Code */
+            plan_code: string;
+            /** Slug */
+            slug: string;
+            /** Spend */
+            spend: number;
+            /** Status */
+            status: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -3325,6 +3692,546 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiInfo"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    analytics_api_v1_admin_analytics_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_jobs_api_v1_admin_jobs_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["JobStatus"] | null;
+                job_type?: components["schemas"]["JobType"] | null;
+                provider?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJobResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_failed_jobs_api_v1_admin_jobs_failed_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJobResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_providers_api_v1_admin_providers_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConfigResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_capabilities_api_v1_admin_providers_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_provider_enabled_api_v1_admin_providers__provider__enabled_post: {
+        parameters: {
+            query?: {
+                kind?: string;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProviderEnabledRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConfigResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_workspaces_api_v1_admin_workspaces_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceSummary"][];
                 };
             };
             /** @description Invalid request */

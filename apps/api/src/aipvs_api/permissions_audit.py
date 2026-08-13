@@ -72,6 +72,13 @@ NO_PERMISSION_REQUIRED: Final[frozenset[str]] = frozenset(
     }
 )
 
+#: The platform-admin surface (§99). Guarded by `require_platform_admin`, which
+#: is not a workspace permission and deliberately cannot be — the question "may
+#: this person read every tenant's jobs" has nothing to do with any role inside
+#: one. Recognised by prefix because every route beneath it carries the same
+#: guard, applied per route.
+ADMIN_PREFIX: Final[str] = "/api/v1/admin/"
+
 #: Routes whose permission check lives in the service rather than in a route
 #: dependency, verified by reading them.
 #:
@@ -107,6 +114,9 @@ class RouteGuard:
     name: str
     authenticated: bool
     permission_checked: bool
+    #: True when the route is guarded by `require_platform_admin` instead of a
+    #: workspace permission.
+    admin_only: bool = False
 
     @property
     def public(self) -> bool:
@@ -130,6 +140,7 @@ class AuditReport:
             for route in self.routes
             if route.authenticated
             and not route.permission_checked
+            and not route.admin_only
             and route.path not in NO_PERMISSION_REQUIRED
             and route.path not in SERVICE_LEVEL_PERMISSION
         )
@@ -191,8 +202,16 @@ def audit_permissions(app: FastAPI) -> AuditReport:
             and getattr(call, "__qualname__", "").startswith("require_permission.")
             for call in calls
         )
+        admin_only = any(
+            getattr(call, "__module__", "") == "aipvs_api.v1.admin"
+            and getattr(call, "__name__", "") == "require_platform_admin"
+            for call in calls
+        )
         authenticated = (
-            get_current_user in calls or get_workspace_role in calls or permission_checked
+            get_current_user in calls
+            or get_workspace_role in calls
+            or permission_checked
+            or admin_only
         )
 
         guards.append(
@@ -202,6 +221,7 @@ def audit_permissions(app: FastAPI) -> AuditReport:
                 name=route.name,
                 authenticated=authenticated,
                 permission_checked=permission_checked,
+                admin_only=admin_only,
             )
         )
 
@@ -243,6 +263,7 @@ if __name__ == "__main__":  # pragma: no cover
 
 
 __all__ = [
+    "ADMIN_PREFIX",
     "NO_PERMISSION_REQUIRED",
     "PUBLIC_PATHS",
     "SERVICE_LEVEL_PERMISSION",

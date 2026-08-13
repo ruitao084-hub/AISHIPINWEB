@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from aipvs_api.errors import ErrorResponse
 from aipvs_api.v1 import (
+    admin,
     auth,
     branding,
     credits,
@@ -87,3 +88,4 @@ api_v1_router.include_router(jobs.router)
 api_v1_router.include_router(renders.router)
 api_v1_router.include_router(branding.router)
 api_v1_router.include_router(credits.router)
+api_v1_router.include_router(admin.router)

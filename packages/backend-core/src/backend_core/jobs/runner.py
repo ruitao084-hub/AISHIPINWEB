@@ -112,10 +112,17 @@ class VideoJobRunner:
     async def _run_locked(self, workspace_id: uuid.UUID, job_id: uuid.UUID) -> JobOutcome:
         request, shot_id, project_id = await self._load_request(workspace_id, job_id)
 
+        # §55's router picks the provider for *this attempt* (PHASE 19). Doing
+        # it per attempt rather than per job is what makes fallback work: a job
+        # that failed against one provider is re-queued by §24 and routed again,
+        # and by then the breaker has opened, so it lands somewhere else.
+        provider = await self._select_provider(workspace_id, job_id)
+
         # -- submit ---------------------------------------------------------
         try:
-            submission = await asyncio.to_thread(self._provider.submit, request)
+            submission = await asyncio.to_thread(provider.submit, request)
         except (ProviderRejectedError, ProviderUnavailableError, ProviderRateLimitedError) as exc:
+            await self._note_provider_failure(provider.name)
             return await self._record_failure(workspace_id, job_id, exc)
 
         async with get_async_sessionmaker()() as session:
@@ -124,7 +131,7 @@ class VideoJobRunner:
             await jobs.transition(job, JobStatus.SUBMITTED)
             await jobs.record_submission(
                 job,
-                provider=self._provider.name,
+                provider=provider.name,
                 provider_job_id=submission.provider_job_id,
                 request_redacted=submission.request_redacted,
             )
@@ -186,6 +193,10 @@ class VideoJobRunner:
             if shot_id is not None:
                 await _mark_shot(session, workspace_id, shot_id, job.id, ShotStatus.READY)
             await session.commit()
+
+        # A success closes the breaker if this attempt was the one that proved
+        # the provider had recovered (P19-T05).
+        await self._note_provider_success(provider.name)
 
         logger.info("video_job_completed", extra={"job_id": str(job_id), "asset_id": str(asset_id)})
         return JobOutcome(job_id=job_id, status=JobStatus.COMPLETED, asset_id=asset_id)
@@ -282,6 +293,65 @@ class VideoJobRunner:
 
             if datetime.now(UTC).timestamp() > deadline:
                 raise TimeoutError(f"Job {job_id} exceeded its generation budget.")
+
+    async def _select_provider(self, workspace_id: uuid.UUID, job_id: uuid.UUID) -> VideoProvider:
+        """Route this attempt, or fall back to the configured single provider.
+
+        With `ENABLE_MULTI_PROVIDER` off there is nothing to route between, and
+        the flag exists precisely so the router can be built and left dark
+        (§122). The routed provider is recorded on the job so "why did this
+        come from Runway" is answerable from the row.
+        """
+        if not self._settings.enable_multi_provider:
+            return self._provider
+
+        from backend_core.providers.video import build_video_provider
+        from backend_core.services.router import NoProviderAvailableError, route_for_job
+
+        async with get_async_sessionmaker()() as session:
+            jobs = JobService(session, settings=self._settings)
+            job = await jobs.get(workspace_id=workspace_id, job_id=job_id)
+            try:
+                decision = await route_for_job(session, job, settings=self._settings)
+            except NoProviderAvailableError:
+                # Every provider is unavailable. Falling through to the default
+                # lets the attempt fail against a real provider and be retried
+                # by §24, which is better than a routing error the user cannot
+                # act on.
+                logger.warning("routing_fell_back_to_default", extra={"job_id": str(job_id)})
+                return self._provider
+
+            job.provider = decision.provider
+            job.model = decision.model
+            job.input_json = {**job.input_json, "routing_reason": decision.reason}
+            await session.commit()
+
+        return build_video_provider(decision.provider, self._settings)
+
+    async def _note_provider_failure(self, provider_name: str) -> None:
+        """Tell the breaker (P19-T05). Best effort — never fails the job."""
+        if not self._settings.enable_multi_provider:
+            return
+        from backend_core.services.router import ProviderRouter
+
+        try:
+            async with get_async_sessionmaker()() as session:
+                await ProviderRouter(session, settings=self._settings).record_failure(provider_name)
+                await session.commit()
+        except Exception:
+            logger.warning("circuit_breaker_update_failed", extra={"provider": provider_name})
+
+    async def _note_provider_success(self, provider_name: str) -> None:
+        if not self._settings.enable_multi_provider:
+            return
+        from backend_core.services.router import ProviderRouter
+
+        try:
+            async with get_async_sessionmaker()() as session:
+                await ProviderRouter(session, settings=self._settings).record_success(provider_name)
+                await session.commit()
+        except Exception:
+            logger.warning("circuit_breaker_update_failed", extra={"provider": provider_name})
 
     async def _record_failure(
         self, workspace_id: uuid.UUID, job_id: uuid.UUID, exc: Exception

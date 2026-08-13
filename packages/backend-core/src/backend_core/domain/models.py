@@ -124,6 +124,15 @@ class User(BaseEntity):
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    #: Platform staff (§99, P22-T01). Deliberately *not* a workspace role: the
+    #: question "may this person read every tenant's jobs" has nothing to do
+    #: with their role inside any one of them, and a workspace OWNER must not
+    #: be able to answer it yes for themselves. Set out of band — there is no
+    #: endpoint that grants it, on purpose.
+    is_platform_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+
     memberships: Mapped[list[WorkspaceMember]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -2051,3 +2060,67 @@ class CreditTransaction(WorkspaceEntity):
             f"CreditTransaction(type={self.transaction_type.value!r}, "
             f"amount={self.amount}, after={self.balance_after})"
         )
+
+
+# ---------------------------------------------------------------------------
+# §54 — operator-controlled provider configuration (PHASE 19)
+# ---------------------------------------------------------------------------
+
+
+class ProviderConfig(BaseEntity):
+    """The half of §54 that operators change (P19-T01, P19-T07).
+
+    Capability lives in code (`providers/capabilities.py`) because it changes
+    when a vendor ships a model. *This* changes when someone on call decides a
+    provider is having a bad afternoon — enable/disable, priority, a cost
+    override, a concurrency cap. Splitting them is what makes "turn Runway off"
+    a database write rather than a deploy.
+
+    Global rather than per-workspace. A provider outage is not a tenant's
+    problem to configure around, and per-workspace rows would mean an incident
+    response had to touch every one of them.
+    """
+
+    __tablename__ = "provider_configs"
+
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(120), nullable=False, server_default="")
+    #: Which contract this fills — video, tts, vision, llm. A provider can
+    #: appear once per kind.
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default="video")
+
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+
+    #: Lower wins. Ties break on the router's scoring, so priority is a thumb
+    #: on the scale rather than a total order — an operator preferring a
+    #: provider should not be able to route a request it cannot serve.
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("100"))
+
+    #: Overrides the declared `cost_per_second` when a contract differs from
+    #: list price. Null means use the capability's number.
+    cost_per_second: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    #: How many jobs may be in flight against this provider at once. Null means
+    #: unlimited — which is right for a mock and wrong for anything metered.
+    max_concurrency: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    #: Set by the circuit breaker, cleared when it closes (P19-T05). Distinct
+    #: from `enabled`: one is an operator's decision and the other is the
+    #: system's, and conflating them would let a breaker trip permanently
+    #: disable a provider nobody chose to turn off.
+    circuit_open_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    circuit_trip_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "kind", name="uq_provider_configs_provider_kind"),
+        Index("ix_provider_configs_kind_enabled", "kind", "enabled"),
+    )
+
+    def __repr__(self) -> str:
+        return f"ProviderConfig(provider={self.provider!r}, enabled={self.enabled})"
