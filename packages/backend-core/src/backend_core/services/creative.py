@@ -42,6 +42,7 @@ from backend_core.providers.creative_schemas import (
 from backend_core.providers.registry import get_llm_provider
 from backend_core.repositories.products import ProductRepository
 from backend_core.repositories.projects import ProjectRepository
+from backend_core.services.branding import BrandingService
 from backend_core.services.moderation import ModerationService
 from backend_core.services.product_truth import ProductTruthService
 from backend_core.services.projects import ProjectService
@@ -61,6 +62,14 @@ class GenerationFailedError(AppError):
     code = ErrorCode.PROVIDER_REJECTED
     http_status = 502
     default_message = "The generation could not be completed."
+
+
+class BrandRuleViolationError(AppError):
+    """The generated words break a brand kit's rules (§58)."""
+
+    code = ErrorCode.VALIDATION_ERROR
+    http_status = 422
+    default_message = "This script breaks the brand kit's rules."
 
 
 class NoVerifiedContentError(AppError):
@@ -376,13 +385,26 @@ class CreativeService:
             )
 
         used_claims = claims[:_MAX_CLAIMS]
+
+        # §58's brand kit, folded into the brief rather than applied afterwards
+        # (P17-T02). Afterwards is too late: tone and required phrasing change
+        # how the words are written, and rewriting a finished script to match a
+        # tone produces something nobody would say.
+        directives = await BrandingService(self._session).directives_for(project)
+        brand_notes = "\n".join(
+            [
+                *([product.description] if product.description else []),
+                *directives.creative_instructions(),
+            ]
+        )
+
         brief = CreativeBrief(
             product_name=product.name,
             category=product.category,
             verified_facts=[f"{fact.key}: {fact.value_text}" for fact in facts[:_MAX_FACTS]],
             verified_claims=[claim.claim_text for claim in used_claims],
             visual_dna=dict(product.visual_dna or {}),
-            brand_notes=product.description or "",
+            brand_notes=brand_notes,
             purpose=project.purpose.value,
             target_platform=project.target_platform.value,
             target_audience=project.target_audience or "",
@@ -435,6 +457,18 @@ class CreativeService:
         )
         self._session.add(script)
         await self._session.flush()
+
+        # §58's banned list, checked before the script is offered for approval
+        # (P17-T02). A brand's forbidden words are usually legal's list, and a
+        # script containing one is a problem regardless of how good the video
+        # would be — catching it after the render means paying for it first.
+        directives = await BrandingService(self._session).directives_for(project)
+        violations = directives.violations(document.plain_text)
+        if violations:
+            raise BrandRuleViolationError(
+                "This script uses words the brand kit forbids.",
+                details={"phrases": violations},
+            )
 
         # §61's screen on the narration (P16-T13). Applied here rather than at
         # the prompt stage because §14's medical and financial rules are about

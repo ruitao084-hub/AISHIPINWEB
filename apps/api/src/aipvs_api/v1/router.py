@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from aipvs_api.errors import ErrorResponse
 from aipvs_api.v1 import (
     auth,
+    branding,
     jobs,
     products,
     projects,
@@ -83,6 +84,4 @@ api_v1_router.include_router(projects.router)
 api_v1_router.include_router(storyboards.router)
 api_v1_router.include_router(jobs.router)
 api_v1_router.include_router(renders.router)
-
-# Further resource routers mount here as their phases land:
-#   PHASE 17 brand kits, templates
+api_v1_router.include_router(branding.router)

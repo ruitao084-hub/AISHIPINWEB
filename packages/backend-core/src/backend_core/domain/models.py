@@ -41,6 +41,7 @@ from backend_core.domain.enums import (
     AssetSourceType,
     AssetType,
     AuditAction,
+    BrandTone,
     ClaimRiskLevel,
     ClaimStatus,
     ClaimType,
@@ -49,6 +50,7 @@ from backend_core.domain.enums import (
     JobStatus,
     JobType,
     LicenseType,
+    LogoPosition,
     ModerationDecision,
     ModerationTarget,
     PlanCode,
@@ -66,6 +68,7 @@ from backend_core.domain.enums import (
     ShotType,
     StoryboardStatus,
     TargetPlatform,
+    TemplateCategory,
     TransitionType,
     UploadStatus,
     UserStatus,
@@ -1731,3 +1734,182 @@ class ModerationResult(WorkspaceEntity):
         return (
             f"ModerationResult(target={self.target_type.value!r}, decision={self.decision.value!r})"
         )
+
+
+# ---------------------------------------------------------------------------
+# §10.4, §10.26 — brand kits and templates (PHASE 17)
+# ---------------------------------------------------------------------------
+
+
+class BrandKit(WorkspaceEntity, SoftDeleteMixin):
+    """A brand's voice and marks (§58, P17-T01).
+
+    §58 states the rule this model is shaped by:
+
+        禁止把 Brand Kit 只当作 LOGO 上传功能。
+
+    So the columns are not "logo and colours". They are the things that have to
+    reach a *generator*: a tone the script writer is told to use, phrases that
+    must and must not appear, an ending the last shot is built from, and a
+    subtitle style the burn-in reads. The logo is one field among them.
+    """
+
+    __tablename__ = "brand_kits"
+
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    #: The default for new projects in this workspace. At most one, enforced by
+    #: a partial unique index — two defaults means the answer to "which brand
+    #: is this" depends on row order.
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+
+    # -- marks --
+    logo_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    logo_position: Mapped[LogoPosition] = mapped_column(
+        _pg_enum(LogoPosition, "logo_position"),
+        nullable=False,
+        server_default=LogoPosition.BOTTOM_RIGHT.value,
+    )
+
+    #: `#RRGGBB`. Validated at the API boundary against `HEX_COLOR_PATTERN`
+    #: before it can reach a subtitle style string (§35).
+    primary_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    secondary_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    subtitle_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+
+    font_family: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    # -- voice (§58: tone, and the words that carry it) --
+    tone: Mapped[BrandTone] = mapped_column(
+        _pg_enum(BrandTone, "brand_tone"),
+        nullable=False,
+        server_default=BrandTone.PROFESSIONAL.value,
+    )
+    #: Phrases the brand always uses — a tagline, a product's proper name.
+    #: Passed to the writer as required vocabulary, not appended to the output.
+    required_phrases: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    #: Words the brand will not say. Legal usually owns this list, and a script
+    #: containing one is a problem regardless of how good the video is.
+    banned_phrases: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+
+    #: The closing line and call to action (§58's 片尾).
+    ending_line: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ending_cta: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    #: Visual direction handed to the prompt compiler (§19, §58).
+    visual_guidelines: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        workspace_scoped_index("brand_kits", "name"),
+        # At most one default per workspace, and only among live rows — a
+        # soft-deleted kit must not block naming a new default.
+        Index(
+            "uq_brand_kits_one_default",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("is_default AND deleted_at IS NULL"),
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"BrandKit(id={self.id!r}, name={self.name!r})"
+
+
+class Template(WorkspaceEntity, SoftDeleteMixin):
+    """A reusable video recipe (§57, P17-T03).
+
+    §57 lists the fields. The one that carries the weight is
+    `storyboard_blueprint`: a list of shot slots with types, durations and
+    intent, which §57 says is *instantiated against a product* rather than
+    copied. A template is a shape, not a storyboard — the same recipe applied
+    to two products must produce two different videos, or it is a stencil.
+
+    Workspace-scoped, with `is_preset` marking the ones this platform ships.
+    Presets belong to a system workspace and are readable by everyone, which is
+    what makes §57's gallery possible without duplicating rows per tenant.
+    """
+
+    __tablename__ = "templates"
+
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    category: Mapped[TemplateCategory] = mapped_column(
+        _pg_enum(TemplateCategory, "template_category"), nullable=False
+    )
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    #: Shown in the gallery. A still is worth more than a name for choosing a
+    #: template, and generating one per template is cheaper than per project.
+    preview_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    #: Whether this is one of the platform's own. Presets are visible across
+    #: workspaces and cannot be edited by a tenant.
+    is_preset: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+
+    # -- the brief a project inherits (§57) --
+    aspect_ratio: Mapped[AspectRatio] = mapped_column(
+        _pg_enum(AspectRatio, "aspect_ratio"), nullable=False
+    )
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    style: Mapped[VideoStyle] = mapped_column(_pg_enum(VideoStyle, "video_style"), nullable=False)
+    purpose: Mapped[ProjectPurpose] = mapped_column(
+        _pg_enum(ProjectPurpose, "project_purpose"), nullable=False
+    )
+    target_platform: Mapped[TargetPlatform] = mapped_column(
+        _pg_enum(TargetPlatform, "target_platform"), nullable=False
+    )
+
+    #: §57's shot slots: `[{sequence_no, shot_type, duration_seconds, intent,
+    #: camera, motion, lighting, composition}]`. Validated by
+    #: `TemplateBlueprint` before it is stored, so a malformed template fails
+    #: when it is written rather than when someone tries to use it.
+    storyboard_blueprint: Mapped[list[dict[str, Any]]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+
+    #: Extra constraints folded into §19's compiler for every shot.
+    prompt_rules: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    #: Overrides for §31's subtitle rendering.
+    subtitle_style: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    transition_style: Mapped[TransitionType] = mapped_column(
+        _pg_enum(TransitionType, "transition_type"),
+        nullable=False,
+        server_default=TransitionType.CUT.value,
+    )
+    #: Search terms for BGM selection, not a track. §32 requires licensing to
+    #: be recorded per track, and a template naming a specific file would pin
+    #: every project made from it to one licence.
+    music_tags: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    ending_style: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    usage_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+
+    __table_args__ = (
+        workspace_scoped_index("templates", "category"),
+        Index("ix_templates_preset_category", "is_preset", "category"),
+        CheckConstraint(
+            "duration_seconds > 0 AND duration_seconds <= 600",
+            name="ck_templates_duration_range",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"Template(id={self.id!r}, name={self.name!r}, preset={self.is_preset})"

@@ -13,20 +13,20 @@ what to set, why it matters, and how you find out it is wrong.
 Everything below has to be done. The ones marked **blocking** will lose data or
 leak credentials if skipped; the rest degrade the service.
 
-| | Item | Blocking |
-|---|---|---|
-| ☐ | `APP_ENV=production` | yes |
-| ☐ | `JWT_SECRET` from a secret manager, ≥32 random bytes, never in git | yes |
-| ☐ | `CORS_ALLOW_ORIGINS` set to the real origin, no wildcard | yes |
-| ☐ | HTTPS terminated in front of the API, `TRUST_PROXY_HEADERS=true` | yes |
-| ☐ | Managed Postgres with automated backups and PITR | yes |
-| ☐ | Object storage bucket **private**, no public read policy | yes |
-| ☐ | `USE_MOCK_PROVIDERS=false` and real provider keys present | yes |
-| ☐ | Migrations applied (`alembic upgrade head`) before the new code serves | yes |
-| ☐ | `celery beat` running exactly once | no |
-| ☐ | One worker per queue with its own concurrency | no |
-| ☐ | Log aggregation collecting the JSON stream | no |
-| ☐ | Alerts on the four signals in §7 | no |
+|     | Item                                                                   | Blocking |
+| --- | ---------------------------------------------------------------------- | -------- |
+| ☐   | `APP_ENV=production`                                                   | yes      |
+| ☐   | `JWT_SECRET` from a secret manager, ≥32 random bytes, never in git     | yes      |
+| ☐   | `CORS_ALLOW_ORIGINS` set to the real origin, no wildcard               | yes      |
+| ☐   | HTTPS terminated in front of the API, `TRUST_PROXY_HEADERS=true`       | yes      |
+| ☐   | Managed Postgres with automated backups and PITR                       | yes      |
+| ☐   | Object storage bucket **private**, no public read policy               | yes      |
+| ☐   | `USE_MOCK_PROVIDERS=false` and real provider keys present              | yes      |
+| ☐   | Migrations applied (`alembic upgrade head`) before the new code serves | yes      |
+| ☐   | `celery beat` running exactly once                                     | no       |
+| ☐   | One worker per queue with its own concurrency                          | no       |
+| ☐   | Log aggregation collecting the JSON stream                             | no       |
+| ☐   | Alerts on the four signals in §7                                       | no       |
 
 `APP_ENV=production` is not cosmetic. It disables `/docs` and `/redoc`, makes
 the refresh cookie `Secure`, and turns several config validations from warnings
@@ -45,13 +45,13 @@ Read secrets from your platform's secret manager into the process environment
 at start. Do not bake them into an image — an image is copied, cached and
 shared, and a rotated secret in a layer stays readable in the registry.
 
-| Variable | Where it comes from |
-|---|---|
-| `JWT_SECRET` | secret manager; rotating it signs everyone out, which is the intended behaviour after a compromise |
-| `DATABASE_URL` | managed database credentials, ideally short-lived |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | scoped to the one bucket, no `s3:*` on `*` |
-| `ANTHROPIC_API_KEY` | vision and LLM providers |
-| `RUNWAY_API_KEY` | video provider, when enabled |
+| Variable                                    | Where it comes from                                                                                |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                                | secret manager; rotating it signs everyone out, which is the intended behaviour after a compromise |
+| `DATABASE_URL`                              | managed database credentials, ideally short-lived                                                  |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | scoped to the one bucket, no `s3:*` on `*`                                                         |
+| `ANTHROPIC_API_KEY`                         | vision and LLM providers                                                                           |
+| `RUNWAY_API_KEY`                            | video provider, when enabled                                                                       |
 
 Rotation for `JWT_SECRET` is a deliberate outage of every session. There is no
 key-id header on the tokens today, so a rolling rotation is not possible — plan
@@ -67,7 +67,7 @@ key, which is built in from 13 onwards; nothing needs `pgcrypto`.
 **Backups.** Automated daily snapshots plus point-in-time recovery. Test a
 restore before you need one — an untested backup is a belief, not a backup.
 
-**Migrations.** `alembic upgrade head` runs as a separate step *before* the new
+**Migrations.** `alembic upgrade head` runs as a separate step _before_ the new
 application version starts, never as an application start hook: two API
 replicas starting together would both try to migrate, and the loser crashes.
 

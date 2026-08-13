@@ -50,6 +50,20 @@
         "title": "ApiInfo",
         "type": "object"
       },
+      "ApplyTemplateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "description": "The product to instantiate against (§57). Required: a template applied without one would be the same video every time.",
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          }
+        },
+        "required": ["product_id"],
+        "title": "ApplyTemplateRequest",
+        "type": "object"
+      },
       "AspectRatio": {
         "description": "Frame shape. Stored as an enum rather than a free string because the\nrender pipeline (PHASE 13) resolves it to exact pixel dimensions, and\n\"9 : 16\" versus \"9:16\" would be two products' worth of bugs.",
         "enum": ["9:16", "16:9", "1:1", "4:5"],
@@ -90,6 +104,398 @@
         "required": ["media_asset_id"],
         "title": "AttachAssetRequest",
         "type": "object"
+      },
+      "BlueprintSlot": {
+        "additionalProperties": false,
+        "description": "One shot's shape, before a product fills it in (§57).",
+        "properties": {
+          "camera": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Camera",
+            "type": "string"
+          },
+          "composition": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Composition",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "identity_lock": {
+            "default": true,
+            "title": "Identity Lock",
+            "type": "boolean"
+          },
+          "intent": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Intent",
+            "type": "string"
+          },
+          "lighting": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Lighting",
+            "type": "string"
+          },
+          "motion": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Motion",
+            "type": "string"
+          },
+          "narration_template": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Narration Template",
+            "type": "string"
+          },
+          "sequence_no": {
+            "minimum": 1.0,
+            "title": "Sequence No",
+            "type": "integer"
+          },
+          "shot_type": {
+            "$ref": "#/components/schemas/ShotType"
+          }
+        },
+        "required": ["sequence_no", "shot_type", "duration_seconds", "intent"],
+        "title": "BlueprintSlot",
+        "type": "object"
+      },
+      "BrandKitRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "banned_phrases": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Banned Phrases",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ending_cta": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Cta"
+          },
+          "ending_line": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Line"
+          },
+          "font_family": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Family"
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "logo_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Asset Id"
+          },
+          "logo_position": {
+            "$ref": "#/components/schemas/LogoPosition",
+            "default": "BOTTOM_RIGHT"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "primary_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Color"
+          },
+          "required_phrases": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Required Phrases",
+            "type": "array"
+          },
+          "secondary_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Color"
+          },
+          "subtitle_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle Color"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/BrandTone",
+            "default": "PROFESSIONAL"
+          },
+          "visual_guidelines": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Guidelines"
+          }
+        },
+        "required": ["name"],
+        "title": "BrandKitRequest",
+        "type": "object"
+      },
+      "BrandKitResponse": {
+        "properties": {
+          "banned_phrases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Banned Phrases",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ending_cta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Cta"
+          },
+          "ending_line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Line"
+          },
+          "font_family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Family"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "logo_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Asset Id"
+          },
+          "logo_position": {
+            "$ref": "#/components/schemas/LogoPosition"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "primary_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Color"
+          },
+          "required_phrases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Phrases",
+            "type": "array"
+          },
+          "secondary_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Color"
+          },
+          "subtitle_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle Color"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/BrandTone"
+          },
+          "visual_guidelines": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Guidelines"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "is_default",
+          "logo_asset_id",
+          "logo_position",
+          "primary_color",
+          "secondary_color",
+          "subtitle_color",
+          "font_family",
+          "tone",
+          "required_phrases",
+          "banned_phrases",
+          "ending_line",
+          "ending_cta",
+          "visual_guidelines",
+          "created_at"
+        ],
+        "title": "BrandKitResponse",
+        "type": "object"
+      },
+      "BrandTone": {
+        "description": "How a brand speaks (§58).\n\n§58 is explicit that a Brand Kit is not a logo uploader — it must reach\ncreative, script, prompt, subtitles and the ending. Tone is the part that\nreaches the *words*, so it is a field rather than a note, and the generator\nreceives it as an instruction rather than as decoration.",
+        "enum": [
+          "PROFESSIONAL",
+          "FRIENDLY",
+          "LUXURY",
+          "PLAYFUL",
+          "TECHNICAL",
+          "WARM",
+          "BOLD"
+        ],
+        "title": "BrandTone",
+        "type": "string"
       },
       "ClaimRiskLevel": {
         "description": "How much substantiation a claim needs before it is safe to broadcast.\n\nRecorded per claim so the review UI can order the queue by consequence:\nan unverified `HIGH` claim about infant safety deserves attention before a\n`LOW` one about colour.",
@@ -491,6 +897,26 @@
         "title": "DownloadResponse",
         "type": "object"
       },
+      "DuplicateTemplateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "DuplicateTemplateRequest",
+        "type": "object"
+      },
       "ErrorCode": {
         "description": "The complete set of error codes (§65).",
         "enum": [
@@ -616,6 +1042,64 @@
         },
         "required": ["service", "version"],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "InstantiatedShotResponse": {
+        "properties": {
+          "camera": {
+            "title": "Camera",
+            "type": "string"
+          },
+          "composition": {
+            "title": "Composition",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "identity_lock": {
+            "title": "Identity Lock",
+            "type": "boolean"
+          },
+          "lighting": {
+            "title": "Lighting",
+            "type": "string"
+          },
+          "motion": {
+            "title": "Motion",
+            "type": "string"
+          },
+          "sequence_no": {
+            "title": "Sequence No",
+            "type": "integer"
+          },
+          "shot_type": {
+            "title": "Shot Type",
+            "type": "string"
+          },
+          "voiceover_text": {
+            "title": "Voiceover Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence_no",
+          "shot_type",
+          "duration_seconds",
+          "description",
+          "camera",
+          "motion",
+          "lighting",
+          "composition",
+          "voiceover_text",
+          "identity_lock"
+        ],
+        "title": "InstantiatedShotResponse",
         "type": "object"
       },
       "JobResponse": {
@@ -817,6 +1301,18 @@
         "required": ["email", "password"],
         "title": "LoginRequest",
         "type": "object"
+      },
+      "LogoPosition": {
+        "description": "Where a logo sits when one is burned in (§58, §34).",
+        "enum": [
+          "TOP_LEFT",
+          "TOP_RIGHT",
+          "BOTTOM_LEFT",
+          "BOTTOM_RIGHT",
+          "NONE"
+        ],
+        "title": "LogoPosition",
+        "type": "string"
       },
       "MediaAssetDetailResponse": {
         "description": "An asset plus a short-lived URL to fetch it (§110).",
@@ -2424,6 +2920,266 @@
         "title": "TargetPlatform",
         "type": "string"
       },
+      "TemplateBlueprint": {
+        "additionalProperties": false,
+        "description": "A template's whole shot plan, validated as one thing (§57).",
+        "properties": {
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/BlueprintSlot"
+            },
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Slots",
+            "type": "array"
+          }
+        },
+        "required": ["slots"],
+        "title": "TemplateBlueprint",
+        "type": "object"
+      },
+      "TemplateCategory": {
+        "description": "What a template is for (§57).",
+        "enum": [
+          "ECOMMERCE",
+          "SOCIAL",
+          "BRAND",
+          "LAUNCH",
+          "TUTORIAL",
+          "SEASONAL"
+        ],
+        "title": "TemplateCategory",
+        "type": "string"
+      },
+      "TemplateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "aspect_ratio": {
+            "$ref": "#/components/schemas/AspectRatio"
+          },
+          "blueprint": {
+            "$ref": "#/components/schemas/TemplateBlueprint"
+          },
+          "category": {
+            "$ref": "#/components/schemas/TemplateCategory"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "duration_seconds": {
+            "maximum": 600.0,
+            "minimum": 5.0,
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "ending_style": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Style"
+          },
+          "music_tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Music Tags",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "prompt_rules": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Prompt Rules",
+            "type": "array"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ProjectPurpose"
+          },
+          "style": {
+            "$ref": "#/components/schemas/VideoStyle"
+          },
+          "subtitle_style": {
+            "additionalProperties": true,
+            "title": "Subtitle Style",
+            "type": "object"
+          },
+          "target_platform": {
+            "$ref": "#/components/schemas/TargetPlatform"
+          },
+          "transition_style": {
+            "$ref": "#/components/schemas/TransitionType",
+            "default": "CUT"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "aspect_ratio",
+          "duration_seconds",
+          "style",
+          "purpose",
+          "target_platform",
+          "blueprint"
+        ],
+        "title": "TemplateRequest",
+        "type": "object"
+      },
+      "TemplateResponse": {
+        "properties": {
+          "aspect_ratio": {
+            "$ref": "#/components/schemas/AspectRatio"
+          },
+          "category": {
+            "$ref": "#/components/schemas/TemplateCategory"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "ending_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Style"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_preset": {
+            "description": "Platform-provided. Readable everywhere, editable nowhere.",
+            "title": "Is Preset",
+            "type": "boolean"
+          },
+          "music_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Music Tags",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "preview_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Asset Id"
+          },
+          "prompt_rules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Prompt Rules",
+            "type": "array"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ProjectPurpose"
+          },
+          "storyboard_blueprint": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Storyboard Blueprint",
+            "type": "array"
+          },
+          "style": {
+            "$ref": "#/components/schemas/VideoStyle"
+          },
+          "subtitle_style": {
+            "additionalProperties": true,
+            "title": "Subtitle Style",
+            "type": "object"
+          },
+          "target_platform": {
+            "$ref": "#/components/schemas/TargetPlatform"
+          },
+          "transition_style": {
+            "$ref": "#/components/schemas/TransitionType"
+          },
+          "usage_count": {
+            "title": "Usage Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "description",
+          "is_preset",
+          "preview_asset_id",
+          "aspect_ratio",
+          "duration_seconds",
+          "style",
+          "purpose",
+          "target_platform",
+          "storyboard_blueprint",
+          "prompt_rules",
+          "subtitle_style",
+          "transition_style",
+          "music_tags",
+          "ending_style",
+          "usage_count",
+          "created_at"
+        ],
+        "title": "TemplateResponse",
+        "type": "object"
+      },
       "TokenResponse": {
         "description": "Issued credentials.\n\nThe refresh token is **not** in this body — it is set as an HttpOnly cookie.\nReturning it here would put a long-lived credential somewhere JavaScript\ncan read it.",
         "properties": {
@@ -2454,6 +3210,196 @@
         "enum": ["CUT", "FADE", "DISSOLVE", "WIPE", "ZOOM", "NONE"],
         "title": "TransitionType",
         "type": "string"
+      },
+      "UpdateBrandKitRequest": {
+        "additionalProperties": false,
+        "description": "Every field optional. Absent means unchanged, not cleared.",
+        "properties": {
+          "banned_phrases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banned Phrases"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ending_cta": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Cta"
+          },
+          "ending_line": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Line"
+          },
+          "font_family": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Family"
+          },
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default"
+          },
+          "logo_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Asset Id"
+          },
+          "logo_position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LogoPosition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "primary_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Color"
+          },
+          "required_phrases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Phrases"
+          },
+          "secondary_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Color"
+          },
+          "subtitle_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle Color"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrandTone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visual_guidelines": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Guidelines"
+          }
+        },
+        "title": "UpdateBrandKitRequest",
+        "type": "object"
       },
       "UpdateFactRequest": {
         "additionalProperties": false,
@@ -2817,6 +3763,122 @@
           }
         },
         "title": "UpdateShotRequest",
+        "type": "object"
+      },
+      "UpdateTemplateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "blueprint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemplateBlueprint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemplateCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ending_style": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ending Style"
+          },
+          "music_tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music Tags"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "prompt_rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Rules"
+          },
+          "subtitle_style": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle Style"
+          },
+          "transition_style": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransitionType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "UpdateTemplateRequest",
         "type": "object"
       },
       "UpdateWorkspaceRequest": {
@@ -4243,6 +5305,528 @@
         ],
         "summary": "Get one asset with a download URL",
         "tags": ["media"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/brand-kits": {
+      "get": {
+        "operationId": "list_brand_kits_api_v1_workspaces__workspace_id__brand_kits_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BrandKitResponse"
+                  },
+                  "title": "Response List Brand Kits Api V1 Workspaces  Workspace Id  Brand Kits Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "List brand kits",
+        "tags": ["branding"]
+      },
+      "post": {
+        "operationId": "create_brand_kit_api_v1_workspaces__workspace_id__brand_kits_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandKitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandKitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Create a brand kit",
+        "tags": ["branding"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/brand-kits/{brand_kit_id}": {
+      "delete": {
+        "description": "Soft-delete. Projects made under this kit keep their reference, because\n\"which brand was this video made under\" is asked about shipped videos.",
+        "operationId": "delete_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "brand_kit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Brand Kit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Delete a brand kit",
+        "tags": ["branding"]
+      },
+      "get": {
+        "operationId": "get_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "brand_kit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Brand Kit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandKitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Get a brand kit",
+        "tags": ["branding"]
+      },
+      "patch": {
+        "operationId": "update_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "brand_kit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Brand Kit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBrandKitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandKitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Update a brand kit",
+        "tags": ["branding"]
       }
     },
     "/api/v1/workspaces/{workspace_id}/jobs/{job_id}": {
@@ -10678,6 +12262,792 @@
         ],
         "summary": "Synthesise the narration",
         "tags": ["renders"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/templates": {
+      "get": {
+        "description": "§57's gallery (P17-T06). Presets first, then by how often each is used.",
+        "operationId": "list_templates_api_v1_workspaces__workspace_id__templates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TemplateCategory"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_presets",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Presets",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateResponse"
+                  },
+                  "title": "Response List Templates Api V1 Workspaces  Workspace Id  Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Template gallery",
+        "tags": ["branding"]
+      },
+      "post": {
+        "operationId": "create_template_api_v1_workspaces__workspace_id__templates_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Create a template",
+        "tags": ["branding"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/templates/{template_id}": {
+      "delete": {
+        "operationId": "delete_template_api_v1_workspaces__workspace_id__templates__template_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Delete a template",
+        "tags": ["branding"]
+      },
+      "get": {
+        "operationId": "get_template_api_v1_workspaces__workspace_id__templates__template_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Get a template",
+        "tags": ["branding"]
+      },
+      "patch": {
+        "operationId": "update_template_api_v1_workspaces__workspace_id__templates__template_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Update a template",
+        "tags": ["branding"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/templates/{template_id}/apply": {
+      "post": {
+        "description": "§57's apply (P17-T05).\n\nReturns the shots a storyboard *would* contain, without creating one. A\npreview rather than a commit: choosing a template is a decision someone\nshould be able to reverse by looking at the result, and creating a\nstoryboard version per template tried would litter the project.",
+        "operationId": "apply_template_api_v1_workspaces__workspace_id__templates__template_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InstantiatedShotResponse"
+                  },
+                  "title": "Response Apply Template Api V1 Workspaces  Workspace Id  Templates  Template Id  Apply Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Instantiate a template against a product",
+        "tags": ["branding"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/templates/{template_id}/duplicate": {
+      "post": {
+        "description": "The only way to build on a preset, which is read-only everywhere.",
+        "operationId": "duplicate_template_api_v1_workspaces__workspace_id__templates__template_id__duplicate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Copy a template into this workspace",
+        "tags": ["branding"]
       }
     },
     "/api/v1/workspaces/{workspace_id}/uploads/config": {

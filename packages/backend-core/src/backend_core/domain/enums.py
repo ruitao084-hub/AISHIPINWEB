@@ -1116,3 +1116,48 @@ class ModerationDecision(StrEnum):
 
 #: Moderation outcomes that must stop the work they screened.
 BLOCKING_MODERATION: frozenset[ModerationDecision] = frozenset({ModerationDecision.BLOCKED})
+
+
+class BrandTone(StrEnum):
+    """How a brand speaks (§58).
+
+    §58 is explicit that a Brand Kit is not a logo uploader — it must reach
+    creative, script, prompt, subtitles and the ending. Tone is the part that
+    reaches the *words*, so it is a field rather than a note, and the generator
+    receives it as an instruction rather than as decoration.
+    """
+
+    PROFESSIONAL = "PROFESSIONAL"
+    FRIENDLY = "FRIENDLY"
+    LUXURY = "LUXURY"
+    PLAYFUL = "PLAYFUL"
+    TECHNICAL = "TECHNICAL"
+    WARM = "WARM"
+    BOLD = "BOLD"
+
+
+class TemplateCategory(StrEnum):
+    """What a template is for (§57)."""
+
+    ECOMMERCE = "ECOMMERCE"
+    SOCIAL = "SOCIAL"
+    BRAND = "BRAND"
+    LAUNCH = "LAUNCH"
+    TUTORIAL = "TUTORIAL"
+    SEASONAL = "SEASONAL"
+
+
+class LogoPosition(StrEnum):
+    """Where a logo sits when one is burned in (§58, §34)."""
+
+    TOP_LEFT = "TOP_LEFT"
+    TOP_RIGHT = "TOP_RIGHT"
+    BOTTOM_LEFT = "BOTTOM_LEFT"
+    BOTTOM_RIGHT = "BOTTOM_RIGHT"
+    NONE = "NONE"
+
+
+#: A colour as `#RRGGBB`, validated before it reaches an ffmpeg filter or a CSS
+#: rule. Narrow on purpose: §35 forbids user text becoming filter arguments,
+#: and a hex triple is the one colour format with no metacharacters in it.
+HEX_COLOR_PATTERN: str = r"^#[0-9A-Fa-f]{6}$"
