@@ -4,10 +4,21 @@ Living progress record for the AI Product Video Studio build
 (taskbook §134, §175). Updated as each task completes — not batched at the end
 of a phase.
 
-- **Last updated:** 2026-08-12
-- **Current phase:** PHASE 9 — Job System + Mock Provider (next up)
-- **Last completed phase:** PHASE 8 — Storyboard + Prompt Compiler ✅
+- **Last updated:** 2026-08-13
+- **Current phase:** all 24 phases built; PHASE 10 and PHASE 23 stand at their
+  credential boundaries
 - **Branch:** `claude/quirky-mendel-rlh1nm`
+
+> **Test status, stated plainly.** PHASES 0–8 were built test-first with the
+> full gate (lint, type check, unit, integration, build, runtime verification)
+> green at each phase boundary. **PHASES 9–24 carry no tests**, at the user's
+> explicit instruction (`本次需要你将后面的阶段全部完成，先不进行测试`). What
+> those phases do carry: `ruff`, `mypy --strict`, `tsc --noEmit`, Prettier, the
+> executable permission audit, every migration round-tripped
+> `upgrade → downgrade → upgrade` against a real database, and — for the
+> load-bearing invariants — live verification scripts run against real Postgres
+> and real ffmpeg. Those are recorded per phase below. This is the largest
+> outstanding item in the project.
 
 ---
 
@@ -24,22 +35,50 @@ of a phase.
 | 6     | Product AI Analysis          | ✅ COMPLETED                    |
 | 7     | Project + Creative + Script  | ✅ COMPLETED                    |
 | 8     | Storyboard + Prompt Compiler | ✅ COMPLETED                    |
-| 9     | Job System + Mock Provider   | ⬜ NOT_STARTED                  |
-| 10    | First Real Video Provider    | ⬜ NOT_STARTED · needs API key  |
-| 11    | Shot Generation E2E          | ⬜ NOT_STARTED                  |
-| 12    | TTS + Subtitle               | ⬜ NOT_STARTED                  |
-| 13    | Timeline + FFmpeg Render     | ⬜ NOT_STARTED                  |
-| 14    | QC                           | ⬜ NOT_STARTED                  |
-| 15    | Web E2E Product Flow         | ⬜ NOT_STARTED                  |
-| 16    | MVP Hardening                | ⬜ NOT_STARTED                  |
-| 17    | Brand Kit + Template         | ⬜ NOT_STARTED                  |
-| 18    | Credit + Cost                | ⬜ NOT_STARTED                  |
-| 19    | Multi-provider Router        | ⬜ NOT_STARTED                  |
-| 20    | Basic Editor                 | ⬜ NOT_STARTED                  |
-| 21    | Batch SKU                    | ⬜ NOT_STARTED                  |
-| 22    | Admin + Analytics            | ⬜ NOT_STARTED                  |
-| 23    | Production Deployment        | ⬜ NOT_STARTED · needs accounts |
-| 24    | Post-MVP Optimization        | ⬜ NOT_STARTED                  |
+| 9     | Job System + Mock Provider   | 🟡 BUILT · no tests             |
+| 10    | First Real Video Provider    | 🟡 BUILT to boundary · no key   |
+| 11    | Shot Generation E2E          | 🟡 BUILT · no tests             |
+| 12    | TTS + Subtitle               | 🟡 BUILT · no tests             |
+| 13    | Timeline + FFmpeg Render     | 🟡 BUILT · no tests             |
+| 14    | QC                           | 🟡 BUILT · no tests             |
+| 15    | Web E2E Product Flow         | 🟡 BUILT · no Playwright E2E    |
+| 16    | MVP Hardening                | 🟡 BUILT · no tests             |
+| 17    | Brand Kit + Template         | 🟡 BUILT · no tests             |
+| 18    | Credit + Cost                | 🟡 BUILT · live-verified        |
+| 19    | Multi-provider Router        | 🟡 BUILT · live-verified        |
+| 20    | Basic Editor                 | 🟡 BUILT · live-verified        |
+| 21    | Batch SKU                    | 🟡 BUILT · live-verified        |
+| 22    | Admin + Analytics            | 🟡 BUILT · no tests             |
+| 23    | Production Deployment        | 🟡 BUILT to boundary · accounts |
+| 24    | Post-MVP Optimization        | 🟡 2 of 17 done · rest roadmap  |
+
+**Legend.** ✅ = built and tested to the taskbook's gate. 🟡 BUILT = the code
+exists, lint and `mypy --strict` pass, and it has not been tested.
+"live-verified" means a script exercised the phase's acceptance criteria against
+real Postgres / real ffmpeg — recorded in the phase's section below — which is
+evidence but is not a test suite.
+
+---
+
+## What is not done
+
+Stated here rather than scattered, because these are the things someone picking
+this up needs to know first.
+
+1. **No tests for PHASES 9–24.** The largest item. PHASE 15's §92 acceptance
+   names a Playwright E2E over mock providers specifically, and it is not
+   written.
+2. **PHASE 10 has never run.** `RunwayVideoProvider` is written against the
+   published API and has not made a single call; it needs `RUNWAY_API_KEY`.
+   `ENABLE_REAL_VIDEO_PROVIDER` gates it off.
+3. **PHASE 23's P23-T03/04/05/06** need cloud accounts — managed Postgres,
+   managed Redis, S3/R2, a secret manager. The compose file leaves the
+   datastores commented rather than absent so the choice is visible in one
+   place; the release workflow's `deploy` job is a comment saying what it needs.
+4. **Visual QC (§37.2) is behind `ENABLE_QC` and untested.** The technical half
+   runs; the vision half costs a call per render.
+5. **No ADRs for PHASES 9–24.** Decisions are recorded in module docstrings
+   instead, which is where they were made, but the ADR index is stale.
 
 ---
 
@@ -528,3 +567,166 @@ Nothing right now. Development proceeds on mocks through PHASE 9.
 | TypeScript pinned to 5.x, ESLint to 9.x                         | TypeScript 7 and ESLint 10 are days old; `eslint-config-next@16.3.0` is validated against ESLint 9 (§180).                                                   |
 | A minimal settings module arrived in PHASE 1 rather than P2-T01 | The PHASE 1 clients cannot read a database URL without one. Ad-hoc `os.environ` parsing, later ripped out, would be strictly worse. P2-T01 extends it.       |
 | `moto` used as the local S3 endpoint                            | Only because MinIO's image and binary are both unreachable from this environment. CI always runs real MinIO, so nothing merges proven only against a double. |
+
+---
+
+## PHASES 9–14 — job system through QC
+
+**Status: BUILT, no tests** (commit `8ef9c35`)
+
+| Task | Delivered                                                                                                                                                                                                                                             |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P9   | `GenerationJob`/`ProviderJob`, `JobService` implementing §22/§23/§24/§106, idempotency by unique constraint with the `IntegrityError` race handled, exponential backoff with jitter, Redis-locked `VideoJobRunner`, Celery app with §25's four queues |
+| P10  | `RunwayVideoProvider` written to the credential boundary. **Never executed.**                                                                                                                                                                         |
+| P11  | §27 media ingestion: download, signature verify, probe, re-host, `MediaAsset`                                                                                                                                                                         |
+| P12  | `MockTTSProvider`, per-shot timing, SRT, `TTSJobRunner`                                                                                                                                                                                               |
+| P13  | `Timeline` as §33's single render source, `build_render_plan` emitting §35-safe argv, `RenderJobRunner`                                                                                                                                               |
+| P14  | Technical QC (§37.1), `QCJobRunner`                                                                                                                                                                                                                   |
+
+Two migrations round-tripped. Nothing in this batch has been executed end to
+end against a live worker.
+
+---
+
+## PHASE 15 — Web E2E Product Flow
+
+**Status: BUILT, no Playwright E2E** (commit `cbf4abe`)
+
+Closed the chain §92 requires: `PostProductionService` assembles the timeline
+and queues voice / render / QC; `/voiceover`, `/renders`, `/quality-checks`,
+`/download` on the API; `useJobPoll` implements §26's polling once with backoff
+and a stop at terminal states; `ProductionPanel` shows the five steps in order.
+
+**§92's acceptance — a Playwright E2E over mock providers — is not written.**
+
+---
+
+## PHASE 16 — MVP Hardening
+
+**Status: BUILT, no tests** (commit `e74c0cd`)
+
+All fifteen tasks. The ones with substance: an _executable_ permission audit
+(`make audit-perms`, 109 routes, all guarded); per-workspace rate limits on the
+expensive endpoints; §61's SSRF downloader resolving before connecting and
+checking every returned address; security headers in middleware; `ModerationResult`
+and a local screen on compiled prompts and scripts; `AuditLog` wired into §60's
+actions; a stuck-job reaper on `celery beat`.
+
+Writing the permission audit found a real trap: this FastAPI version nests
+included routers, so the obvious walk sees four routes and would have reported
+"all guarded" while checking nothing.
+
+---
+
+## PHASE 17 — Brand Kit + Template
+
+**Status: BUILT, no tests** (commit `214b5e4`)
+
+§58's "not just a logo uploader" and §57's "instantiate against the product"
+are both enforced: `BrandDirectives.creative_instructions()` reaches the script
+writer before generation, banned phrases refuse a script, and `instantiate`
+fills `{product}` placeholders so one template applied to two products produces
+two storyboards.
+
+---
+
+## PHASE 18 — Credit + Cost
+
+**Status: BUILT, live-verified** (commit `dfbaedc`)
+
+§95's three prohibitions verified against real Postgres:
+
+- reserve → re-reserve absorbed → capture → re-capture absorbed (no double charge)
+- overdraft refused with the available balance in the error (no negative balance)
+- reserve → release returns the hold untouched (no charge on failure)
+- three concurrent reservations of 60 against a balance of 100 → exactly one
+  winner, `reserved` at 60 (`FOR UPDATE` serialises the race)
+
+`CreditService` became async, because a real ledger writes inside the caller's
+transaction and that is what makes reserve-and-enqueue atomic.
+
+---
+
+## PHASE 19 — Multi-provider Router
+
+**Status: BUILT, live-verified** (commit `fc4e257`)
+
+§140's rule enforced — capability filters, it does not score. Verified against
+real Postgres: a 7s request and a 1:1 request both exclude Runway on capability;
+five consecutive failures open the breaker and traffic falls back to mock; a
+success closes it and traffic returns; every provider disabled refuses rather
+than guessing.
+
+Also landed the admin surface PHASE 22 needed.
+
+---
+
+## PHASE 20 — Basic Editor
+
+**Status: BUILT, live-verified** (commit `bf3f1c0`)
+
+§97's "no regeneration" satisfied by the fact that §33 already made the
+timeline the render's only input. Verified by building a real plan and handing
+it to ffmpeg: reorder, trim with gap closure, gains, subtitle sizing and colour,
+and a logo overlay all appear in the filter graph and ffmpeg parses it.
+
+Two bugs found by running it: reorder permuted the list but kept each clip's
+`start_ms`, so the next sort undid it; and the `_edited` marker could not ride
+inside a `Timeline` that forbids unknown fields.
+
+---
+
+## PHASE 21 — Batch SKU
+
+**Status: BUILT, live-verified** (commit `1c981ec`, fix `59b8a15`)
+
+Verified with a realistic export — a UTF-8 BOM, a blank name, a duration of
+"five", an unsupported `21:9`, a misspelled `catagory` header. 40 of 43 rows
+import, failures are named by source line, the misspelled column is reported
+rather than dropped, the concurrency bound holds at 3 and frees exactly one slot
+per completion, retry corrects the counts, and INVALID rows are left alone.
+
+---
+
+## PHASE 22 — Admin + Analytics
+
+**Status: BUILT, no tests** (commits `fc4e257`, `3ae3844`)
+
+§99's four numbers, the provider monitor, failed jobs, workspaces, and a
+read-only prompt registry view — read-only because §15 makes a version
+immutable and an editable one would let someone change what a recorded call
+claims to have sent.
+
+---
+
+## PHASE 23 — Production Deployment
+
+**Status: BUILT to the credential boundary** (commit `5f41ba4`)
+
+Done: three multi-stage Dockerfiles (non-root, no secrets in any layer, CJK
+fonts on the worker so subtitles do not render as tofu), production compose with
+§25's five queues and exactly one `beat`, nginx TLS with `X-Forwarded-Proto`,
+a release workflow that builds and scans, and three operations documents —
+`production.md`, `runbooks.md`, `monitoring.md`.
+
+Not done: P23-T03/04/05/06, which need accounts. Docker's daemon was unavailable
+in the build environment, so the images were validated statically (every YAML
+parses, every path resolves, every `COPY` source exists) rather than built.
+
+---
+
+## PHASE 24 — Post-MVP Optimization
+
+**Status: 2 of 17 done, the rest scoped** (see `docs/roadmap.md`)
+
+Two were cheap given PHASES 14 and 19: **automated retry via QC** (bounded to
+one attempt, and only for failures a re-encode could plausibly fix — a video of
+the wrong product does not improve by being encoded twice) and **provider
+quality score** (derived from §37's checks rather than a new rating nobody
+calibrated; reported, not routed on, because QC judges a finished render and
+cannot name the shot it blames).
+
+The other fifteen are in `docs/roadmap.md` with what each needs and why it was
+not built. Several are genuinely judgement calls rather than work — prompt A/B
+testing has the plumbing already and lacks an honest measure of "better", and an
+advanced editor is an argument that the product's premise is wrong.

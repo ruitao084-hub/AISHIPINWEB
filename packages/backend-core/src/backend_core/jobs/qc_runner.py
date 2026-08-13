@@ -21,6 +21,8 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from sqlalchemy import func, select
+
 from backend_core.config import Settings, get_settings
 from backend_core.db import get_async_sessionmaker
 from backend_core.domain.enums import JobStatus, QCCheckType, QCStatus
@@ -33,12 +35,27 @@ from backend_core.storage.s3 import get_storage
 logger = get_logger(__name__)
 
 
+#: Findings that a fresh render would plausibly fix (§101, PHASE 24).
+#:
+#: Deliberately narrow. A black-frame run or a silent audio track is usually a
+#: provider returning a bad take, and encoding the same timeline again picks up
+#: nothing new — but a *render* failure (a truncated file, a duration that
+#: drifted) is often the encode itself, and re-running it is cheap and works.
+#:
+#: Everything else needs a person. A video of the wrong product does not
+#: improve by being encoded twice, and retrying it would spend money to produce
+#: the same wrong video.
+RERENDERABLE_CHECKS: frozenset[str] = frozenset({"duration", "resolution", "container"})
+
+
 @dataclass(frozen=True, slots=True)
 class QCOutcome:
     job_id: uuid.UUID
     status: JobStatus
     result: QCStatus = QCStatus.PASSED
     findings: int = 0
+    #: Set when §101's automated retry decided this render is worth redoing.
+    rerender_queued: bool = False
 
 
 class QCJobRunner:
@@ -101,17 +118,89 @@ class QCJobRunner:
             )
             await session.commit()
 
+        # §101's automated retry. Only for failures a re-encode could fix, and
+        # only once — a render that fails QC twice has a problem the encoder
+        # is not going to solve, and a loop would spend CPU proving it.
+        rerender = await self._maybe_rerender(workspace_id, project_id, render_id, findings)
+
         logger.info(
             "qc_completed",
             extra={
                 "render_id": str(render_id),
                 "status": status.value,
                 "findings": len(findings),
+                "rerender_queued": rerender,
             },
         )
         return QCOutcome(
-            job_id=job_id, status=JobStatus.COMPLETED, result=status, findings=len(findings)
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            result=status,
+            findings=len(findings),
+            rerender_queued=rerender,
         )
+
+    async def _maybe_rerender(
+        self,
+        workspace_id: uuid.UUID,
+        project_id: uuid.UUID,
+        render_id: uuid.UUID,
+        findings: list[QCFinding],
+    ) -> bool:
+        """Queue one more render when QC failed for a re-encodable reason.
+
+        §101 asks for "Automated Retry via QC", and the whole design question
+        is *which* failures qualify. A video of the wrong product does not
+        improve by being encoded again; a truncated output often does. So this
+        acts on `RERENDERABLE_CHECKS` and nothing else.
+
+        Bounded to one attempt by counting prior renders of this project that
+        already carry a QC failure — a counter in memory would not survive the
+        worker, and a flag on the render would not see the previous one.
+        """
+        failed = [
+            finding
+            for finding in findings
+            if finding.status is QCStatus.FAILED and finding.check in RERENDERABLE_CHECKS
+        ]
+        if not failed:
+            return False
+
+        async with get_async_sessionmaker()() as session:
+            prior = await session.execute(
+                select(func.count(QualityCheck.id)).where(
+                    QualityCheck.project_id == project_id,
+                    QualityCheck.status == QCStatus.FAILED,
+                    QualityCheck.render_id != render_id,
+                )
+            )
+            if int(prior.scalar() or 0) > 0:
+                logger.info(
+                    "qc_rerender_skipped_already_retried",
+                    extra={"project_id": str(project_id), "render_id": str(render_id)},
+                )
+                return False
+
+            from backend_core.services.editor import TimelineEditor
+
+            _, job, created = await TimelineEditor(session, settings=self._settings).rerender(
+                workspace_id=workspace_id, project_id=project_id
+            )
+            await session.commit()
+
+        if created:
+            from aipvs_worker.celery_app import compose_render
+
+            compose_render.delay(str(workspace_id), str(job.id))
+
+        logger.warning(
+            "qc_rerender_queued",
+            extra={
+                "project_id": str(project_id),
+                "failed_checks": [finding.check for finding in failed],
+            },
+        )
+        return created
 
     def _technical(
         self, object_key: str, width: int, height: int, expected_ms: int

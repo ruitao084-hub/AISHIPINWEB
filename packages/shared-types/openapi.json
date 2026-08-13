@@ -3296,6 +3296,12 @@
           "provider": {
             "title": "Provider",
             "type": "string"
+          },
+          "quality_score": {
+            "default": 1.0,
+            "description": "0.0-1.0 from §37's checks over the last 30 days (§101). 1.0 when nothing has been judged — unknown reads as good, so a newly enabled provider is tried rather than buried.",
+            "title": "Quality Score",
+            "type": "number"
           }
         },
         "required": [

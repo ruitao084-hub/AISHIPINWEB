@@ -35,12 +35,18 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend_core.config import Settings, get_settings
-from backend_core.domain.enums import AspectRatio, JobStatus, QualityMode
-from backend_core.domain.models import GenerationJob, ProviderConfig
+from backend_core.domain.enums import (
+    AspectRatio,
+    JobStatus,
+    JobType,
+    QCStatus,
+    QualityMode,
+)
+from backend_core.domain.models import GenerationJob, ProviderConfig, QualityCheck
 from backend_core.errors import AppError, ErrorCode
 from backend_core.observability import get_logger
 from backend_core.providers.capabilities import (
@@ -74,6 +80,12 @@ FAILURE_THRESHOLD: Final[int] = 5
 #: fixed window means a long outage is retried every minute for its duration.
 BASE_OPEN_SECONDS: Final[int] = 120
 MAX_OPEN_SECONDS: Final[int] = 1800
+
+#: How far back the quality score looks (§101). Longer than the health window
+#: because QC runs per *render*, not per job — a workspace producing a video a
+#: day would otherwise have no judged renders inside half an hour and score on
+#: nothing.
+QUALITY_WINDOW_DAYS: Final[int] = 30
 
 #: Recent attempts the health window considers. Short, because "is this
 #: provider working *now*" is the question — a failure rate averaged over a
@@ -308,6 +320,57 @@ class ProviderRouter:
         """Health for every configured provider, for §99's monitor."""
         return [await self.health(config.provider) for config in await self._configs(kind)]
 
+    async def quality_score(self, provider: str) -> float:
+        """0.0-1.0, from what QC said about this provider's output (§101).
+
+        §101 asks for a Provider Quality Score, and the honest source for one
+        is §37's quality checks: they already run on every render and already
+        distinguish PASSED from WARNING from FAILED. Inventing a separate
+        rating would mean a second opinion nobody calibrated.
+
+        **Attributed by the render's project, not by the clip.** A render mixes
+        several shots and QC judges the finished video, so a failed check
+        implicates whichever provider generated that project's shots. That is
+        approximate, and it is the reason this is a tiebreak input rather than
+        a routing filter — a provider must not be excluded on a signal that
+        cannot name the shot it blames.
+
+        A provider with no judged renders scores 1.0. Unknown reads as good,
+        for the same reason `failure_rate` does: a newly enabled provider
+        should be tried, not buried.
+        """
+        since = datetime.now(UTC) - timedelta(days=QUALITY_WINDOW_DAYS)
+        result = await self._session.execute(
+            select(QualityCheck.status, func.count(QualityCheck.id))
+            .join(GenerationJob, GenerationJob.project_id == QualityCheck.project_id)
+            .where(
+                GenerationJob.provider == provider,
+                GenerationJob.job_type == JobType.VIDEO_GENERATION,
+                QualityCheck.created_at >= since,
+            )
+            .group_by(QualityCheck.status)
+        )
+        counts = {status: int(count) for status, count in result.all()}
+        total = sum(counts.values())
+        if total == 0:
+            return 1.0
+
+        # A warning is not half a failure — it is a video someone can ship
+        # with a note. Weighted accordingly rather than averaged into the same
+        # bucket, which would make a provider that warns often look as bad as
+        # one that fails often.
+        score = (
+            counts.get(QCStatus.PASSED, 0) * 1.0 + counts.get(QCStatus.WARNING, 0) * 0.6
+        ) / total
+        return round(score, 4)
+
+    async def quality_scores(self, *, kind: str = "video") -> dict[str, float]:
+        """Every configured provider's score, for §99's monitor."""
+        return {
+            config.provider: await self.quality_score(config.provider)
+            for config in await self._configs(kind)
+        }
+
     # -- circuit breaker (P19-T05) ------------------------------------------
 
     async def record_failure(self, provider: str, *, kind: str = "video") -> bool:
@@ -497,6 +560,7 @@ __all__ = [
     "BASE_OPEN_SECONDS",
     "FAILURE_THRESHOLD",
     "MAX_OPEN_SECONDS",
+    "QUALITY_WINDOW_DAYS",
     "Candidate",
     "NoProviderAvailableError",
     "ProviderRouter",

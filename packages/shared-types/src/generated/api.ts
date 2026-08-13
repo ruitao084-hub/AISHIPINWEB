@@ -3335,6 +3335,12 @@ export interface components {
             priority: number;
             /** Provider */
             provider: string;
+            /**
+             * Quality Score
+             * @description 0.0-1.0 from §37's checks over the last 30 days (§101). 1.0 when nothing has been judged — unknown reads as good, so a newly enabled provider is tried rather than buried.
+             * @default 1
+             */
+            quality_score: number;
         };
         /** ProviderUsage */
         ProviderUsage: {

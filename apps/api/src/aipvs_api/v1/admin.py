@@ -134,6 +134,14 @@ class ProviderConfigResponse(BaseModel):
     failures: int = 0
     failure_rate: float = 0.0
     consecutive_failures: int = 0
+    quality_score: float = Field(
+        default=1.0,
+        description=(
+            "0.0-1.0 from §37's checks over the last 30 days (§101). 1.0 when "
+            "nothing has been judged — unknown reads as good, so a newly "
+            "enabled provider is tried rather than buried."
+        ),
+    )
 
     @classmethod
     def of(cls, config: ProviderConfig) -> ProviderConfigResponse:
@@ -203,6 +211,7 @@ async def list_providers(
                     "failures": health.failures,
                     "failure_rate": round(health.failure_rate, 4),
                     "consecutive_failures": health.consecutive_failures,
+                    "quality_score": await provider_router.quality_score(config.provider),
                 }
             )
         )
