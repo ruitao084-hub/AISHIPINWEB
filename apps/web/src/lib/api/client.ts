@@ -66,6 +66,27 @@ export type ShotResponse = Schemas["ShotResponse"];
 export type ShotType = Schemas["ShotType"];
 export type TransitionType = Schemas["TransitionType"];
 export type UpdateShotRequest = Schemas["UpdateShotRequest"];
+export type JobResponse = Schemas["JobResponse"];
+export type JobStatus = Schemas["JobStatus"];
+export type JobType = Schemas["JobType"];
+export type RenderResponse = Schemas["RenderResponse"];
+export type RenderStartedResponse = Schemas["RenderStartedResponse"];
+export type RenderRequest = Schemas["RenderRequest"];
+export type VoiceoverResponse = Schemas["VoiceoverResponse"];
+export type QualityCheckResponse = Schemas["QualityCheckResponse"];
+export type DownloadResponse = Schemas["DownloadResponse"];
+
+/** Job states that will never change again (§106). Polling stops at these. */
+export const TERMINAL_JOB_STATUSES: readonly JobStatus[] = [
+  "COMPLETED",
+  "FAILED",
+  "CANCELED",
+  "TIMEOUT",
+];
+
+export function isJobFinished(job: JobResponse): boolean {
+  return TERMINAL_JOB_STATUSES.includes(job.status);
+}
 
 /** An error carrying the API's `code`, so callers branch on it rather than text. */
 export class ApiError extends Error {
@@ -536,6 +557,118 @@ export const projectApi = {
     apiRequest<StoryboardResponse>(
       `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/approve`,
       { method: "POST" },
+    ),
+};
+
+/**
+ * Generation, composition and delivery (§22, §26, §34, §37).
+ *
+ * Every write here returns a job rather than a result. §26 asks for polling
+ * and warns against reaching for WebSockets first, so `job()` is what the UI
+ * calls on an interval until `isJobFinished` is true.
+ */
+export const generationApi = {
+  // -- jobs (§22, §26) --
+
+  job: (workspaceId: string, jobId: string) =>
+    apiRequest<JobResponse>(`/api/v1/workspaces/${workspaceId}/jobs/${jobId}`),
+
+  projectJobs: (workspaceId: string, projectId: string, jobType?: JobType) =>
+    apiRequest<JobResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/jobs` +
+        (jobType ? `?job_type=${jobType}` : ""),
+    ),
+
+  cancelJob: (workspaceId: string, jobId: string) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/jobs/${jobId}/cancel`,
+      { method: "POST" },
+    ),
+
+  // -- shots (§22) --
+
+  generateShots: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+  ) =>
+    apiRequest<JobResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/generate`,
+      { method: "POST" },
+    ),
+
+  generateShot: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+    shotId: string,
+  ) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/shots/${shotId}/generate`,
+      { method: "POST" },
+    ),
+
+  // -- voice (§30) --
+
+  voiceover: (workspaceId: string, projectId: string) =>
+    apiRequest<VoiceoverResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/voiceover`,
+    ),
+
+  generateVoiceover: (workspaceId: string, projectId: string) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/voiceover`,
+      { method: "POST" },
+    ),
+
+  // -- render (§34) --
+
+  renders: (workspaceId: string, projectId: string) =>
+    apiRequest<RenderResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders`,
+    ),
+
+  render: (workspaceId: string, projectId: string, renderId: string) =>
+    apiRequest<RenderResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders/${renderId}`,
+    ),
+
+  createRender: (
+    workspaceId: string,
+    projectId: string,
+    payload: RenderRequest = { burn_subtitles: true },
+  ) =>
+    apiRequest<RenderStartedResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders`,
+      { method: "POST", body: payload },
+    ),
+
+  // -- quality checks (§37) --
+
+  qualityChecks: (workspaceId: string, projectId: string, renderId?: string) =>
+    apiRequest<QualityCheckResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/quality-checks` +
+        (renderId ? `?render_id=${renderId}` : ""),
+    ),
+
+  runQualityCheck: (workspaceId: string, projectId: string, renderId: string) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders/${renderId}/quality-checks`,
+      { method: "POST" },
+    ),
+
+  // -- delivery (§60) --
+
+  /**
+   * A short-lived link to the finished video.
+   *
+   * Fetched on click rather than held in state: the URL expires, and a link
+   * rendered ten minutes ago would 403 by the time anyone pressed it.
+   */
+  download: (workspaceId: string, projectId: string, renderId?: string) =>
+    apiRequest<DownloadResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/download` +
+        (renderId ? `?render_id=${renderId}` : ""),
     ),
 };
 

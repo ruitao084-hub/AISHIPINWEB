@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { ProductionPanel } from "@/components/production-panel";
 import { StoryboardPanel } from "@/components/storyboard-panel";
 import {
   ApiError,
@@ -328,6 +329,19 @@ export default function ProjectDetailPage({
               ),
             )
           }
+        />
+      )}
+
+      {/* --- generate, voice, render, QC, download (§92) --- */}
+      {latestStoryboard && (
+        <ProductionPanel
+          workspaceId={workspaceId}
+          projectId={project.id}
+          storyboard={latestStoryboard}
+          shots={shots}
+          onRefresh={() => {
+            if (projectId) void act(async () => undefined);
+          }}
         />
       )}
     </main>
