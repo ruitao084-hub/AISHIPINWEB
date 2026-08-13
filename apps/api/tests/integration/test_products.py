@@ -455,7 +455,15 @@ class TestTruthLayer:
 
 class TestProductLifecycle:
     def test_status_cannot_be_written_through_the_edit_endpoint(self, client: TestClient) -> None:
-        """§105 — status changes go through their own transitions."""
+        """§105 — status changes go through their own transitions.
+
+        Rejected outright, not ignored. This test used to assert a 200 with
+        the status unchanged, which was true but worse: a client that sent
+        `status` and got a 200 had every reason to believe it had worked.
+        PHASE 8 made unknown request fields an error project-wide, so the
+        refusal is now visible — and the whole product is left with no
+        endpoint where a typo'd field name passes silently.
+        """
         user = register_user(client, prefix="nostatus")
         workspace_id = sole_workspace_id(user)
         product_id = str(create_product(user, workspace_id)["id"])
@@ -465,8 +473,14 @@ class TestProductLifecycle:
             headers=user.auth,
             json={"name": "Renamed", "status": "READY"},
         )
-        assert response.status_code == 200
-        assert response.json()["status"] == "DRAFT"
+        assert response.status_code == 422, response.text
+
+        # And nothing changed, including the name that shared the request.
+        current = user.client.get(
+            f"/api/v1/workspaces/{workspace_id}/products/{product_id}", headers=user.auth
+        ).json()
+        assert current["status"] == "DRAFT"
+        assert current["name"] != "Renamed"
 
     def test_detaching_the_last_image_returns_the_product_to_draft(
         self, client: TestClient

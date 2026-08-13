@@ -5,8 +5,8 @@ Living progress record for the AI Product Video Studio build
 of a phase.
 
 - **Last updated:** 2026-08-12
-- **Current phase:** PHASE 8 — Storyboard + Prompt Compiler (next up)
-- **Last completed phase:** PHASE 7 — Project + Creative + Script ✅
+- **Current phase:** PHASE 9 — Job System + Mock Provider (next up)
+- **Last completed phase:** PHASE 8 — Storyboard + Prompt Compiler ✅
 - **Branch:** `claude/quirky-mendel-rlh1nm`
 
 ---
@@ -23,7 +23,7 @@ of a phase.
 | 5     | Product + Product Truth      | ✅ COMPLETED                    |
 | 6     | Product AI Analysis          | ✅ COMPLETED                    |
 | 7     | Project + Creative + Script  | ✅ COMPLETED                    |
-| 8     | Storyboard + Prompt Compiler | ⬜ NOT_STARTED                  |
+| 8     | Storyboard + Prompt Compiler | ✅ COMPLETED                    |
 | 9     | Job System + Mock Provider   | ⬜ NOT_STARTED                  |
 | 10    | First Real Video Provider    | ⬜ NOT_STARTED · needs API key  |
 | 11    | Shot Generation E2E          | ⬜ NOT_STARTED                  |
@@ -410,6 +410,71 @@ either bills a second vision call or is set and immediately cleared. Added as an
 explicit exception with the reason recorded, rather than by loosening the
 derivation.
 
+## PHASE 8 — Storyboard + Prompt Compiler
+
+**Status: COMPLETED**
+
+### Completed
+
+| Task   | Delivered                                                                                                                                                         |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P8-T01 | `storyboards` (§10.12), versioned, one approved at a time via a partial unique index                                                                              |
+| P8-T02 | `shots` and `shot_references` (§10.13, §10.14); twelve shot types, five reference roles                                                                           |
+| P8-T03 | `storyboard_generate_v1` — states the duration target, the per-shot bounds and the shot count, because a model given only "30 seconds" returns seven totalling 41 |
+| P8-T04 | Duration validator at 10% (against the script's 35%) plus `fit_shot_durations`, which scales the model's pacing onto the target                                   |
+| P8-T05 | Shot CRUD — every field except the prompt, which is a compiler output                                                                                             |
+| P8-T06 | Prompt compiler: §19's thirteen blocks, assembled in order from structured fields                                                                                 |
+| P8-T07 | Negative prompt compiler — generic, text-overlay and identity groups, the last conditional on the lock                                                            |
+| P8-T08 | §29's identity lock: on by default where the product fills the frame, references resolved from the product's own imagery, best role first                         |
+| P8-T09 | Storyboard UI — per-shot editor, visible identity-lock control, read-only compiled prompt                                                                         |
+
+### Tests
+
+596 passing (415 unit + 181 integration), zero warnings. 69 new.
+
+| Gate                 | Command                         | Result                        |
+| -------------------- | ------------------------------- | ----------------------------- |
+| Python lint + format | `ruff check` / `format --check` | ✅                            |
+| Python types         | `mypy --strict`                 | ✅ no issues, 78 files        |
+| Unit                 | `pytest -m "not integration"`   | ✅ 415 passed                 |
+| Integration          | `pytest -m integration`         | ✅ 181 passed                 |
+| Migration round-trip | `upgrade → downgrade → upgrade` | ✅ plus `alembic check` clean |
+| Web lint/types/build | `pnpm`                          | ✅                            |
+
+### Acceptance (§85)
+
+- [x] A 30-second project produces sensible shots
+- [x] The total is correct — asserted at 15s, 30s and 60s
+- [x] Every shot carries a compiled prompt, checked again at approval
+- [x] **A PATCH carrying `visual_prompt` is rejected** — §19 enforced by API shape
+- [x] Editing the lighting recompiles the prompt instead
+- [x] A locked shot carries §19's consistency rules verbatim and real identity references
+- [x] Turning the lock off removes them
+- [x] A storyboard edited out of range cannot be approved
+- [x] A provider failure writes no storyboard at all
+
+### Three findings worth carrying forward
+
+**§19 was not actually enforced.** The test asserting "the API offers no way to
+write a prompt directly" _passed a prompt through with a 200_ — Pydantic
+ignores unknown fields by default, so `visual_prompt` was silently dropped and
+the caller had every reason to think it worked. All seventeen request models now
+inherit `ApiRequest` with `extra="forbid"`. One PHASE 5 test changed as a
+result, and its new behaviour is better: writing `status` through the product
+edit endpoint is now refused rather than quietly ignored.
+
+**The duration fitter lost time to clamping.** Scaling `[3,7,4]` onto 30s wants
+`[6.4, 15, 8.6]`; the middle value clamps to §18's 10s ceiling and five seconds
+vanish, leaving a 25s storyboard that _looks_ fitted. Now the remainder is
+redistributed across shots with headroom, repeatedly. When a target is genuinely
+unreachable — five shots cannot fill sixty seconds — the fitter gets as close as
+the bounds allow and the validator rejects it, which is correct.
+
+**The Protocol caught the real adapter missing a method.** Adding
+`generate_storyboard` to `LLMProvider` made mypy reject
+`AnthropicLLMProvider` at the registry's return statement. That is the argument
+for a `runtime_checkable` Protocol over duck typing.
+
 ## Known issues
 
 | #   | Issue                                                                                                        | Impact                                                                                                                                | Plan                                                                                                                                                                                                           |
@@ -449,6 +514,8 @@ Nothing right now. Development proceeds on mocks through PHASE 9.
 | 12  | **`AnthropicVisionProvider` has never run against the live API**                 | No key has been supplied. Request construction, downscaling, parsing and every error-mapping branch are tested against a stubbed client; whether the request shape is one the vendor accepts is not | Needs `ANTHROPIC_API_KEY` from the user. Until then `USE_MOCK_PROVIDERS=true` carries the whole flow (§170). Recorded in the module docstring too, so it cannot be rediscovered by surprise. |
 | 13  | Analysis runs synchronously inside the request                                   | §83 permits it for a short task, and the job system is PHASE 9                                                                                                                                      | PHASE 9. The API already returns a `ProductAnalysis` row rather than the intelligence, so the async shape needs no client change beyond polling.                                             |
 | 15  | `AnthropicLLMProvider` has never run against the live API                        | Same as #12 and for the same reason — no key                                                                                                                                                        | Needs `ANTHROPIC_API_KEY`. Request construction, both schemas, the §107 parse-retry loop and every error branch are tested against a stubbed client.                                         |
+| 17  | `AnthropicLLMProvider.generate_storyboard` has never run against the live API    | Same as #12 and #15                                                                                                                                                                                 | Needs `ANTHROPIC_API_KEY`.                                                                                                                                                                   |
+| 18  | A shot's prompt is not independently editable                                    | §19 forbids handing a video model a typed sentence, so the fields are the editable surface                                                                                                          | PHASE 20's editor may need a supervised escape hatch. Recorded in ADR-0011 as a deliberate constraint, not an oversight.                                                                     |
 | 16  | Creative and script generation run synchronously inside the request              | §83 allows it; the job system is PHASE 9                                                                                                                                                            | PHASE 9, alongside PHASE 6's analysis call.                                                                                                                                                  |
 | 14  | The vendor JSON schema is hand-written beside the Pydantic model                 | Generating it from a model whose fields all have defaults produces a schema the structured-output API rejects                                                                                       | Kept in step by `test_the_schema_matches_the_pydantic_model`. Revisit if the vendor relaxes the `required` rule.                                                                             |
 

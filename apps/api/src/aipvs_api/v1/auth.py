@@ -10,6 +10,7 @@ from fastapi import APIRouter, Cookie, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
 from aipvs_api.dependencies import CurrentUser, SessionDep
+from aipvs_api.v1.schemas import ApiRequest
 from backend_core.config import get_settings
 from backend_core.domain.models import User
 from backend_core.errors import UnauthorizedError
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 REFRESH_COOKIE_NAME: Final[str] = "aipvs_refresh"
 
 
-class RegisterRequest(BaseModel):
+class RegisterRequest(ApiRequest):
     email: EmailStr
     password: str = Field(
         min_length=MIN_PASSWORD_LENGTH,
@@ -35,7 +36,7 @@ class RegisterRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=120)
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(ApiRequest):
     email: EmailStr
     # No length bounds: rejecting a too-short password here would reveal the
     # policy to an attacker and, worse, tell them a guess was malformed rather

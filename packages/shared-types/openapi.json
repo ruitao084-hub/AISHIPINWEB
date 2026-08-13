@@ -2,6 +2,7 @@
   "components": {
     "schemas": {
       "AddMemberRequest": {
+        "additionalProperties": false,
         "properties": {
           "email": {
             "format": "email",
@@ -69,6 +70,7 @@
         "type": "string"
       },
       "AttachAssetRequest": {
+        "additionalProperties": false,
         "properties": {
           "asset_role": {
             "$ref": "#/components/schemas/ProductAssetRole",
@@ -115,6 +117,7 @@
         "type": "string"
       },
       "CreateClaimRequest": {
+        "additionalProperties": false,
         "properties": {
           "claim_text": {
             "minLength": 1,
@@ -148,6 +151,7 @@
         "type": "object"
       },
       "CreateFactRequest": {
+        "additionalProperties": false,
         "properties": {
           "fact_type": {
             "$ref": "#/components/schemas/FactType"
@@ -199,6 +203,7 @@
         "type": "object"
       },
       "CreateProductRequest": {
+        "additionalProperties": false,
         "properties": {
           "brand_name": {
             "anyOf": [
@@ -253,6 +258,7 @@
         "type": "object"
       },
       "CreateProjectRequest": {
+        "additionalProperties": false,
         "properties": {
           "aspect_ratio": {
             "$ref": "#/components/schemas/AspectRatio",
@@ -315,6 +321,7 @@
         "type": "object"
       },
       "CreateWorkspaceRequest": {
+        "additionalProperties": false,
         "properties": {
           "name": {
             "maxLength": 120,
@@ -563,6 +570,7 @@
         "type": "object"
       },
       "LoginRequest": {
+        "additionalProperties": false,
         "properties": {
           "email": {
             "format": "email",
@@ -884,6 +892,7 @@
         "type": "object"
       },
       "PresignRequest": {
+        "additionalProperties": false,
         "properties": {
           "filename": {
             "maxLength": 255,
@@ -1539,7 +1548,14 @@
         "title": "ReadyResponse",
         "type": "object"
       },
+      "ReferenceRole": {
+        "description": "Why an image is attached to a shot (§10.14).\n\n`IDENTITY` is the load-bearing one: those are the frames §29 says the\ngenerated product must match, and PHASE 14's QC compares against exactly\nthis set.",
+        "enum": ["IDENTITY", "STYLE", "COMPOSITION", "ENVIRONMENT", "OTHER"],
+        "title": "ReferenceRole",
+        "type": "string"
+      },
       "RegisterRequest": {
+        "additionalProperties": false,
         "properties": {
           "display_name": {
             "maxLength": 120,
@@ -1565,6 +1581,7 @@
         "type": "object"
       },
       "ReviseScriptRequest": {
+        "additionalProperties": false,
         "description": "A human's edit. Validated against §17's schema like any generated one —\na hand-written script with eight sections would break PHASE 8 exactly as a\ngenerated one would.",
         "properties": {
           "document": {
@@ -1702,6 +1719,233 @@
         "title": "ScriptStatus",
         "type": "string"
       },
+      "ShotReferenceResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "media_asset_id": {
+            "format": "uuid",
+            "title": "Media Asset Id",
+            "type": "string"
+          },
+          "reference_role": {
+            "$ref": "#/components/schemas/ReferenceRole"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          }
+        },
+        "required": ["id", "media_asset_id", "reference_role", "weight"],
+        "title": "ShotReferenceResponse",
+        "type": "object"
+      },
+      "ShotResponse": {
+        "properties": {
+          "camera": {
+            "title": "Camera",
+            "type": "string"
+          },
+          "composition": {
+            "title": "Composition",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "identity_lock": {
+            "description": "§29's product identity lock. When on, the compiler adds the consistency rules and QC checks generated frames against the identity references below.",
+            "title": "Identity Lock",
+            "type": "boolean"
+          },
+          "lighting": {
+            "title": "Lighting",
+            "type": "string"
+          },
+          "motion": {
+            "title": "Motion",
+            "type": "string"
+          },
+          "negative_prompt": {
+            "title": "Negative Prompt",
+            "type": "string"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/ShotReferenceResponse"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "sequence_no": {
+            "title": "Sequence No",
+            "type": "integer"
+          },
+          "shot_type": {
+            "$ref": "#/components/schemas/ShotType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShotStatus"
+          },
+          "subtitle_text": {
+            "title": "Subtitle Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "transition_in": {
+            "$ref": "#/components/schemas/TransitionType"
+          },
+          "transition_out": {
+            "$ref": "#/components/schemas/TransitionType"
+          },
+          "visual_prompt": {
+            "description": "Compiled by the prompt compiler from this shot's fields (§19). Read-only: edit the fields and it is rebuilt.",
+            "title": "Visual Prompt",
+            "type": "string"
+          },
+          "voiceover_text": {
+            "title": "Voiceover Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sequence_no",
+          "title",
+          "shot_type",
+          "duration_seconds",
+          "description",
+          "visual_prompt",
+          "negative_prompt",
+          "camera",
+          "motion",
+          "lighting",
+          "composition",
+          "voiceover_text",
+          "subtitle_text",
+          "transition_in",
+          "transition_out",
+          "status",
+          "identity_lock",
+          "references"
+        ],
+        "title": "ShotResponse",
+        "type": "object"
+      },
+      "ShotStatus": {
+        "description": "Where a shot sits in generation (§10.13).\n\n`PENDING` means \"written but never sent to a provider\"; `READY` means a\ngenerated clip has been chosen for it. The middle states become meaningful\nin PHASE 9 when the job system can actually report progress.",
+        "enum": [
+          "PENDING",
+          "QUEUED",
+          "GENERATING",
+          "READY",
+          "FAILED",
+          "SKIPPED"
+        ],
+        "title": "ShotStatus",
+        "type": "string"
+      },
+      "ShotType": {
+        "description": "What a shot is doing (§10.13).\n\nNot decoration: PHASE 8's compiler picks reference imagery by shot type,\nand PHASE 14's QC weights the identity check differently for a `MACRO`\nthan for a `LIFESTYLE` — one is mostly product, the other mostly room.",
+        "enum": [
+          "HOOK",
+          "PRODUCT_HERO",
+          "MACRO",
+          "ROTATION",
+          "USAGE",
+          "MATERIAL",
+          "FEATURE",
+          "EXPLODED",
+          "BEFORE_AFTER",
+          "LIFESTYLE",
+          "BRAND_ENDING",
+          "CUSTOM"
+        ],
+        "title": "ShotType",
+        "type": "string"
+      },
+      "StoryboardResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model_info": {
+            "additionalProperties": true,
+            "title": "Model Info",
+            "type": "object"
+          },
+          "script_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Script Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StoryboardStatus"
+          },
+          "total_duration_seconds": {
+            "title": "Total Duration Seconds",
+            "type": "number"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "status",
+          "script_id",
+          "total_duration_seconds",
+          "model_info",
+          "created_at"
+        ],
+        "title": "StoryboardResponse",
+        "type": "object"
+      },
+      "StoryboardStatus": {
+        "description": "§10.12. Same shape as `ScriptStatus`, and for the same reason (§17):\na new storyboard supersedes rather than overwrites, so \"which storyboard\ndid we film\" keeps an answer.",
+        "enum": ["DRAFT", "APPROVED", "SUPERSEDED"],
+        "title": "StoryboardStatus",
+        "type": "string"
+      },
       "TargetPlatform": {
         "description": "Where the video will be published (§10.9).",
         "enum": [
@@ -1743,7 +1987,14 @@
         "title": "TokenResponse",
         "type": "object"
       },
+      "TransitionType": {
+        "description": "How a shot enters or leaves (§10.13). Resolved to ffmpeg filters in\nPHASE 13; kept as an enum because \"cross fade\" and \"crossfade\" would be two\nproducts' worth of render bugs.",
+        "enum": ["CUT", "FADE", "DISSOLVE", "WIPE", "ZOOM", "NONE"],
+        "title": "TransitionType",
+        "type": "string"
+      },
       "UpdateFactRequest": {
+        "additionalProperties": false,
         "properties": {
           "fact_type": {
             "anyOf": [
@@ -1803,6 +2054,7 @@
         "type": "object"
       },
       "UpdateMemberRoleRequest": {
+        "additionalProperties": false,
         "properties": {
           "role": {
             "$ref": "#/components/schemas/WorkspaceRole"
@@ -1813,6 +2065,7 @@
         "type": "object"
       },
       "UpdateProductRequest": {
+        "additionalProperties": false,
         "properties": {
           "brand_name": {
             "anyOf": [
@@ -1880,6 +2133,7 @@
         "type": "object"
       },
       "UpdateProjectRequest": {
+        "additionalProperties": false,
         "properties": {
           "aspect_ratio": {
             "anyOf": [
@@ -1952,7 +2206,159 @@
         "title": "UpdateProjectRequest",
         "type": "object"
       },
+      "UpdateShotRequest": {
+        "additionalProperties": false,
+        "description": "Everything a user may change about a shot.\n\nNote the absence of `visual_prompt` and `negative_prompt` — see the module\ndocstring. Their absence is the enforcement.",
+        "properties": {
+          "camera": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Camera"
+          },
+          "composition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 2.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "identity_lock": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Lock"
+          },
+          "lighting": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lighting"
+          },
+          "motion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motion"
+          },
+          "shot_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShotType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtitle_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle Text"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "transition_in": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransitionType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transition_out": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransitionType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voiceover_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voiceover Text"
+          }
+        },
+        "title": "UpdateShotRequest",
+        "type": "object"
+      },
       "UpdateWorkspaceRequest": {
+        "additionalProperties": false,
         "properties": {
           "name": {
             "maxLength": 120,
@@ -7652,6 +8058,595 @@
         ],
         "summary": "Approve a script",
         "tags": ["projects"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards": {
+      "get": {
+        "operationId": "list_storyboards_api_v1_workspaces__workspace_id__projects__project_id__storyboards_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StoryboardResponse"
+                  },
+                  "title": "Response List Storyboards Api V1 Workspaces  Workspace Id  Projects  Project Id  Storyboards Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Storyboard history",
+        "tags": ["storyboards"]
+      },
+      "post": {
+        "description": "Generate a storyboard from the project's approved script (§18).\n\nRequires an approved script, not merely a latest one — approval is the act\nby which a person accepted the words, and skipping it would make §17's\nreview cosmetic.\n\nShot durations are scaled to sum to the project's duration, and a\nstoryboard that still cannot fit is refused rather than stored.",
+        "operationId": "generate_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoryboardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Break the script into shots",
+        "tags": ["storyboards"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/approve": {
+      "post": {
+        "description": "Accept a storyboard and supersede the rest.\n\nRe-checks §18's duration constraint and that every shot carries a compiled\nprompt — this is the last moment before PHASE 9 starts spending money, and\na shot with no prompt is one the job system has nothing to send for.",
+        "operationId": "approve_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "storyboard_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Storyboard Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoryboardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Approve a storyboard",
+        "tags": ["storyboards"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/shots": {
+      "get": {
+        "operationId": "list_shots_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "storyboard_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Storyboard Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShotResponse"
+                  },
+                  "title": "Response List Shots Api V1 Workspaces  Workspace Id  Projects  Project Id  Storyboards  Storyboard Id  Shots Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "List a storyboard's shots",
+        "tags": ["storyboards"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/shots/{shot_id}": {
+      "patch": {
+        "description": "Change a shot's fields; the prompt is recompiled from them (§19).\n\nChanging the duration recomputes the storyboard's total, which is checked\nagain when the storyboard is approved.",
+        "operationId": "update_shot_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots__shot_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "storyboard_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Storyboard Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Shot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Edit a shot",
+        "tags": ["storyboards"]
       }
     },
     "/api/v1/workspaces/{workspace_id}/uploads/config": {

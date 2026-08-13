@@ -17,6 +17,7 @@ from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
 
 from aipvs_api.dependencies import CurrentUser, SessionDep, require_permission
+from aipvs_api.v1.schemas import ApiRequest
 from backend_core.domain.enums import (
     AnalysisStatus,
     ClaimRiskLevel,
@@ -161,7 +162,7 @@ class ProductClaimResponse(BaseModel):
 # --- requests --------------------------------------------------------------
 
 
-class CreateProductRequest(BaseModel):
+class CreateProductRequest(ApiRequest):
     name: str = Field(min_length=1, max_length=200)
     category: str = Field(min_length=1, max_length=120)
     brand_name: str | None = Field(default=None, max_length=120)
@@ -169,7 +170,7 @@ class CreateProductRequest(BaseModel):
     description: str | None = None
 
 
-class UpdateProductRequest(BaseModel):
+class UpdateProductRequest(ApiRequest):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     category: str | None = Field(default=None, min_length=1, max_length=120)
     brand_name: str | None = Field(default=None, max_length=120)
@@ -177,13 +178,13 @@ class UpdateProductRequest(BaseModel):
     description: str | None = None
 
 
-class AttachAssetRequest(BaseModel):
+class AttachAssetRequest(ApiRequest):
     media_asset_id: uuid.UUID
     asset_role: ProductAssetRole = ProductAssetRole.OTHER
     is_primary: bool = False
 
 
-class CreateFactRequest(BaseModel):
+class CreateFactRequest(ApiRequest):
     fact_type: FactType
     key: str = Field(min_length=1, max_length=120)
     value_text: str = Field(min_length=1)
@@ -198,7 +199,7 @@ class CreateFactRequest(BaseModel):
     )
 
 
-class UpdateFactRequest(BaseModel):
+class UpdateFactRequest(ApiRequest):
     fact_type: FactType | None = None
     key: str | None = Field(default=None, min_length=1, max_length=120)
     value_text: str | None = Field(default=None, min_length=1)
@@ -213,7 +214,7 @@ class UpdateFactRequest(BaseModel):
     )
 
 
-class CreateClaimRequest(BaseModel):
+class CreateClaimRequest(ApiRequest):
     claim_text: str = Field(min_length=1)
     claim_type: ClaimType
     source_fact_ids: list[uuid.UUID] = Field(default_factory=list)

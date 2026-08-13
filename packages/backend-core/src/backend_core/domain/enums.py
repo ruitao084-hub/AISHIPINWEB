@@ -691,3 +691,112 @@ SCRIPT_SECTIONS: tuple[str, ...] = (
 #: advertising sits around this rate; it is a budget, not a promise, and PHASE
 #: 12 replaces the estimate with the TTS engine's measured duration.
 SPEECH_RATE_CHARS_PER_SECOND: float = 4.5
+
+
+# ---------------------------------------------------------------------------
+# PHASE 8 — Storyboard, Shot, Prompt Compiler (§10.12-§10.14, §18, §19, §29)
+# ---------------------------------------------------------------------------
+
+
+class StoryboardStatus(StrEnum):
+    """§10.12. Same shape as `ScriptStatus`, and for the same reason (§17):
+    a new storyboard supersedes rather than overwrites, so "which storyboard
+    did we film" keeps an answer."""
+
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    SUPERSEDED = "SUPERSEDED"
+
+
+class ShotType(StrEnum):
+    """What a shot is doing (§10.13).
+
+    Not decoration: PHASE 8's compiler picks reference imagery by shot type,
+    and PHASE 14's QC weights the identity check differently for a `MACRO`
+    than for a `LIFESTYLE` — one is mostly product, the other mostly room.
+    """
+
+    HOOK = "HOOK"
+    PRODUCT_HERO = "PRODUCT_HERO"
+    MACRO = "MACRO"
+    ROTATION = "ROTATION"
+    USAGE = "USAGE"
+    MATERIAL = "MATERIAL"
+    FEATURE = "FEATURE"
+    EXPLODED = "EXPLODED"
+    BEFORE_AFTER = "BEFORE_AFTER"
+    LIFESTYLE = "LIFESTYLE"
+    BRAND_ENDING = "BRAND_ENDING"
+    CUSTOM = "CUSTOM"
+
+
+#: Shot types where the product fills the frame, so a drifted shape or an
+#: invented component is unmissable. §29's identity lock defaults on for these
+#: and off for the rest — locking a wide lifestyle shot as hard as a macro
+#: produces stiff, product-catalogue footage for no safety gain.
+PRODUCT_DOMINANT_SHOTS: frozenset[ShotType] = frozenset(
+    {
+        ShotType.PRODUCT_HERO,
+        ShotType.MACRO,
+        ShotType.ROTATION,
+        ShotType.MATERIAL,
+        ShotType.FEATURE,
+        ShotType.EXPLODED,
+    }
+)
+
+
+class ShotStatus(StrEnum):
+    """Where a shot sits in generation (§10.13).
+
+    `PENDING` means "written but never sent to a provider"; `READY` means a
+    generated clip has been chosen for it. The middle states become meaningful
+    in PHASE 9 when the job system can actually report progress.
+    """
+
+    PENDING = "PENDING"
+    QUEUED = "QUEUED"
+    GENERATING = "GENERATING"
+    READY = "READY"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+
+
+class ReferenceRole(StrEnum):
+    """Why an image is attached to a shot (§10.14).
+
+    `IDENTITY` is the load-bearing one: those are the frames §29 says the
+    generated product must match, and PHASE 14's QC compares against exactly
+    this set.
+    """
+
+    IDENTITY = "IDENTITY"
+    STYLE = "STYLE"
+    COMPOSITION = "COMPOSITION"
+    ENVIRONMENT = "ENVIRONMENT"
+    OTHER = "OTHER"
+
+
+class TransitionType(StrEnum):
+    """How a shot enters or leaves (§10.13). Resolved to ffmpeg filters in
+    PHASE 13; kept as an enum because "cross fade" and "crossfade" would be two
+    products' worth of render bugs."""
+
+    CUT = "CUT"
+    FADE = "FADE"
+    DISSOLVE = "DISSOLVE"
+    WIPE = "WIPE"
+    ZOOM = "ZOOM"
+    NONE = "NONE"
+
+
+#: §18's per-shot duration guidance. A shot under two seconds reads as a
+#: flicker; over ten, most video models lose coherence and the clip drifts.
+MIN_SHOT_SECONDS: float = 2.0
+MAX_SHOT_SECONDS: float = 10.0
+
+#: How far a storyboard's total may sit from the project's target duration.
+#: §18 says the sum must be ≈ the project duration, and this is what ≈ means:
+#: tight, because unlike a script's word budget this number is what the
+#: renderer will actually produce.
+STORYBOARD_DURATION_TOLERANCE: float = 0.10

@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { StoryboardPanel } from "@/components/storyboard-panel";
 import {
   ApiError,
   projectApi,
@@ -24,6 +25,8 @@ import {
   type CreativePlanResponse,
   type ProjectResponse,
   type ScriptResponse,
+  type ShotResponse,
+  type StoryboardResponse,
 } from "@/lib/api/client";
 
 interface Loaded {
@@ -31,6 +34,8 @@ interface Loaded {
   project: ProjectResponse;
   plans: CreativePlanResponse[];
   scripts: ScriptResponse[];
+  storyboards: StoryboardResponse[];
+  shots: ShotResponse[];
 }
 
 type LoadState =
@@ -54,7 +59,9 @@ export default function ProjectDetailPage({
   const [actionError, setActionError] = useState<string | null>(null);
   // Both generation calls are billed, so their triggers stay disabled while
   // one is in flight.
-  const [busy, setBusy] = useState<null | "plans" | "script">(null);
+  const [busy, setBusy] = useState<null | "plans" | "script" | "storyboard">(
+    null,
+  );
 
   useEffect(() => {
     void params.then(({ projectId: id }) => setProjectId(id));
@@ -65,12 +72,26 @@ export default function ProjectDetailPage({
     const workspace = workspaces[0];
     if (!workspace) throw new Error("You do not belong to a workspace yet.");
 
-    const [project, plans, scripts] = await Promise.all([
+    const [project, plans, scripts, storyboards] = await Promise.all([
       projectApi.get(workspace.id, id),
       projectApi.plans(workspace.id, id),
       projectApi.scripts(workspace.id, id),
+      projectApi.storyboards(workspace.id, id),
     ]);
-    return { workspaceId: workspace.id, project, plans, scripts };
+    // Shots belong to the newest storyboard; there is nothing to fetch until
+    // one exists, so this stays a second round trip rather than a wasted one.
+    const latest = storyboards[0];
+    const shots = latest
+      ? await projectApi.shots(workspace.id, id, latest.id)
+      : [];
+    return {
+      workspaceId: workspace.id,
+      project,
+      plans,
+      scripts,
+      storyboards,
+      shots,
+    };
   }, []);
 
   useEffect(() => {
@@ -90,7 +111,10 @@ export default function ProjectDetailPage({
   }, [projectId, load]);
 
   const act = useCallback(
-    async (operation: () => Promise<unknown>, kind?: "plans" | "script") => {
+    async (
+      operation: () => Promise<unknown>,
+      kind?: "plans" | "script" | "storyboard",
+    ) => {
       setActionError(null);
       if (kind) setBusy(kind);
       try {
@@ -130,12 +154,14 @@ export default function ProjectDetailPage({
     );
   }
 
-  const { workspaceId, project, plans, scripts } = state;
+  const { workspaceId, project, plans, scripts, storyboards, shots } = state;
   const latestVersion =
     plans.length > 0 ? Math.max(...plans.map((p) => p.version)) : 0;
   const currentPlans = plans.filter((plan) => plan.version === latestVersion);
   const selected = plans.find((plan) => plan.selected);
   const latestScript = scripts[0];
+  const latestStoryboard = storyboards[0] ?? null;
+  const approvedScript = scripts.find((item) => item.status === "APPROVED");
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
@@ -265,6 +291,44 @@ export default function ProjectDetailPage({
             </p>
           )}
         </section>
+      )}
+
+      {/* --- storyboard (§18, §19, §29) --- */}
+      {approvedScript && (
+        <StoryboardPanel
+          targetSeconds={project.duration_seconds}
+          storyboard={latestStoryboard}
+          shots={shots}
+          busy={busy !== null}
+          onGenerate={() =>
+            void act(
+              () => projectApi.generateStoryboard(workspaceId, project.id),
+              "storyboard",
+            )
+          }
+          onApprove={() =>
+            latestStoryboard &&
+            void act(() =>
+              projectApi.approveStoryboard(
+                workspaceId,
+                project.id,
+                latestStoryboard.id,
+              ),
+            )
+          }
+          onEditShot={(shotId, payload) =>
+            latestStoryboard &&
+            void act(() =>
+              projectApi.updateShot(
+                workspaceId,
+                project.id,
+                latestStoryboard.id,
+                shotId,
+                payload,
+              ),
+            )
+          }
+        />
       )}
     </main>
   );

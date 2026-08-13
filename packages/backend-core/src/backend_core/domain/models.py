@@ -51,8 +51,13 @@ from backend_core.domain.enums import (
     ProjectPurpose,
     ProjectStatus,
     QualityMode,
+    ReferenceRole,
     ScriptStatus,
+    ShotStatus,
+    ShotType,
+    StoryboardStatus,
     TargetPlatform,
+    TransitionType,
     UploadStatus,
     UserStatus,
     VerificationStatus,
@@ -969,3 +974,221 @@ class Script(WorkspaceEntity):
 
     def __repr__(self) -> str:
         return f"Script(id={self.id!r}, version={self.version!r}, status={self.status.value!r})"
+
+
+# ---------------------------------------------------------------------------
+# PHASE 8 — Storyboard, Shot, Shot reference (§10.12-§10.14)
+# ---------------------------------------------------------------------------
+
+
+class Storyboard(WorkspaceEntity):
+    """A versioned breakdown of one script into shots (§10.12, §18)."""
+
+    __tablename__ = "storyboards"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    #: Which script this was cut from. Nullable only because a script can be
+    #: deleted; the storyboard it produced still describes real work.
+    script_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("scripts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    status: Mapped[StoryboardStatus] = mapped_column(
+        _pg_enum(StoryboardStatus, "storyboard_status"),
+        nullable=False,
+        default=StoryboardStatus.DRAFT,
+        server_default=StoryboardStatus.DRAFT.value,
+    )
+
+    #: Sum of the shots' durations. Denormalised on purpose: §18's constraint
+    #: is about the *total*, and a validator that had to re-aggregate on every
+    #: read would make the rule expensive enough to skip.
+    total_duration_seconds: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default=text("0")
+    )
+
+    model_info: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    shots: Mapped[list[Shot]] = relationship(
+        back_populates="storyboard",
+        lazy="raise",
+        cascade="all, delete-orphan",
+        order_by="Shot.sequence_no",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "version", name="uq_storyboards_project_version"),
+        # One approved storyboard, for the same reason as one approved script:
+        # PHASE 9 asks "which shots do I generate" and that needs one answer.
+        Index(
+            "uq_storyboards_approved",
+            "project_id",
+            unique=True,
+            postgresql_where=text("status = 'APPROVED'"),
+        ),
+        workspace_scoped_index("storyboards", "project_id"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"Storyboard(id={self.id!r}, version={self.version!r}, "
+            f"total={self.total_duration_seconds!r}s)"
+        )
+
+
+class Shot(WorkspaceEntity):
+    """One filmable clip (§10.13, §19, §29).
+
+    `visual_prompt` and `negative_prompt` are compiled by the prompt compiler,
+    never typed by a user — §19 forbids handing a video model raw natural
+    language. They are stored rather than recompiled at generation time so that
+    what was sent to a provider is exactly what can be inspected afterwards.
+    """
+
+    __tablename__ = "shots"
+
+    storyboard_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("storyboards.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    #: Denormalised from the storyboard. §60 scopes every query by workspace,
+    #: and PHASE 9's job rows reference a shot without joining its storyboard.
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    sequence_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False, server_default="")
+    shot_type: Mapped[ShotType] = mapped_column(
+        _pg_enum(ShotType, "shot_type"),
+        nullable=False,
+        default=ShotType.CUSTOM,
+        server_default=ShotType.CUSTOM.value,
+    )
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+
+    description: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    visual_prompt: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    negative_prompt: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+    camera: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    motion: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    lighting: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    composition: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+    voiceover_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    subtitle_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+    transition_in: Mapped[TransitionType] = mapped_column(
+        _pg_enum(TransitionType, "transition_type"),
+        nullable=False,
+        default=TransitionType.CUT,
+        server_default=TransitionType.CUT.value,
+    )
+    transition_out: Mapped[TransitionType] = mapped_column(
+        _pg_enum(TransitionType, "transition_type"),
+        nullable=False,
+        default=TransitionType.CUT,
+        server_default=TransitionType.CUT.value,
+    )
+
+    status: Mapped[ShotStatus] = mapped_column(
+        _pg_enum(ShotStatus, "shot_status"),
+        nullable=False,
+        default=ShotStatus.PENDING,
+        server_default=ShotStatus.PENDING.value,
+    )
+    #: PHASE 9 sets this once a generated clip has been chosen. Untyped FK for
+    #: now: `generation_jobs` does not exist yet, and a forward-declared
+    #: constraint would block this migration on a table from the next phase.
+    selected_generation_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), nullable=True
+    )
+
+    #: §29. When on, the compiler adds the consistency rules and QC checks the
+    #: generated frames against the locked references.
+    identity_lock: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+
+    storyboard: Mapped[Storyboard] = relationship(back_populates="shots", lazy="raise")
+    references: Mapped[list[ShotReference]] = relationship(
+        back_populates="shot", lazy="raise", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("storyboard_id", "sequence_no", name="uq_shots_storyboard_sequence"),
+        # §18's per-shot bounds, in the database as well as the validator. A
+        # 40-second "shot" is a render bill and a model that will lose
+        # coherence long before it finishes.
+        CheckConstraint(
+            "duration_seconds >= 0.5 AND duration_seconds <= 30",
+            name="duration_is_within_range",
+        ),
+        CheckConstraint("sequence_no > 0", name="sequence_starts_at_one"),
+        workspace_scoped_index("shots", "storyboard_id"),
+        workspace_scoped_index("shots", "project_id"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"Shot(id={self.id!r}, seq={self.sequence_no!r}, "
+            f"type={self.shot_type.value!r}, {self.duration_seconds!r}s)"
+        )
+
+
+class ShotReference(WorkspaceEntity):
+    """An image a shot must match or take direction from (§10.14, §29).
+
+    `IDENTITY` references are the ones §29 cares about: the frames the
+    generated product has to look like, and the set PHASE 14's QC compares
+    against. Everything else is direction.
+    """
+
+    __tablename__ = "shot_references"
+
+    shot_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("shots.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    media_asset_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    reference_role: Mapped[ReferenceRole] = mapped_column(
+        _pg_enum(ReferenceRole, "reference_role"),
+        nullable=False,
+        default=ReferenceRole.IDENTITY,
+        server_default=ReferenceRole.IDENTITY.value,
+    )
+    #: Relative influence, where a provider supports one. Nullable because most
+    #: do not, and a fabricated default would imply a control we do not have.
+    weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    shot: Mapped[Shot] = relationship(back_populates="references", lazy="raise")
+    media_asset: Mapped[MediaAsset] = relationship(lazy="raise")
+
+    __table_args__ = (
+        UniqueConstraint("shot_id", "media_asset_id", name="uq_shot_references_asset"),
+        CheckConstraint(
+            "weight IS NULL OR (weight > 0 AND weight <= 1)", name="weight_is_a_fraction"
+        ),
+        workspace_scoped_index("shot_references", "shot_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"ShotReference(shot_id={self.shot_id!r}, role={self.reference_role.value!r})"

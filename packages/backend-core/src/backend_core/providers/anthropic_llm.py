@@ -26,7 +26,13 @@ from typing import Any, Final, TypeVar
 from pydantic import BaseModel
 
 from backend_core.config import Settings, get_settings
-from backend_core.domain.enums import SCRIPT_SECTIONS
+from backend_core.domain.enums import (
+    MAX_SHOT_SECONDS,
+    MIN_SHOT_SECONDS,
+    SCRIPT_SECTIONS,
+    ShotType,
+    TransitionType,
+)
 from backend_core.errors import (
     ProviderRateLimitedError,
     ProviderRejectedError,
@@ -39,12 +45,14 @@ from backend_core.providers.base import (
     CreativeGeneration,
     ProviderUsage,
     ScriptGeneration,
+    StoryboardGeneration,
 )
 from backend_core.providers.creative_schemas import (
     CreativePlanDraft,
     CreativePlanSet,
     ScriptDocument,
 )
+from backend_core.providers.storyboard_schemas import StoryboardDraft
 
 logger = get_logger(__name__)
 
@@ -54,6 +62,7 @@ _Payload = TypeVar("_Payload", bound=BaseModel)
 
 _CREATIVE_KEY: Final[str] = "creative_plan_v1"
 _SCRIPT_KEY: Final[str] = "script_generate_v1"
+_STORYBOARD_KEY: Final[str] = "storyboard_generate_v1"
 
 _MAX_TOKENS: Final[int] = 16_000
 
@@ -127,6 +136,72 @@ _SCRIPT_SCHEMA: Final[dict[str, Any]] = {
 }
 
 
+_STORYBOARD_SCHEMA: Final[dict[str, Any]] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "shots": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "sequence_no": {"type": "integer", "minimum": 1},
+                    "title": _TEXT,
+                    "shot_type": {
+                        "type": "string",
+                        "enum": [member.value for member in ShotType],
+                    },
+                    # §18's per-shot bounds, stated to the API as well as in
+                    # the prompt: a constraint the vendor enforces costs
+                    # nothing, and one discovered in validation costs a call.
+                    "duration_seconds": {
+                        "type": "number",
+                        "minimum": MIN_SHOT_SECONDS,
+                        "maximum": MAX_SHOT_SECONDS,
+                    },
+                    "visual_description": _TEXT,
+                    "camera": _TEXT,
+                    "motion": _TEXT,
+                    "lighting": _TEXT,
+                    "composition": _TEXT,
+                    "voiceover": _TEXT,
+                    "subtitle": _TEXT,
+                    "transition_in": {
+                        "type": "string",
+                        "enum": [member.value for member in TransitionType],
+                    },
+                    "transition_out": {
+                        "type": "string",
+                        "enum": [member.value for member in TransitionType],
+                    },
+                    "reference_roles": {"type": "array", "items": _TEXT},
+                },
+                "required": [
+                    "sequence_no",
+                    "title",
+                    "shot_type",
+                    "duration_seconds",
+                    "visual_description",
+                    "camera",
+                    "motion",
+                    "lighting",
+                    "composition",
+                    "voiceover",
+                    "subtitle",
+                    "transition_in",
+                    "transition_out",
+                    "reference_roles",
+                ],
+            },
+        }
+    },
+    "required": ["shots"],
+}
+
+
 class AnthropicLLMProvider:
     """Writes creative plans and scripts with a Claude text model."""
 
@@ -173,6 +248,27 @@ class AnthropicLLMProvider:
         payload, usage = self._complete(text, _SCRIPT_SCHEMA, ScriptDocument)
         return ScriptGeneration(
             document=payload,
+            provider=self.name,
+            prompt_key=prompt.key,
+            prompt_version=prompt.version,
+            usage=usage,
+        )
+
+    # -- storyboard (§18) ---------------------------------------------------
+
+    def generate_storyboard(
+        self, brief: CreativeBrief, script_text: str, *, shot_count: int
+    ) -> StoryboardGeneration:
+        prompt = get_prompt(_STORYBOARD_KEY)
+        text = prompt.render(
+            **_brief_values(brief),
+            script=script_text,
+            shot_count=shot_count,
+        )
+
+        payload, usage = self._complete(text, _STORYBOARD_SCHEMA, StoryboardDraft)
+        return StoryboardGeneration(
+            storyboard=payload,
             provider=self.name,
             prompt_key=prompt.key,
             prompt_version=prompt.version,

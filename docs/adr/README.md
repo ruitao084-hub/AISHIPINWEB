@@ -8,18 +8,19 @@ Format: **Context → Decision → Consequences → Alternatives considered.**
 
 ## Index
 
-| ADR                                          | Title                                                              | Status   | Phase |
-| -------------------------------------------- | ------------------------------------------------------------------ | -------- | ----- |
-| [0001](0001-monorepo-tooling.md)             | Monorepo tooling: pnpm + Turborepo + uv workspace                  | Accepted | 0     |
-| [0002](0002-python-package-manager.md)       | uv as the Python package and environment manager                   | Accepted | 0     |
-| [0003](0003-backend-framework.md)            | FastAPI as the backend framework                                   | Accepted | 0     |
-| [0004](0004-queue-framework.md)              | Redis + Celery as the job queue                                    | Accepted | 0     |
-| [0005](0005-object-storage.md)               | S3-compatible object storage, MinIO locally                        | Accepted | 1     |
-| [0006](0006-auth-token-strategy.md)          | Short JWT access + rotating cookie refresh                         | Accepted | 3     |
-| [0007](0007-upload-and-media-validation.md)  | Two-phase presigned upload and media validation                    | Accepted | 4     |
-| [0008](0008-product-truth-layer.md)          | The Product Truth Layer                                            | Accepted | 5     |
-| [0009](0009-vision-provider-and-analysis.md) | Vision provider adapter, prompt registry and the analysis boundary | Accepted | 6     |
-| [0010](0010-creative-and-script-engines.md)  | Creative and script engines, and the verified-claim boundary       | Accepted | 7     |
+| ADR                                            | Title                                                              | Status   | Phase |
+| ---------------------------------------------- | ------------------------------------------------------------------ | -------- | ----- |
+| [0001](0001-monorepo-tooling.md)               | Monorepo tooling: pnpm + Turborepo + uv workspace                  | Accepted | 0     |
+| [0002](0002-python-package-manager.md)         | uv as the Python package and environment manager                   | Accepted | 0     |
+| [0003](0003-backend-framework.md)              | FastAPI as the backend framework                                   | Accepted | 0     |
+| [0004](0004-queue-framework.md)                | Redis + Celery as the job queue                                    | Accepted | 0     |
+| [0005](0005-object-storage.md)                 | S3-compatible object storage, MinIO locally                        | Accepted | 1     |
+| [0006](0006-auth-token-strategy.md)            | Short JWT access + rotating cookie refresh                         | Accepted | 3     |
+| [0007](0007-upload-and-media-validation.md)    | Two-phase presigned upload and media validation                    | Accepted | 4     |
+| [0008](0008-product-truth-layer.md)            | The Product Truth Layer                                            | Accepted | 5     |
+| [0009](0009-vision-provider-and-analysis.md)   | Vision provider adapter, prompt registry and the analysis boundary | Accepted | 6     |
+| [0010](0010-creative-and-script-engines.md)    | Creative and script engines, and the verified-claim boundary       | Accepted | 7     |
+| [0011](0011-storyboard-and-prompt-compiler.md) | Storyboard, the prompt compiler, and product identity lock         | Accepted | 8     |
 
 ## Required but not yet written
 

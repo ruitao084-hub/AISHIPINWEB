@@ -16,6 +16,7 @@ from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
 
 from aipvs_api.dependencies import CurrentUser, SessionDep, require_permission
+from aipvs_api.v1.schemas import ApiRequest
 from backend_core.config import get_settings
 from backend_core.domain.enums import AssetType, Permission
 from backend_core.domain.models import MediaAsset
@@ -114,7 +115,7 @@ class UploadConfigResponse(BaseModel):
 # --- requests --------------------------------------------------------------
 
 
-class PresignRequest(BaseModel):
+class PresignRequest(ApiRequest):
     filename: str = Field(min_length=1, max_length=255)
     mime_type: str = Field(min_length=3, max_length=255)
     size_bytes: int = Field(

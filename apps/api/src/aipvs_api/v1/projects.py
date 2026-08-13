@@ -20,6 +20,7 @@ from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
 
 from aipvs_api.dependencies import CurrentUser, SessionDep, require_permission
+from aipvs_api.v1.schemas import ApiRequest
 from backend_core.domain.enums import (
     AspectRatio,
     Permission,
@@ -153,7 +154,7 @@ class ScriptResponse(BaseModel):
 # --- requests --------------------------------------------------------------
 
 
-class CreateProjectRequest(BaseModel):
+class CreateProjectRequest(ApiRequest):
     product_id: uuid.UUID
     name: str = Field(min_length=1, max_length=200)
     purpose: ProjectPurpose = ProjectPurpose.SOCIAL_AD
@@ -169,7 +170,7 @@ class CreateProjectRequest(BaseModel):
     quality_mode: QualityMode = QualityMode.STANDARD
 
 
-class UpdateProjectRequest(BaseModel):
+class UpdateProjectRequest(ApiRequest):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     target_audience: str | None = None
     duration_seconds: int | None = Field(default=None, ge=5, le=600)
@@ -178,7 +179,7 @@ class UpdateProjectRequest(BaseModel):
     quality_mode: QualityMode | None = None
 
 
-class ReviseScriptRequest(BaseModel):
+class ReviseScriptRequest(ApiRequest):
     """A human's edit. Validated against §17's schema like any generated one —
     a hand-written script with eight sections would break PHASE 8 exactly as a
     generated one would."""

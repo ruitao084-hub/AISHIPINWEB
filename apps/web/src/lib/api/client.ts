@@ -61,6 +61,11 @@ export type TargetPlatform = Schemas["TargetPlatform"];
 export type AspectRatio = Schemas["AspectRatio"];
 export type VideoStyle = Schemas["VideoStyle"];
 export type QualityMode = Schemas["QualityMode"];
+export type StoryboardResponse = Schemas["StoryboardResponse"];
+export type ShotResponse = Schemas["ShotResponse"];
+export type ShotType = Schemas["ShotType"];
+export type TransitionType = Schemas["TransitionType"];
+export type UpdateShotRequest = Schemas["UpdateShotRequest"];
 
 /** An error carrying the API's `code`, so callers branch on it rather than text. */
 export class ApiError extends Error {
@@ -482,6 +487,54 @@ export const projectApi = {
   approveScript: (workspaceId: string, projectId: string, scriptId: string) =>
     apiRequest<ScriptResponse>(
       `/api/v1/workspaces/${workspaceId}/projects/${projectId}/scripts/${scriptId}/approve`,
+      { method: "POST" },
+    ),
+
+  // -- storyboards (§18, §19, §29) --
+
+  storyboards: (workspaceId: string, projectId: string) =>
+    apiRequest<StoryboardResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards`,
+    ),
+
+  generateStoryboard: (workspaceId: string, projectId: string) =>
+    apiRequest<StoryboardResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards`,
+      { method: "POST" },
+    ),
+
+  shots: (workspaceId: string, projectId: string, storyboardId: string) =>
+    apiRequest<ShotResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/shots`,
+    ),
+
+  /**
+   * Edit a shot. Note what this cannot send: `visual_prompt`.
+   *
+   * §19 forbids handing a video model a sentence a user typed, so the prompt
+   * is compiled from these fields and recompiled after every edit. The API
+   * rejects a request carrying one, so a client that tried would find out
+   * rather than believe it had worked.
+   */
+  updateShot: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+    shotId: string,
+    payload: UpdateShotRequest,
+  ) =>
+    apiRequest<ShotResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/shots/${shotId}`,
+      { method: "PATCH", body: payload },
+    ),
+
+  approveStoryboard: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+  ) =>
+    apiRequest<StoryboardResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/approve`,
       { method: "POST" },
     ),
 };

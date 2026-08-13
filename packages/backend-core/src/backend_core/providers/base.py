@@ -35,6 +35,7 @@ from backend_core.providers.creative_schemas import (
     ScriptDocument,
 )
 from backend_core.providers.schemas import ProductIntelligence
+from backend_core.providers.storyboard_schemas import StoryboardDraft
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +149,17 @@ class ScriptGeneration:
 
 
 @dataclass(frozen=True, slots=True)
+class StoryboardGeneration:
+    """One generated storyboard, plus its provenance (§18)."""
+
+    storyboard: StoryboardDraft
+    provider: str
+    prompt_key: str
+    prompt_version: int
+    usage: ProviderUsage = field(default_factory=ProviderUsage)
+
+
+@dataclass(frozen=True, slots=True)
 class CreativeBrief:
     """Everything §16 lists as an input to the creative engine.
 
@@ -203,6 +215,18 @@ class LLMProvider(Protocol):
         """Propose three distinct directions for the video (§16)."""
         ...
 
+    def generate_storyboard(
+        self, brief: CreativeBrief, script_text: str, *, shot_count: int
+    ) -> StoryboardGeneration:
+        """Break an approved script into filmable shots (§18).
+
+        ``shot_count`` is a target derived from the project's duration and
+        §18's per-shot bounds, passed in for the same reason the script's
+        character budget is: pacing is a product decision, and a provider must
+        not be able to decide how many clips the platform will pay to generate.
+        """
+        ...
+
     def generate_script(
         self, brief: CreativeBrief, plan: CreativePlanDraft, *, character_budget: int
     ) -> ScriptGeneration:
@@ -230,6 +254,8 @@ __all__ = [
     "ProviderUsage",
     "ScriptDocument",
     "ScriptGeneration",
+    "StoryboardDraft",
+    "StoryboardGeneration",
     "VisionAnalysis",
     "VisionProvider",
 ]

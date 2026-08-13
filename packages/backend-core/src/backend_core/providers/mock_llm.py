@@ -23,7 +23,7 @@ import time
 from typing import Final
 
 from backend_core.config import Settings, get_settings
-from backend_core.domain.enums import SCRIPT_SECTIONS
+from backend_core.domain.enums import SCRIPT_SECTIONS, ShotType, TransitionType
 from backend_core.errors import (
     ProviderRateLimitedError,
     ProviderRejectedError,
@@ -36,6 +36,7 @@ from backend_core.providers.base import (
     CreativeGeneration,
     ProviderUsage,
     ScriptGeneration,
+    StoryboardGeneration,
 )
 from backend_core.providers.creative_schemas import (
     CreativePlanDraft,
@@ -43,11 +44,17 @@ from backend_core.providers.creative_schemas import (
     ScriptDocument,
     ScriptSection,
 )
+from backend_core.providers.storyboard_schemas import (
+    ShotDraft,
+    StoryboardDraft,
+    fit_shot_durations,
+)
 
 logger = get_logger(__name__)
 
 _CREATIVE_KEY: Final[str] = "creative_plan_v1"
 _SCRIPT_KEY: Final[str] = "script_generate_v1"
+_STORYBOARD_KEY: Final[str] = "storyboard_generate_v1"
 
 #: Three angles that really are different — a demonstration, a story and a
 #: comparison-of-before-and-after. Enough that a reviewer looking at the plan
@@ -184,6 +191,39 @@ class MockLLMProvider:
             usage=ProviderUsage(
                 input_tokens=2_400,
                 output_tokens=1_100,
+                model="mock-llm-1",
+                latency_ms=elapsed_ms,
+            ),
+        )
+
+    # -- storyboard (§18) ---------------------------------------------------
+
+    def generate_storyboard(
+        self, brief: CreativeBrief, script_text: str, *, shot_count: int
+    ) -> StoryboardGeneration:
+        started = time.monotonic()
+        self._maybe_fail()
+
+        drafts = _storyboard_shots(brief, script_text, shot_count)
+
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        storyboard = StoryboardDraft(shots=drafts)
+        logger.info(
+            "mock_storyboard_generated",
+            extra={
+                "shots": len(drafts),
+                "total_seconds": storyboard.total_duration_seconds,
+                "target_seconds": brief.duration_seconds,
+            },
+        )
+        return StoryboardGeneration(
+            storyboard=storyboard,
+            provider=self.name,
+            prompt_key=_STORYBOARD_KEY,
+            prompt_version=active_version(_STORYBOARD_KEY),
+            usage=ProviderUsage(
+                input_tokens=3_200,
+                output_tokens=1_800,
                 model="mock-llm-1",
                 latency_ms=elapsed_ms,
             ),
@@ -343,3 +383,76 @@ def _fit(text: str, allowance: int) -> str:
         if position > allowance // 2:
             return cut[: position + 1]
     return cut
+
+
+#: The shape of a short product video, as shot types in order. Cycled when a
+#: longer video needs more shots than this covers — the pattern repeats rather
+#: than inventing types, because a real director reuses angles too.
+_SHOT_PATTERN: Final[tuple[tuple[ShotType, str, str], ...]] = (
+    (ShotType.HOOK, "开场", "产品最具辨识度的细节特写，画面安静"),
+    (ShotType.PRODUCT_HERO, "产品全貌", "产品居中，浅色台面，缓慢环绕"),
+    (ShotType.MACRO, "材质细节", "贴近表面的微距，展示材质与做工"),
+    (ShotType.USAGE, "使用场景", "产品在真实空间中被使用，手部入画"),
+    (ShotType.FEATURE, "结构特写", "对应结构的特写，镜头轻微推进"),
+    (ShotType.LIFESTYLE, "生活场景", "产品作为环境的一部分，自然光"),
+    (ShotType.ROTATION, "环绕展示", "产品缓慢旋转，背景保持简洁"),
+    (ShotType.BRAND_ENDING, "品牌收尾", "产品与品牌标识同框，画面留白"),
+)
+
+#: Which reference kinds each shot type needs. `IDENTITY` wherever the product
+#: is clearly visible, which is most of them — the exception is a wide
+#: lifestyle frame, where the room carries the shot.
+_SHOT_REFERENCES: Final[dict[ShotType, tuple[str, ...]]] = {
+    ShotType.HOOK: ("IDENTITY",),
+    ShotType.PRODUCT_HERO: ("IDENTITY", "COMPOSITION"),
+    ShotType.MACRO: ("IDENTITY",),
+    ShotType.USAGE: ("IDENTITY", "ENVIRONMENT"),
+    ShotType.FEATURE: ("IDENTITY",),
+    ShotType.LIFESTYLE: ("STYLE", "ENVIRONMENT"),
+    ShotType.ROTATION: ("IDENTITY",),
+    ShotType.BRAND_ENDING: ("IDENTITY", "STYLE"),
+}
+
+
+def _storyboard_shots(brief: CreativeBrief, script_text: str, shot_count: int) -> list[ShotDraft]:
+    """Cut a script into shots that actually add up to the target duration.
+
+    The narration is distributed across shots in script order rather than
+    invented: §18 says the storyboard breaks down *the script*, and a mock that
+    wrote new narration would be fabricating copy nobody approved — and would
+    hide the fact that the real prompt has to forbid exactly that.
+    """
+    lines = [line for line in script_text.splitlines() if line.strip()]
+    count = max(1, min(shot_count, len(_SHOT_PATTERN) * 3))
+
+    # Even split first, then scaled to hit the target exactly. Splitting evenly
+    # is honest for a mock: it has no view on pacing, and pretending otherwise
+    # would make the fitting logic untestable.
+    even = brief.duration_seconds / count
+    durations = fit_shot_durations([even] * count, brief.duration_seconds)
+
+    shots: list[ShotDraft] = []
+    for index in range(count):
+        shot_type, title, visual = _SHOT_PATTERN[index % len(_SHOT_PATTERN)]
+        narration = lines[index] if index < len(lines) else ""
+        shots.append(
+            ShotDraft(
+                sequence_no=index + 1,
+                title=f"{title} · {brief.product_name}",
+                shot_type=shot_type,
+                duration_seconds=durations[index],
+                visual_description=f"{visual}；{brief.style}",
+                camera="固定中景" if index % 2 else "缓慢推进",
+                motion="产品静止，镜头运动" if index % 2 else "轻微手持跟随",
+                lighting="自然光，柔和阴影",
+                composition=f"{brief.aspect_ratio} 竖幅构图，产品居中偏下"
+                if brief.aspect_ratio == "9:16"
+                else f"{brief.aspect_ratio} 构图，产品居中",
+                voiceover=narration,
+                subtitle=narration,
+                transition_in=TransitionType.FADE if index == 0 else TransitionType.CUT,
+                transition_out=TransitionType.FADE if index == count - 1 else TransitionType.CUT,
+                reference_roles=list(_SHOT_REFERENCES.get(shot_type, ("IDENTITY",))),
+            )
+        )
+    return shots

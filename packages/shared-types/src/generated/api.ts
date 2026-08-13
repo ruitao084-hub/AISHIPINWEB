@@ -844,6 +844,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Storyboard history */
+        get: operations["list_storyboards_api_v1_workspaces__workspace_id__projects__project_id__storyboards_get"];
+        put?: never;
+        /**
+         * Break the script into shots
+         * @description Generate a storyboard from the project's approved script (§18).
+         *
+         *     Requires an approved script, not merely a latest one — approval is the act
+         *     by which a person accepted the words, and skipping it would make §17's
+         *     review cosmetic.
+         *
+         *     Shot durations are scaled to sum to the project's duration, and a
+         *     storyboard that still cannot fit is refused rather than stored.
+         */
+        post: operations["generate_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a storyboard
+         * @description Accept a storyboard and supersede the rest.
+         *
+         *     Re-checks §18's duration constraint and that every shot carries a compiled
+         *     prompt — this is the last moment before PHASE 9 starts spending money, and
+         *     a shot with no prompt is one the job system has nothing to send for.
+         */
+        post: operations["approve_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/shots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a storyboard's shots */
+        get: operations["list_shots_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/shots/{shot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a shot
+         * @description Change a shot's fields; the prompt is recompiled from them (§19).
+         *
+         *     Changing the duration recomputes the storyboard's total, which is checked
+         *     again when the storyboard is approved.
+         */
+        patch: operations["update_shot_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots__shot_id__patch"];
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/uploads/config": {
         parameters: {
             query?: never;
@@ -1664,6 +1756,16 @@ export interface components {
             /** Ready */
             ready: boolean;
         };
+        /**
+         * ReferenceRole
+         * @description Why an image is attached to a shot (§10.14).
+         *
+         *     `IDENTITY` is the load-bearing one: those are the frames §29 says the
+         *     generated product must match, and PHASE 14's QC compares against exactly
+         *     this set.
+         * @enum {string}
+         */
+        ReferenceRole: "IDENTITY" | "STYLE" | "COMPOSITION" | "ENVIRONMENT" | "OTHER";
         /** RegisterRequest */
         RegisterRequest: {
             /** Display Name */
@@ -1763,6 +1865,120 @@ export interface components {
          * @enum {string}
          */
         ScriptStatus: "DRAFT" | "APPROVED" | "SUPERSEDED";
+        /** ShotReferenceResponse */
+        ShotReferenceResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Media Asset Id
+             * Format: uuid
+             */
+            media_asset_id: string;
+            reference_role: components["schemas"]["ReferenceRole"];
+            /** Weight */
+            weight: number | null;
+        };
+        /** ShotResponse */
+        ShotResponse: {
+            /** Camera */
+            camera: string;
+            /** Composition */
+            composition: string;
+            /** Description */
+            description: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Identity Lock
+             * @description §29's product identity lock. When on, the compiler adds the consistency rules and QC checks generated frames against the identity references below.
+             */
+            identity_lock: boolean;
+            /** Lighting */
+            lighting: string;
+            /** Motion */
+            motion: string;
+            /** Negative Prompt */
+            negative_prompt: string;
+            /** References */
+            references: components["schemas"]["ShotReferenceResponse"][];
+            /** Sequence No */
+            sequence_no: number;
+            shot_type: components["schemas"]["ShotType"];
+            status: components["schemas"]["ShotStatus"];
+            /** Subtitle Text */
+            subtitle_text: string;
+            /** Title */
+            title: string;
+            transition_in: components["schemas"]["TransitionType"];
+            transition_out: components["schemas"]["TransitionType"];
+            /**
+             * Visual Prompt
+             * @description Compiled by the prompt compiler from this shot's fields (§19). Read-only: edit the fields and it is rebuilt.
+             */
+            visual_prompt: string;
+            /** Voiceover Text */
+            voiceover_text: string;
+        };
+        /**
+         * ShotStatus
+         * @description Where a shot sits in generation (§10.13).
+         *
+         *     `PENDING` means "written but never sent to a provider"; `READY` means a
+         *     generated clip has been chosen for it. The middle states become meaningful
+         *     in PHASE 9 when the job system can actually report progress.
+         * @enum {string}
+         */
+        ShotStatus: "PENDING" | "QUEUED" | "GENERATING" | "READY" | "FAILED" | "SKIPPED";
+        /**
+         * ShotType
+         * @description What a shot is doing (§10.13).
+         *
+         *     Not decoration: PHASE 8's compiler picks reference imagery by shot type,
+         *     and PHASE 14's QC weights the identity check differently for a `MACRO`
+         *     than for a `LIFESTYLE` — one is mostly product, the other mostly room.
+         * @enum {string}
+         */
+        ShotType: "HOOK" | "PRODUCT_HERO" | "MACRO" | "ROTATION" | "USAGE" | "MATERIAL" | "FEATURE" | "EXPLODED" | "BEFORE_AFTER" | "LIFESTYLE" | "BRAND_ENDING" | "CUSTOM";
+        /** StoryboardResponse */
+        StoryboardResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Model Info */
+            model_info: {
+                [key: string]: unknown;
+            };
+            /** Script Id */
+            script_id: string | null;
+            status: components["schemas"]["StoryboardStatus"];
+            /** Total Duration Seconds */
+            total_duration_seconds: number;
+            /** Version */
+            version: number;
+        };
+        /**
+         * StoryboardStatus
+         * @description §10.12. Same shape as `ScriptStatus`, and for the same reason (§17):
+         *     a new storyboard supersedes rather than overwrites, so "which storyboard
+         *     did we film" keeps an answer.
+         * @enum {string}
+         */
+        StoryboardStatus: "DRAFT" | "APPROVED" | "SUPERSEDED";
         /**
          * TargetPlatform
          * @description Where the video will be published (§10.9).
@@ -1792,6 +2008,14 @@ export interface components {
             token_type: string;
             user: components["schemas"]["UserResponse"];
         };
+        /**
+         * TransitionType
+         * @description How a shot enters or leaves (§10.13). Resolved to ffmpeg filters in
+         *     PHASE 13; kept as an enum because "cross fade" and "crossfade" would be two
+         *     products' worth of render bugs.
+         * @enum {string}
+         */
+        TransitionType: "CUT" | "FADE" | "DISSOLVE" | "WIPE" | "ZOOM" | "NONE";
         /** UpdateFactRequest */
         UpdateFactRequest: {
             fact_type?: components["schemas"]["FactType"] | null;
@@ -1838,6 +2062,38 @@ export interface components {
             style?: components["schemas"]["VideoStyle"] | null;
             /** Target Audience */
             target_audience?: string | null;
+        };
+        /**
+         * UpdateShotRequest
+         * @description Everything a user may change about a shot.
+         *
+         *     Note the absence of `visual_prompt` and `negative_prompt` — see the module
+         *     docstring. Their absence is the enforcement.
+         */
+        UpdateShotRequest: {
+            /** Camera */
+            camera?: string | null;
+            /** Composition */
+            composition?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
+            /** Identity Lock */
+            identity_lock?: boolean | null;
+            /** Lighting */
+            lighting?: string | null;
+            /** Motion */
+            motion?: string | null;
+            shot_type?: components["schemas"]["ShotType"] | null;
+            /** Subtitle Text */
+            subtitle_text?: string | null;
+            /** Title */
+            title?: string | null;
+            transition_in?: components["schemas"]["TransitionType"] | null;
+            transition_out?: components["schemas"]["TransitionType"] | null;
+            /** Voiceover Text */
+            voiceover_text?: string | null;
         };
         /** UpdateWorkspaceRequest */
         UpdateWorkspaceRequest: {
@@ -5800,6 +6056,399 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScriptResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_storyboards_api_v1_workspaces__workspace_id__projects__project_id__storyboards_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryboardResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryboardResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approve_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryboardResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_shots_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShotResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_shot_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots__shot_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+                shot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShotRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShotResponse"];
                 };
             };
             /** @description Invalid request */
