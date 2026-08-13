@@ -16,6 +16,7 @@ members = [
 
 [tool.uv.sources]
 aipvs-backend-core = { workspace = true }
+aipvs-worker = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -119,6 +120,17 @@ mypy_path = [
     "apps/render-worker/src",
 ]
 explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+# Celery ships no type stubs, so `@celery_app.task` is an untyped decorator and
+# every task it wraps is reported as untyped. The task bodies themselves are
+# annotated and checked; only the decorator's own signature is missing.
+module = ["aipvs_worker.celery_app"]
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["celery.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # Tests get the same strictness minus the ceremony of annotating every fixture.

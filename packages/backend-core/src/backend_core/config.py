@@ -141,6 +141,19 @@ class Settings(BaseSettings):
     #: attempts, because a third rarely helps and every one is billed.
     llm_parse_retries: int = Field(default=1, ge=0, le=3)
 
+    # --- Video generation (§21, §22) --------------------------------------
+    runway_video_model: str = "gen4_turbo"
+    #: Runway truncates long prompts server-side; truncating here keeps what
+    #: was actually sent recorded on the provider_jobs row.
+    runway_prompt_max_chars: int = Field(default=1000, ge=100)
+    video_request_timeout_seconds: float = Field(default=60.0, gt=0)
+    #: How often a worker asks a provider how a submitted job is doing.
+    #: §26 suggests 2-5s for the *frontend*; a worker polling a paid API that
+    #: fast is just spending rate limit on an answer that has not changed.
+    video_poll_interval_seconds: float = Field(default=10.0, gt=0)
+    #: Wall-clock ceiling for one generation before the job is TIMEOUT (§161).
+    video_job_timeout_seconds: int = Field(default=1800, ge=60)
+
     #: Cap on images per analysis call. Vision pricing is per image, and a
     #: product with forty photographs produces an expensive request whose extra
     #: frames add nothing — the first few cover it from every useful angle.

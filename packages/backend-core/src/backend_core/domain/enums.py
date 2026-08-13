@@ -800,3 +800,262 @@ MAX_SHOT_SECONDS: float = 10.0
 #: tight, because unlike a script's word budget this number is what the
 #: renderer will actually produce.
 STORYBOARD_DURATION_TOLERANCE: float = 0.10
+
+
+# ---------------------------------------------------------------------------
+# PHASE 9 — Job system (§10.15, §10.16, §22, §23, §24, §106)
+# ---------------------------------------------------------------------------
+
+
+class JobType(StrEnum):
+    """What a job is for (§10.15).
+
+    One table for every long task, because §22 routes them all through the same
+    orchestrator. The type picks the queue and the worker, not the schema.
+    """
+
+    VIDEO_GENERATION = "VIDEO_GENERATION"
+    IMAGE_GENERATION = "IMAGE_GENERATION"
+    TTS = "TTS"
+    RENDER = "RENDER"
+    QC = "QC"
+    PRODUCT_ANALYSIS = "PRODUCT_ANALYSIS"
+
+
+class JobStatus(StrEnum):
+    """§106's job machine.
+
+    `SUBMITTED` and `PROCESSING` are distinct on purpose: the first means a
+    provider accepted the request, the second that it reports work underway.
+    Losing the distinction would make "the provider never answered" and "the
+    provider is slow" the same incident.
+    """
+
+    CREATED = "CREATED"
+    QUEUED = "QUEUED"
+    SUBMITTED = "SUBMITTED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELED = "CANCELED"
+    TIMEOUT = "TIMEOUT"
+
+
+#: §106: terminal states never return to PROCESSING. A retry creates a new
+#: attempt rather than resurrecting a finished job, which is what keeps
+#: `retry_count` meaningful and stops a job being billed twice.
+TERMINAL_JOB_STATUSES: frozenset[JobStatus] = frozenset(
+    {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELED, JobStatus.TIMEOUT}
+)
+
+_JOB_TRANSITIONS: dict[JobStatus, frozenset[JobStatus]] = {
+    JobStatus.CREATED: frozenset({JobStatus.QUEUED, JobStatus.CANCELED, JobStatus.FAILED}),
+    JobStatus.QUEUED: frozenset(
+        {JobStatus.SUBMITTED, JobStatus.CANCELED, JobStatus.FAILED, JobStatus.TIMEOUT}
+    ),
+    JobStatus.SUBMITTED: frozenset(
+        {
+            JobStatus.PROCESSING,
+            # A fast provider can finish before we ever poll.
+            JobStatus.COMPLETED,
+            JobStatus.FAILED,
+            JobStatus.CANCELED,
+            JobStatus.TIMEOUT,
+        }
+    ),
+    JobStatus.PROCESSING: frozenset(
+        {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELED, JobStatus.TIMEOUT}
+    ),
+    # A retry re-queues from FAILED or TIMEOUT. Not from COMPLETED or CANCELED:
+    # one is done and the other was deliberately stopped.
+    JobStatus.FAILED: frozenset({JobStatus.QUEUED}),
+    JobStatus.TIMEOUT: frozenset({JobStatus.QUEUED}),
+    JobStatus.COMPLETED: frozenset(),
+    JobStatus.CANCELED: frozenset(),
+}
+
+
+def can_transition_job(current: JobStatus, target: JobStatus) -> bool:
+    """Whether ``current -> target`` is legal (§106)."""
+    if current is target:
+        return True
+    return target in _JOB_TRANSITIONS[current]
+
+
+def allowed_job_transitions(current: JobStatus) -> frozenset[JobStatus]:
+    return _JOB_TRANSITIONS[current]
+
+
+def is_terminal_job(status: JobStatus) -> bool:
+    return status in TERMINAL_JOB_STATUSES
+
+
+class QueueName(StrEnum):
+    """§25's separate queues.
+
+    One Redis, four queues. Separate because their work is differently shaped:
+    a render pins a CPU for minutes while a TTS call is mostly waiting, and one
+    concurrency number for both would either starve renders or overload them.
+    """
+
+    VIDEO = "video"
+    TTS = "tts"
+    RENDER = "render"
+    QC = "qc"
+    DEFAULT = "default"
+
+
+#: Which queue each job type lands on.
+QUEUE_FOR_JOB_TYPE: dict[JobType, QueueName] = {
+    JobType.VIDEO_GENERATION: QueueName.VIDEO,
+    JobType.IMAGE_GENERATION: QueueName.VIDEO,
+    JobType.TTS: QueueName.TTS,
+    JobType.RENDER: QueueName.RENDER,
+    JobType.QC: QueueName.QC,
+    JobType.PRODUCT_ANALYSIS: QueueName.DEFAULT,
+}
+
+
+class FailureKind(StrEnum):
+    """§24's retry taxonomy, as a value rather than a scattered `if`.
+
+    The distinction is the whole of §24: a 429 is worth retrying and a policy
+    violation is not, because retrying an identical rejected request spends
+    money to receive the same refusal.
+    """
+
+    RETRYABLE = "RETRYABLE"
+    PERMANENT = "PERMANENT"
+
+
+#: Error codes §24 names as worth retrying.
+RETRYABLE_ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "PROVIDER_RATE_LIMITED",
+        "PROVIDER_UNAVAILABLE",
+        "STORAGE_ERROR",
+        "JOB_TIMEOUT",
+        "DOWNLOAD_FAILED",
+        "NETWORK_ERROR",
+    }
+)
+
+#: And the ones it names as not. Listed rather than inferred from "everything
+#: else", so a new error code defaults to *not* retrying — the safer default,
+#: since a wrongly-retried permanent failure costs money on every attempt.
+PERMANENT_ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "PROVIDER_REJECTED",
+        "VALIDATION_ERROR",
+        "ASSET_INVALID",
+        "WORKSPACE_FORBIDDEN",
+        "INSUFFICIENT_CREDITS",
+        "POLICY_VIOLATION",
+    }
+)
+
+
+def classify_failure(error_code: str | None) -> FailureKind:
+    """Decide whether a failure is worth another attempt (§24)."""
+    if error_code and error_code.upper() in RETRYABLE_ERROR_CODES:
+        return FailureKind.RETRYABLE
+    return FailureKind.PERMANENT
+
+
+# ---------------------------------------------------------------------------
+# PHASE 12-14 — TTS, subtitles, timeline, render, QC (§30-§37)
+# ---------------------------------------------------------------------------
+
+
+class VoiceGender(StrEnum):
+    """§30's MVP requirement: Chinese and English, male and female."""
+
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+    NEUTRAL = "NEUTRAL"
+
+
+class TrackType(StrEnum):
+    """§33's timeline tracks.
+
+    Four, and the separation is what makes the render deterministic: audio
+    ducking, subtitle burn-in and clip ordering are each one track's concern,
+    and a single flat list of "items" would make their interactions implicit.
+    """
+
+    VIDEO = "VIDEO"
+    VOICE = "VOICE"
+    BGM = "BGM"
+    SUBTITLE = "SUBTITLE"
+
+
+class RenderStatus(StrEnum):
+    """Where one render attempt has got to (§34)."""
+
+    PENDING = "PENDING"
+    RENDERING = "RENDERING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class QCCheckType(StrEnum):
+    """§37's two families.
+
+    `TECHNICAL` is decidable — a file either decodes or it does not. `VISUAL`
+    is a model's opinion, and §37.2 exists because the technical checks pass
+    happily on a video of the wrong product.
+    """
+
+    TECHNICAL = "TECHNICAL"
+    VISUAL = "VISUAL"
+
+
+class QCStatus(StrEnum):
+    """The outcome of one quality check.
+
+    `WARNING` is distinct from `FAILED` on purpose: a clip two frames short of
+    its target is worth showing a person and not worth blocking a delivery on,
+    and collapsing the two would force every borderline result to be either
+    ignored or fatal.
+    """
+
+    PASSED = "PASSED"
+    WARNING = "WARNING"
+    FAILED = "FAILED"
+
+
+class LicenseType(StrEnum):
+    """§32's BGM licensing.
+
+    Recorded because §32 forbids defaulting to music of unknown provenance —
+    an unlicensed track in a customer's advert is their legal problem and our
+    fault, and "we did not ask" is not a defence.
+    """
+
+    USER_OWNED = "USER_OWNED"
+    ROYALTY_FREE = "ROYALTY_FREE"
+    LICENSED = "LICENSED"
+    CREATIVE_COMMONS = "CREATIVE_COMMONS"
+    UNKNOWN = "UNKNOWN"
+
+
+#: §34's output baseline, as a single place the render plan and the QC checks
+#: both read. Two constants that disagreed would mean rendering one format and
+#: validating another.
+RENDER_VIDEO_CODEC: str = "libx264"
+RENDER_AUDIO_CODEC: str = "aac"
+RENDER_PIXEL_FORMAT: str = "yuv420p"
+RENDER_CONTAINER: str = "mp4"
+
+#: §36's supported frame shapes, resolved to pixels. The renderer needs exact
+#: dimensions, and deriving them from a ratio string at render time is how a
+#: 1079-pixel-wide video gets produced and rejected by a platform.
+ASPECT_DIMENSIONS: dict[str, tuple[int, int]] = {
+    "9:16": (1080, 1920),
+    "16:9": (1920, 1080),
+    "1:1": (1080, 1080),
+    "4:5": (1080, 1350),
+    "3:4": (1080, 1440),
+}
+
+RENDER_FPS: int = 30

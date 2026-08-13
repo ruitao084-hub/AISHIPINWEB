@@ -45,13 +45,19 @@ from backend_core.domain.enums import (
     ClaimType,
     FactSourceType,
     FactType,
+    JobStatus,
+    JobType,
+    LicenseType,
     PlanCode,
     ProductAssetRole,
     ProductStatus,
     ProjectPurpose,
     ProjectStatus,
+    QCCheckType,
+    QCStatus,
     QualityMode,
     ReferenceRole,
+    RenderStatus,
     ScriptStatus,
     ShotStatus,
     ShotType,
@@ -1192,3 +1198,412 @@ class ShotReference(WorkspaceEntity):
 
     def __repr__(self) -> str:
         return f"ShotReference(shot_id={self.shot_id!r}, role={self.reference_role.value!r})"
+
+
+# ---------------------------------------------------------------------------
+# PHASE 9 — Job system (§10.15, §10.16, §22, §23)
+# ---------------------------------------------------------------------------
+
+
+class GenerationJob(WorkspaceEntity):
+    """One long-running AI task (§10.15, §22).
+
+    Every long task goes through this table — video, TTS, render, QC — because
+    §22 routes them all through one orchestrator. `job_type` picks the queue
+    and the worker; it does not change the row's shape.
+
+    `idempotency_key` is §23's requirement. The unique index on
+    `(workspace_id, idempotency_key)` is what makes a retried HTTP request
+    return the original job instead of creating and billing a second one.
+    """
+
+    __tablename__ = "generation_jobs"
+
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    shot_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("shots.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+    job_type: Mapped[JobType] = mapped_column(_pg_enum(JobType, "job_type"), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    status: Mapped[JobStatus] = mapped_column(
+        _pg_enum(JobStatus, "job_status"),
+        nullable=False,
+        default=JobStatus.CREATED,
+        server_default=JobStatus.CREATED.value,
+    )
+    #: 0-100. Advisory: most providers report coarsely or not at all, and a
+    #: fabricated smooth progress bar is a lie about work we cannot see.
+    progress: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+    #: §23. Client-supplied; a repeat returns the original job.
+    idempotency_key: Mapped[str] = mapped_column(String(120), nullable=False)
+
+    input_json: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    output_json: Mapped[dict[str, Any] | None] = mapped_column(postgresql.JSONB, nullable=True)
+
+    #: Reserved before the work starts, captured on success, released on
+    #: failure (§22). Stored even when `ENABLE_CREDITS` is off, so PHASE 18
+    #: inherits real numbers instead of estimates invented later.
+    estimated_cost: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default=text("0")
+    )
+    actual_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    retry_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    max_retries: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=3, server_default=text("3")
+    )
+
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    #: The media this job produced, once a worker has re-hosted it (§27).
+    result_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    provider_jobs: Mapped[list[ProviderJob]] = relationship(
+        back_populates="generation_job", lazy="raise", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        # §23's idempotency guarantee, in the database rather than in a
+        # check-then-insert that two concurrent requests would both pass.
+        UniqueConstraint("workspace_id", "idempotency_key", name="uq_generation_jobs_idempotency"),
+        CheckConstraint("progress >= 0 AND progress <= 100", name="progress_is_a_percentage"),
+        CheckConstraint("retry_count >= 0", name="retry_count_is_not_negative"),
+        CheckConstraint(
+            "status <> 'FAILED' OR error_code IS NOT NULL",
+            name="failed_jobs_explain_themselves",
+        ),
+        workspace_scoped_index("generation_jobs", "status"),
+        workspace_scoped_index("generation_jobs", "job_type"),
+        Index("ix_generation_jobs_shot_id", "shot_id"),
+        Index("ix_generation_jobs_project_id_created_at", "project_id", "created_at"),
+        # §161's stuck-job sweeper scans exactly this.
+        Index(
+            "ix_generation_jobs_active_started_at",
+            "started_at",
+            postgresql_where=text("status IN ('QUEUED', 'SUBMITTED', 'PROCESSING')"),
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"GenerationJob(id={self.id!r}, type={self.job_type.value!r}, "
+            f"status={self.status.value!r})"
+        )
+
+
+class ProviderJob(BaseEntity):
+    """One attempt against one provider (§10.16).
+
+    Separate from `GenerationJob` because a retry is a *new attempt*, not a
+    mutation of the old one — §106 is explicit that retrying means a new
+    attempt or an explicit `retry_count`, and keeping both makes "what did the
+    provider actually say the second time" answerable.
+
+    Payloads are stored **redacted**. §62 keeps customer product descriptions
+    and credentials out of anything a support engineer will read.
+    """
+
+    __tablename__ = "provider_jobs"
+
+    generation_job_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("generation_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    #: The provider's own handle for this work, used to poll it.
+    provider_job_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    provider_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    request_payload_redacted: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    response_payload_redacted: Mapped[dict[str, Any] | None] = mapped_column(
+        postgresql.JSONB, nullable=True
+    )
+
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    generation_job: Mapped[GenerationJob] = relationship(
+        back_populates="provider_jobs", lazy="raise"
+    )
+
+    __table_args__ = (
+        Index("ix_provider_jobs_generation_job_id", "generation_job_id"),
+        Index("ix_provider_jobs_provider_job_id", "provider", "provider_job_id"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"ProviderJob(id={self.id!r}, provider={self.provider!r}, "
+            f"provider_job_id={self.provider_job_id!r})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# PHASE 12-14 — Voiceover, subtitles, timeline, render, QC (§30-§37)
+# ---------------------------------------------------------------------------
+
+
+class VoiceoverTrack(WorkspaceEntity):
+    """Synthesised narration for one project (§30, §10.19-adjacent).
+
+    Segment timings live here rather than being recomputed, because §31's
+    subtitles and §33's timeline both build on them. Recomputing would let the
+    three disagree about when a sentence starts.
+    """
+
+    __tablename__ = "voiceover_tracks"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    script_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("scripts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    language: Mapped[str] = mapped_column(String(16), nullable=False, server_default="zh-CN")
+    voice: Mapped[str] = mapped_column(String(120), nullable=False, server_default="")
+    provider: Mapped[str] = mapped_column(String(64), nullable=False, server_default="mock")
+
+    #: The concatenated narration, re-hosted by the worker (§27).
+    audio_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    total_duration_ms: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+    #: `[{shot_id, text, start_ms, end_ms}]` — measured, never estimated.
+    segments: Mapped[list[dict[str, Any]]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+
+    __table_args__ = (workspace_scoped_index("voiceover_tracks", "project_id"),)
+
+    def __repr__(self) -> str:
+        return f"VoiceoverTrack(id={self.id!r}, duration_ms={self.total_duration_ms!r})"
+
+
+class SubtitleTrack(WorkspaceEntity):
+    """Timed cues for one project (§10.19, §31)."""
+
+    __tablename__ = "subtitle_tracks"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    language: Mapped[str] = mapped_column(String(16), nullable=False, server_default="zh-CN")
+
+    #: §31's internal shape: `[{start_ms, end_ms, text}]`.
+    cues: Mapped[list[dict[str, Any]]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    #: The SRT file, for download and for burn-in.
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    __table_args__ = (workspace_scoped_index("subtitle_tracks", "project_id"),)
+
+    def __repr__(self) -> str:
+        return f"SubtitleTrack(id={self.id!r}, cues={len(self.cues)})"
+
+
+class AudioTrack(WorkspaceEntity):
+    """Background music, with its licence (§32).
+
+    The licence columns are not bookkeeping. §32 forbids defaulting to music of
+    unknown provenance, and an unlicensed track in a customer's advert is their
+    legal exposure and our fault — "we did not ask" is not a defence.
+    """
+
+    __tablename__ = "audio_tracks"
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    media_asset_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    license_type: Mapped[LicenseType] = mapped_column(
+        _pg_enum(LicenseType, "license_type"),
+        nullable=False,
+        default=LicenseType.UNKNOWN,
+        server_default=LicenseType.UNKNOWN.value,
+    )
+    license_source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    allowed_commercial_use: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    attribution_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    #: Admin-curated tracks are offered to every workspace; a user's own upload
+    #: is theirs alone.
+    is_preset: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
+    __table_args__ = (
+        # §32's rule as a constraint: a track cleared for commercial use must
+        # say where that clearance came from.
+        CheckConstraint(
+            "allowed_commercial_use = false OR license_source IS NOT NULL",
+            name="commercial_tracks_cite_their_licence",
+        ),
+        workspace_scoped_index("audio_tracks", "is_preset"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"AudioTrack(id={self.id!r}, name={self.name!r}, licence={self.license_type.value!r})"
+        )
+
+
+class Render(WorkspaceEntity):
+    """One composition attempt (§33, §34).
+
+    `timeline_json` is stored, not rebuilt. §33 makes the timeline the source
+    of truth, and keeping the exact one that produced a given file is what lets
+    a render be reproduced or explained months later.
+    """
+
+    __tablename__ = "renders"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    storyboard_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("storyboards.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    status: Mapped[RenderStatus] = mapped_column(
+        _pg_enum(RenderStatus, "render_status"),
+        nullable=False,
+        default=RenderStatus.PENDING,
+        server_default=RenderStatus.PENDING.value,
+    )
+
+    timeline_json: Mapped[dict[str, Any]] = mapped_column(postgresql.JSONB, nullable=False)
+
+    output_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    thumbnail_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "version", name="uq_renders_project_version"),
+        CheckConstraint(
+            "status <> 'COMPLETED' OR output_asset_id IS NOT NULL",
+            name="completed_renders_have_output",
+        ),
+        workspace_scoped_index("renders", "project_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"Render(id={self.id!r}, version={self.version!r}, status={self.status.value!r})"
+
+
+class QualityCheck(WorkspaceEntity):
+    """One QC run against one render (§37)."""
+
+    __tablename__ = "quality_checks"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    render_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("renders.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    shot_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("shots.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+    check_type: Mapped[QCCheckType] = mapped_column(
+        _pg_enum(QCCheckType, "qc_check_type"), nullable=False
+    )
+    status: Mapped[QCStatus] = mapped_column(_pg_enum(QCStatus, "qc_status"), nullable=False)
+
+    #: `[{check, status, detail}]` — every finding, not just the failures. A
+    #: reviewer needs to know what was checked and passed, or "QC ran" means
+    #: nothing.
+    findings: Mapped[list[dict[str, Any]]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    #: Present only for visual QC (§37.2): which model, which prompt version.
+    model_info: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    __table_args__ = (
+        workspace_scoped_index("quality_checks", "project_id"),
+        Index("ix_quality_checks_render_id", "render_id"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"QualityCheck(id={self.id!r}, type={self.check_type.value!r}, "
+            f"status={self.status.value!r})"
+        )

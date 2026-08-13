@@ -1,0 +1,152 @@
+"""Celery application and task registrations (§25, P9-T04).
+
+§5.1 puts the entrypoint here and the logic in `backend_core.jobs`, so the API
+and the worker share one state machine rather than two that drift.
+
+§25's four queues are separate because their work is differently shaped. A
+render pins a CPU for minutes; a TTS call is mostly waiting on a network. One
+concurrency number for both either starves renders or floods them, so each
+queue gets its own worker process with its own `--concurrency`.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import uuid
+from typing import Any
+
+from celery import Celery
+
+from backend_core.config import get_settings
+from backend_core.domain.enums import QueueName
+from backend_core.observability import configure_logging, get_logger
+
+settings = get_settings()
+configure_logging(settings.log_level)
+logger = get_logger(__name__)
+
+celery_app = Celery(
+    "aipvs",
+    broker=settings.celery_broker_url,
+    backend=settings.celery_result_backend,
+)
+
+celery_app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
+    enable_utc=True,
+    # Acknowledge after the task finishes, not on receipt. A worker killed
+    # mid-generation must leave the job on the queue for someone else — §22's
+    # locking makes the redelivery safe, and losing the job would leave a user
+    # waiting forever for work nobody is doing.
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
+    # A hard ceiling above the per-job budget, so a wedged task is killed
+    # rather than holding a worker slot indefinitely (§161).
+    task_time_limit=settings.video_job_timeout_seconds + 300,
+    task_soft_time_limit=settings.video_job_timeout_seconds + 60,
+    task_routes={
+        "aipvs.video.generate": {"queue": QueueName.VIDEO.value},
+        "aipvs.tts.synthesize": {"queue": QueueName.TTS.value},
+        "aipvs.render.compose": {"queue": QueueName.RENDER.value},
+        "aipvs.qc.check": {"queue": QueueName.QC.value},
+    },
+)
+
+
+def _backoff_seconds(attempt: int) -> float:
+    """Exponential backoff with jitter (§24).
+
+    Duplicated from `JobService` rather than reached through a database session
+    the task does not otherwise need. Jitter matters here for the same reason:
+    twenty tasks re-queued in lockstep rate-limit each other again.
+    """
+    import random
+
+    base = settings.job_retry_base_delay_seconds * (2 ** max(0, attempt - 1))
+    return float(round(min(base, 900) * (0.5 + random.random()), 2))  # noqa: S311
+
+
+def _run(coroutine: Any) -> Any:
+    """Bridge Celery's synchronous task API to our async services.
+
+    `asyncio.run` per task rather than a shared loop: Celery's prefork model
+    gives each task an unpredictable thread, and the engine cache is keyed by
+    loop precisely so this pattern is safe (PHASE 1).
+    """
+    return asyncio.run(coroutine)
+
+
+@celery_app.task(name="aipvs.video.generate", bind=True, max_retries=0)
+def generate_video(self: Any, workspace_id: str, job_id: str) -> dict[str, Any]:
+    """Run one video generation job (§22).
+
+    `max_retries=0` on the Celery task is deliberate: §24's retry policy lives
+    in `JobService`, which knows the difference between a rate limit and a
+    policy violation. Celery retrying on top would double the attempts and
+    ignore that distinction.
+    """
+    from backend_core.jobs.runner import JobLockedError, VideoJobRunner
+
+    try:
+        outcome = _run(VideoJobRunner().run(uuid.UUID(workspace_id), uuid.UUID(job_id)))
+    except JobLockedError:
+        # Another worker has it. Not an error: redelivery is expected under
+        # `task_acks_late`, and the lock is what makes it harmless.
+        logger.info("video_job_already_running", extra={"job_id": job_id})
+        return {"job_id": job_id, "status": "LOCKED"}
+
+    if outcome.will_retry:
+        # Re-queue after §24's backoff. The delay is derived from the job's own
+        # attempt count, which `JobService.fail` has already incremented — so
+        # the second attempt waits longer than the first, as exponential
+        # backoff requires.
+        generate_video.apply_async(
+            args=[workspace_id, job_id],
+            countdown=_backoff_seconds(outcome.retry_count),
+            queue=QueueName.VIDEO.value,
+        )
+
+    return {
+        "job_id": job_id,
+        "status": outcome.status.value,
+        "asset_id": str(outcome.asset_id) if outcome.asset_id else None,
+    }
+
+
+@celery_app.task(name="aipvs.tts.synthesize", bind=True, max_retries=0)
+def synthesize_speech(self: Any, workspace_id: str, job_id: str) -> dict[str, Any]:
+    """Run one TTS job (§30, PHASE 12)."""
+    from backend_core.jobs.tts_runner import TTSJobRunner
+
+    outcome = _run(TTSJobRunner().run(uuid.UUID(workspace_id), uuid.UUID(job_id)))
+    return {"job_id": job_id, "status": outcome.status.value}
+
+
+@celery_app.task(name="aipvs.render.compose", bind=True, max_retries=0)
+def compose_render(self: Any, workspace_id: str, job_id: str) -> dict[str, Any]:
+    """Run one render job (§35, PHASE 13)."""
+    from backend_core.jobs.render_runner import RenderJobRunner
+
+    outcome = _run(RenderJobRunner().run(uuid.UUID(workspace_id), uuid.UUID(job_id)))
+    return {"job_id": job_id, "status": outcome.status.value}
+
+
+@celery_app.task(name="aipvs.qc.check", bind=True, max_retries=0)
+def run_quality_check(self: Any, workspace_id: str, job_id: str) -> dict[str, Any]:
+    """Run one QC job (§32, PHASE 14)."""
+    from backend_core.jobs.qc_runner import QCJobRunner
+
+    outcome = _run(QCJobRunner().run(uuid.UUID(workspace_id), uuid.UUID(job_id)))
+    return {"job_id": job_id, "status": outcome.status.value}
+
+
+__all__ = [
+    "celery_app",
+    "compose_render",
+    "generate_video",
+    "run_quality_check",
+    "synthesize_speech",
+]

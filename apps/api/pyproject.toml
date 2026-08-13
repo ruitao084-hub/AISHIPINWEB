@@ -4,6 +4,8 @@ version = "0.0.0"
 description = "AI Product Video Studio — HTTP API (FastAPI)"
 requires-python = ">=3.11"
 dependencies = [
+    # The API enqueues Celery tasks the worker defines (§22).
+    "aipvs-worker",
     "aipvs-backend-core",
     "fastapi>=0.141.1",
     "pydantic>=2.13.4",
