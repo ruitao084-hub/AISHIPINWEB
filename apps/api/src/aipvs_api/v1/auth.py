@@ -9,12 +9,14 @@ from typing import Annotated, Final
 from fastapi import APIRouter, Cookie, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
-from aipvs_api.dependencies import CurrentUser, SessionDep
+from aipvs_api.dependencies import CurrentUser, SessionDep, get_request_origin
 from aipvs_api.v1.schemas import ApiRequest
 from backend_core.config import get_settings
+from backend_core.domain.enums import AuditAction
 from backend_core.domain.models import User
 from backend_core.errors import UnauthorizedError
 from backend_core.security import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
+from backend_core.services.audit import AuditService
 from backend_core.services.auth import AuthService, TokenPair
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -144,6 +146,15 @@ async def register(
         display_name=payload.display_name,
         client_ip=_client_ip(request),
     )
+    await AuditService(session).record(
+        AuditAction.LOGIN,
+        workspace_id=result.workspace_id,
+        actor_user_id=result.user.id,
+        target_type="user",
+        target_id=result.user.id,
+        origin=get_request_origin(request),
+        context={"via": "register"},
+    )
     _set_refresh_cookie(response, result.tokens.refresh_token)
     return _token_response(result.user, result.tokens)
 
@@ -161,10 +172,37 @@ async def login(
     no-such-user path still performs a password hash, so neither the response
     nor its timing reveals whether an email is registered.
     """
-    user, tokens = await AuthService(session).login(
-        email=payload.email,
-        password=payload.password,
-        client_ip=_client_ip(request),
+    origin = get_request_origin(request)
+    audit = AuditService(session)
+
+    try:
+        user, tokens = await AuthService(session).login(
+            email=payload.email,
+            password=payload.password,
+            client_ip=_client_ip(request),
+        )
+    except Exception:
+        # §60 wants failed logins recorded, and this is the only place that
+        # knows the attempt happened. The email is *not* in the context: a
+        # failed attempt against an address nobody registered would otherwise
+        # turn the audit table into a list of addresses somebody guessed.
+        await audit.record(
+            AuditAction.LOGIN_FAILED,
+            target_type="user",
+            succeeded=False,
+            origin=origin,
+        )
+        # Committed separately, because the request is about to unwind and the
+        # session's transaction will be rolled back with it.
+        await session.commit()
+        raise
+
+    await audit.record(
+        AuditAction.LOGIN,
+        actor_user_id=user.id,
+        target_type="user",
+        target_id=user.id,
+        origin=origin,
     )
     _set_refresh_cookie(response, tokens.refresh_token)
     return _token_response(user, tokens)

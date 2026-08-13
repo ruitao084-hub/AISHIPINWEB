@@ -180,7 +180,25 @@ def _download(source_url: str, destination: Path) -> tuple[int, str]:
 
     import httpx
 
+    from backend_core.security.ssrf import UnsafeUrlError, resolve_and_validate
+
+    # §61's safe downloader, applied even to a provider's own URL. The host is
+    # one we chose to trust, but the *path* came back from a model, and a
+    # provider that echoed a caller-supplied URL would otherwise turn this
+    # worker into an SSRF proxy with cloud credentials in reach.
     try:
+        resolve_and_validate(source_url)
+    except UnsafeUrlError as exc:
+        raise IngestionError(
+            "The provider's result URL points somewhere this service will not fetch.",
+            details={"host": _host(source_url)},
+        ) from exc
+
+    try:
+        # Redirects are followed by httpx here, one level of trust below
+        # `safe_fetch_headers`: this URL has already been validated and the
+        # destination is written to disk rather than returned to a caller. A
+        # user-supplied URL must go through `safe_fetch_headers` instead.
         with httpx.stream("GET", source_url, timeout=120.0, follow_redirects=True) as response:
             if response.status_code >= 400:
                 raise IngestionError(

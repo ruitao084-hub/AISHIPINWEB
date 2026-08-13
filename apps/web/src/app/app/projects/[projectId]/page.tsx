@@ -18,9 +18,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ProductionPanel } from "@/components/production-panel";
+import { EmptyState, FailureState, LoadingState } from "@/components/states";
 import { StoryboardPanel } from "@/components/storyboard-panel";
 import {
-  ApiError,
   projectApi,
   workspaceApi,
   type CreativePlanResponse,
@@ -41,8 +41,18 @@ interface Loaded {
 
 type LoadState =
   | { kind: "loading" }
-  | { kind: "error"; message: string }
+  // The error itself, not a message: `FailureState` reads its code to decide
+  // whether a retry could help, and a flattened string throws that away.
+  | { kind: "error"; error: unknown }
   | ({ kind: "ready" } & Loaded);
+
+/** A retryable step, kept so a failure can offer to run the same one again. */
+interface Action {
+  operation: () => Promise<unknown>;
+  kind?: BusyKind | undefined;
+}
+
+type BusyKind = "plans" | "script" | "storyboard";
 
 interface ScriptSectionView {
   section: string;
@@ -57,12 +67,13 @@ export default function ProjectDetailPage({
 }) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<unknown>(null);
+  // The operation that failed, so the retry button re-runs *that* rather than
+  // reloading the page and losing what the user was doing.
+  const [failedAction, setFailedAction] = useState<Action | null>(null);
   // Both generation calls are billed, so their triggers stay disabled while
   // one is in flight.
-  const [busy, setBusy] = useState<null | "plans" | "script" | "storyboard">(
-    null,
-  );
+  const [busy, setBusy] = useState<BusyKind | null>(null);
 
   useEffect(() => {
     void params.then(({ projectId: id }) => setProjectId(id));
@@ -103,7 +114,7 @@ export default function ProjectDetailPage({
         const loaded = await load(projectId);
         if (!cancelled) setState({ kind: "ready", ...loaded });
       } catch (error) {
-        if (!cancelled) setState({ kind: "error", message: describe(error) });
+        if (!cancelled) setState({ kind: "error", error });
       }
     })();
     return () => {
@@ -112,19 +123,19 @@ export default function ProjectDetailPage({
   }, [projectId, load]);
 
   const act = useCallback(
-    async (
-      operation: () => Promise<unknown>,
-      kind?: "plans" | "script" | "storyboard",
-    ) => {
+    async (operation: () => Promise<unknown>, kind?: BusyKind) => {
       setActionError(null);
       if (kind) setBusy(kind);
       try {
         await operation();
         if (projectId) setState({ kind: "ready", ...(await load(projectId)) });
+        setFailedAction(null);
       } catch (error) {
-        // The server's message is specific — "this product has no verified
-        // facts yet" tells the user what to do, which a generic notice cannot.
-        setActionError(describe(error));
+        // The error object, not a string: the server's message is specific —
+        // "this product has no verified facts yet" tells the user what to do —
+        // and its *code* is what decides whether retrying could help.
+        setActionError(error);
+        setFailedAction({ operation, kind });
       } finally {
         setBusy(null);
       }
@@ -135,9 +146,7 @@ export default function ProjectDetailPage({
   if (state.kind === "loading") {
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-        <p className="text-muted text-sm" role="status">
-          Loading…
-        </p>
+        <LoadingState label="Loading the project…" />
       </main>
     );
   }
@@ -145,12 +154,19 @@ export default function ProjectDetailPage({
   if (state.kind === "error") {
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-        <p
-          role="alert"
-          className="border-border rounded-md border px-3 py-2 text-sm"
-        >
-          {state.message}
-        </p>
+        <FailureState
+          error={state.error}
+          onRetry={() => {
+            if (!projectId) return;
+            setState({ kind: "loading" });
+            void load(projectId)
+              .then((loaded) => setState({ kind: "ready", ...loaded }))
+              .catch((cause: unknown) =>
+                setState({ kind: "error", error: cause }),
+              );
+          }}
+          retryLabel="Reload"
+        />
       </main>
     );
   }
@@ -188,13 +204,17 @@ export default function ProjectDetailPage({
         </p>
       )}
 
-      {actionError && (
-        <p
-          role="alert"
-          className="border-border mt-6 rounded-md border px-3 py-2 text-sm"
-        >
-          {actionError}
-        </p>
+      {actionError !== null && (
+        <div className="mt-6">
+          <FailureState
+            error={actionError}
+            onRetry={
+              failedAction
+                ? () => void act(failedAction.operation, failedAction.kind)
+                : undefined
+            }
+          />
+        </div>
       )}
 
       {/* --- creative plans (§16) --- */}
@@ -225,6 +245,15 @@ export default function ProjectDetailPage({
           Built only from this product&rsquo;s verified facts and approved
           claims. Choose one before writing the script.
         </p>
+
+        {currentPlans.length === 0 && (
+          <div className="mt-4">
+            <EmptyState
+              title="No creative directions yet"
+              description="Three options are written from this product's verified facts and approved claims. Generate them, then choose the one to script."
+            />
+          </div>
+        )}
 
         {currentPlans.length > 0 && (
           <ul className="mt-4 grid gap-3">
@@ -471,10 +500,4 @@ function ScriptView({
       </ol>
     </div>
   );
-}
-
-function describe(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Something went wrong.";
 }

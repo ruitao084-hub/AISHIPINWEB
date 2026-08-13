@@ -28,6 +28,7 @@ from anyio import to_thread
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend_core.domain.enums import (
+    ModerationTarget,
     ProductAssetRole,
     ProjectStatus,
     ReferenceRole,
@@ -59,6 +60,7 @@ from backend_core.providers.storyboard_schemas import (
 from backend_core.repositories.products import ProductRepository
 from backend_core.repositories.projects import ProjectRepository
 from backend_core.repositories.storyboards import StoryboardRepository
+from backend_core.services.moderation import ModerationService
 from backend_core.services.projects import ProjectService
 
 logger = get_logger(__name__)
@@ -176,11 +178,23 @@ class StoryboardService:
         self._session.add(storyboard)
         await self._session.flush()
 
+        shots: list[Shot] = []
         for draft in drafts:
             shot = self._build_shot(storyboard, project, draft, brief_source)
             self._session.add(shot)
             await self._session.flush()
             await self._attach_references(shot, draft, brief_source)
+            shots.append(shot)
+
+        # §61's screen, on the compiled prompts rather than on the script.
+        # Here because this is the last point before those strings can be sent
+        # to a video model, and because a blocked shot should be named as a
+        # shot — a rejection that says "storyboard" tells nobody what to edit.
+        await ModerationService(self._session).screen_many(
+            {str(shot.id): shot.visual_prompt for shot in shots},
+            workspace_id=workspace_id,
+            target=ModerationTarget.PROMPT,
+        )
 
         if project.status is ProjectStatus.SCRIPTING:
             await self._projects.transition(

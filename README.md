@@ -242,6 +242,18 @@ server-generated paths, an isolated temp directory per render, and a timeout.
 | Ruff or mypy passes locally, fails in CI                             | CI uses locked versions. Run `make install` to match.                                                                                                             |
 | API import errors after adding a package                             | Re-run `uv sync --all-packages`.                                                                                                                                  |
 
+## Production
+
+Deploying this is not `make dev` with different environment variables. Read
+[`docs/operations/production.md`](docs/operations/production.md) — it covers
+secrets, backups, the queue topology, HTTPS and proxy headers, what to alert
+on, and what is deliberately never logged.
+
+The short version of the parts that lose data or leak credentials if skipped:
+`APP_ENV=production`, `JWT_SECRET` from a secret manager, a private storage
+bucket, `CORS_ALLOW_ORIGINS` without a wildcard, migrations applied before the
+new code serves, and `celery beat` running exactly once.
+
 ## Repository layout
 
 ```

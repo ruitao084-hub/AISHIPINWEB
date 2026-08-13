@@ -16,10 +16,17 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
 
-from aipvs_api.dependencies import CurrentUser, SessionDep, require_permission
+from aipvs_api.dependencies import (
+    CurrentUser,
+    OriginDep,
+    SessionDep,
+    rate_limited,
+    require_permission,
+)
 from aipvs_api.v1.schemas import ApiRequest
 from backend_core.domain.enums import (
     AnalysisStatus,
+    AuditAction,
     ClaimRiskLevel,
     ClaimStatus,
     ClaimType,
@@ -37,6 +44,7 @@ from backend_core.domain.models import (
     ProductClaim,
     ProductFact,
 )
+from backend_core.services.audit import AuditService
 from backend_core.services.product_analysis import ProductAnalysisService
 from backend_core.services.product_truth import ProductTruthService
 from backend_core.services.products import ProductService
@@ -232,7 +240,10 @@ class CreateClaimRequest(ApiRequest):
     dependencies=[require_permission(Permission.PRODUCT_WRITE)],
 )
 async def create_product(
-    workspace_id: uuid.UUID, payload: CreateProductRequest, session: SessionDep
+    workspace_id: uuid.UUID,
+    payload: CreateProductRequest,
+    session: SessionDep,
+    origin: OriginDep,
 ) -> ProductResponse:
     """Create a product. Always starts in DRAFT (§104)."""
     product = await ProductService(session).create(
@@ -242,6 +253,14 @@ async def create_product(
         brand_name=payload.brand_name,
         sku=payload.sku,
         description=payload.description,
+    )
+    await AuditService(session).record(
+        AuditAction.PRODUCT_CREATE,
+        workspace_id=workspace_id,
+        target_type="product",
+        target_id=product.id,
+        origin=origin,
+        context={"name": product.name},
     )
     return ProductResponse.of(product)
 
@@ -314,10 +333,18 @@ async def update_product(
     dependencies=[require_permission(Permission.PRODUCT_DELETE)],
 )
 async def archive_product(
-    workspace_id: uuid.UUID, product_id: uuid.UUID, session: SessionDep
+    workspace_id: uuid.UUID, product_id: uuid.UUID, session: SessionDep, origin: OriginDep
 ) -> ProductResponse:
     product = await ProductService(session).archive(
         workspace_id=workspace_id, product_id=product_id
+    )
+    await AuditService(session).record(
+        AuditAction.PRODUCT_DELETE,
+        workspace_id=workspace_id,
+        target_type="product",
+        target_id=product.id,
+        origin=origin,
+        context={"name": product.name, "soft_delete": True},
     )
     return ProductResponse.of(product)
 
@@ -535,6 +562,7 @@ async def verify_fact(
     fact_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
+    origin: OriginDep,
 ) -> ProductFactResponse:
     """Take responsibility for a fact (§13).
 
@@ -543,6 +571,15 @@ async def verify_fact(
     """
     fact = await ProductTruthService(session).verify_fact(
         workspace_id=workspace_id, product_id=product_id, fact_id=fact_id, user=user
+    )
+    await AuditService(session).record(
+        AuditAction.FACT_VERIFY,
+        workspace_id=workspace_id,
+        actor_user_id=user.id,
+        target_type="product_fact",
+        target_id=fact.id,
+        origin=origin,
+        context={"product_id": str(product_id), "outcome": fact.verification_status.value},
     )
     return ProductFactResponse.of(fact)
 
@@ -651,6 +688,7 @@ async def verify_claim(
     claim_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
+    origin: OriginDep,
 ) -> ProductClaimResponse:
     """Approve a claim (§13, §109).
 
@@ -660,6 +698,15 @@ async def verify_claim(
     """
     claim = await ProductTruthService(session).verify_claim(
         workspace_id=workspace_id, product_id=product_id, claim_id=claim_id, user=user
+    )
+    await AuditService(session).record(
+        AuditAction.CLAIM_VERIFY,
+        workspace_id=workspace_id,
+        actor_user_id=user.id,
+        target_type="product_claim",
+        target_id=claim.id,
+        origin=origin,
+        context={"product_id": str(product_id), "outcome": claim.status.value},
     )
     return ProductClaimResponse.of(claim)
 
@@ -676,9 +723,19 @@ async def reject_claim(
     claim_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
+    origin: OriginDep,
 ) -> ProductClaimResponse:
     claim = await ProductTruthService(session).reject_claim(
         workspace_id=workspace_id, product_id=product_id, claim_id=claim_id, user=user
+    )
+    await AuditService(session).record(
+        AuditAction.CLAIM_VERIFY,
+        workspace_id=workspace_id,
+        actor_user_id=user.id,
+        target_type="product_claim",
+        target_id=claim.id,
+        origin=origin,
+        context={"product_id": str(product_id), "outcome": claim.status.value},
     )
     return ProductClaimResponse.of(claim)
 
@@ -733,7 +790,7 @@ class ProductAnalysisResponse(BaseModel):
     summary="Analyse the product's images",
     # GENERATION_RUN, not PRODUCT_WRITE: a vision call costs money, and §40
     # deliberately does not let write access imply spending it.
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("analyze")],
 )
 async def analyze_product(
     workspace_id: uuid.UUID,

@@ -16,6 +16,7 @@ from fastapi import Depends, Path, Request, params
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend_core.config import get_settings
 from backend_core.db import get_async_sessionmaker
 from backend_core.domain.enums import Permission, WorkspaceRole
 from backend_core.domain.models import User
@@ -23,6 +24,8 @@ from backend_core.errors import UnauthorizedError
 from backend_core.observability import set_context
 from backend_core.repositories.workspaces import WorkspaceRepository
 from backend_core.security import ensure_membership, ensure_permission
+from backend_core.security.ratelimit import check_workspace_limit
+from backend_core.services.audit import RequestOrigin
 from backend_core.services.auth import AuthService
 
 # auto_error=False so a missing header raises our own UnauthorizedError in the
@@ -114,3 +117,53 @@ def require_permission(permission: Permission) -> params.Depends:
     # keeps the declared return type honest, since FastAPI types the `Depends`
     # helper as `Any` so it can serve as a default value for any parameter.
     return params.Depends(dependency=dependency)
+
+
+def rate_limited(scope: str) -> params.Depends:
+    """Apply one of §123's per-workspace limits to a route (P16-T02).
+
+    Declared alongside `require_permission` so an expensive endpoint reads as
+    what it costs::
+
+        @router.post(
+            "/renders",
+            dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("render")],
+        )
+
+    Ordering note: this runs as a route dependency, so it counts the attempt
+    even when the handler later refuses the request. That is the correct
+    direction — a caller hammering an endpoint that 422s is exactly what a rate
+    limit is for.
+    """
+
+    async def dependency(workspace_id: Annotated[uuid.UUID, Path()]) -> None:
+        await check_workspace_limit(scope, str(workspace_id))
+
+    return params.Depends(dependency=dependency)
+
+
+def get_request_origin(request: Request) -> RequestOrigin:
+    """Where a request came from, for the audit trail (§60, P16-T14).
+
+    `X-Forwarded-For`'s *first* entry is the client; the rest are proxies. Only
+    trusted when a proxy is actually in front — otherwise the header is
+    attacker-controlled and would let anyone forge the address in an audit
+    record, which is worse than having no address at all.
+    """
+    settings = get_settings()
+    address: str | None = request.client.host if request.client else None
+
+    if settings.trust_proxy_headers:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        first = forwarded.split(",")[0].strip()
+        if first:
+            address = first
+
+    return RequestOrigin(
+        ip_address=address,
+        user_agent=request.headers.get("user-agent"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+OriginDep = Annotated[RequestOrigin, Depends(get_request_origin)]

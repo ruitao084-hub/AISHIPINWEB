@@ -52,6 +52,17 @@ celery_app.conf.update(
         "aipvs.tts.synthesize": {"queue": QueueName.TTS.value},
         "aipvs.render.compose": {"queue": QueueName.RENDER.value},
         "aipvs.qc.check": {"queue": QueueName.QC.value},
+        "aipvs.maintenance.reap_stuck_jobs": {"queue": QueueName.DEFAULT.value},
+    },
+    # §161's periodic recovery. Every five minutes, which is frequent enough
+    # that a user notices a stuck job resolving rather than a support ticket,
+    # and rare enough that the scan is invisible against normal load.
+    beat_schedule={
+        "reap-stuck-jobs": {
+            "task": "aipvs.maintenance.reap_stuck_jobs",
+            "schedule": 300.0,
+            "options": {"queue": QueueName.DEFAULT.value},
+        },
     },
 )
 
@@ -143,10 +154,29 @@ def run_quality_check(self: Any, workspace_id: str, job_id: str) -> dict[str, An
     return {"job_id": job_id, "status": outcome.status.value}
 
 
+@celery_app.task(name="aipvs.maintenance.reap_stuck_jobs", bind=True, max_retries=0)
+def reap_stuck_jobs(self: Any, limit: int = 100) -> dict[str, Any]:
+    """Return abandoned jobs to §106's machine (§161, P16-T15).
+
+    Runs on `beat`, not on a worker's own timer: one scheduler firing this
+    means one sweep, where a per-worker timer would have every worker reap the
+    same rows and race each other over the same reservations.
+    """
+    from backend_core.jobs.reaper import reap_stuck_jobs as sweep
+
+    report = _run(sweep(limit=limit))
+    return {
+        "examined": report.examined,
+        "reaped": len(report.reaped),
+        "requeued": len(report.requeued),
+    }
+
+
 __all__ = [
     "celery_app",
     "compose_render",
     "generate_video",
+    "reap_stuck_jobs",
     "run_quality_check",
     "synthesize_speech",
 ]

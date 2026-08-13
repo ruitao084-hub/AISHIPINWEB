@@ -16,9 +16,10 @@ from datetime import datetime
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel, Field
 
-from aipvs_api.dependencies import SessionDep, require_permission
-from backend_core.domain.enums import JobStatus, JobType, Permission
+from aipvs_api.dependencies import OriginDep, SessionDep, rate_limited, require_permission
+from backend_core.domain.enums import AuditAction, JobStatus, JobType, Permission
 from backend_core.domain.models import GenerationJob
+from backend_core.services.audit import AuditService
 from backend_core.services.jobs import JobService
 from backend_core.services.shot_generation import ShotGenerationService
 
@@ -109,10 +110,10 @@ async def list_project_jobs(
     "/jobs/{job_id}/cancel",
     response_model=JobResponse,
     summary="Cancel a job",
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("generate")],
 )
 async def cancel_job(
-    workspace_id: uuid.UUID, job_id: uuid.UUID, session: SessionDep
+    workspace_id: uuid.UUID, job_id: uuid.UUID, session: SessionDep, origin: OriginDep
 ) -> JobResponse:
     """Stop a job.
 
@@ -121,6 +122,14 @@ async def cancel_job(
     cannot see would be pedantry.
     """
     job = await JobService(session).cancel(workspace_id=workspace_id, job_id=job_id)
+    await AuditService(session).record(
+        AuditAction.JOB_CANCEL,
+        workspace_id=workspace_id,
+        target_type="generation_job",
+        target_id=job.id,
+        origin=origin,
+        context={"job_type": job.job_type.value, "status": job.status.value},
+    )
     return JobResponse.of(job)
 
 
@@ -129,13 +138,14 @@ async def cancel_job(
     response_model=list[JobResponse],
     status_code=status.HTTP_202_ACCEPTED,
     summary="Generate every shot",
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("generate")],
 )
 async def generate_shots(
     workspace_id: uuid.UUID,
     project_id: uuid.UUID,
     storyboard_id: uuid.UUID,
     session: SessionDep,
+    origin: OriginDep,
 ) -> list[JobResponse]:
     """Queue every shot of an approved storyboard (§22).
 
@@ -148,6 +158,14 @@ async def generate_shots(
     jobs = await ShotGenerationService(session).queue_storyboard(
         workspace_id=workspace_id, project_id=project_id, storyboard_id=storyboard_id
     )
+    await AuditService(session).record(
+        AuditAction.GENERATE,
+        workspace_id=workspace_id,
+        target_type="storyboard",
+        target_id=storyboard_id,
+        origin=origin,
+        context={"queued": len(jobs), "estimated_cost": sum(j.estimated_cost for j in jobs)},
+    )
     await session.commit()
     _enqueue_all(workspace_id, jobs)
     return [JobResponse.of(job) for job in jobs]
@@ -157,7 +175,7 @@ async def generate_shots(
     "/projects/{project_id}/storyboards/{storyboard_id}/shots/{shot_id}/generate",
     response_model=JobResponse,
     summary="Generate one shot",
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("generate")],
 )
 async def generate_shot(
     workspace_id: uuid.UUID,
@@ -166,6 +184,7 @@ async def generate_shot(
     shot_id: uuid.UUID,
     response: Response,
     session: SessionDep,
+    origin: OriginDep,
 ) -> JobResponse:
     """§103 rule 10's one-click regeneration, for a single shot.
 
@@ -176,6 +195,17 @@ async def generate_shot(
     job, created = await ShotGenerationService(session).queue_shot(
         workspace_id=workspace_id, storyboard_id=storyboard_id, shot_id=shot_id
     )
+    if created:
+        # Only the real one. Recording an idempotent replay would make the
+        # trail say a shot was generated twice when it was generated once.
+        await AuditService(session).record(
+            AuditAction.GENERATE,
+            workspace_id=workspace_id,
+            target_type="shot",
+            target_id=shot_id,
+            origin=origin,
+            context={"job_id": str(job.id), "estimated_cost": job.estimated_cost},
+        )
     await session.commit()
 
     if created:

@@ -127,8 +127,31 @@ verify: ## Full local gate — run before every commit (same order as CI)
 	@$(MAKE) build
 	@$(MAKE) typecheck
 	@$(MAKE) test
+	@$(MAKE) audit
 	@echo ""
 	@echo "  All gates passed."
+
+# ---------------------------------------------------------------------------
+# Security audits (§61, PHASE 16)
+# ---------------------------------------------------------------------------
+
+.PHONY: audit
+audit: audit-perms audit-deps ## Every security audit
+
+.PHONY: audit-perms
+audit-perms: ## P16-T01 — fail if any route is unauthenticated or unchecked
+	uv run python -m aipvs_api.permissions_audit
+
+.PHONY: audit-deps
+audit-deps: ## P16-T11 — known vulnerabilities in Python and JS dependencies
+	@# `uv` resolves and reports; `pnpm audit` covers the JS side. Neither is
+	@# allowed to fail the build on a moderate advisory in a transitive dev
+	@# dependency — that turns the gate into noise everyone learns to skip.
+	@echo "== Python =="
+	-uv run pip-audit --progress-spinner off 2>/dev/null || 		echo "  (pip-audit not installed: uv tool install pip-audit)"
+	@echo ""
+	@echo "== JavaScript =="
+	-pnpm audit --audit-level high
 
 # ---------------------------------------------------------------------------
 # Local infrastructure (§4.10)

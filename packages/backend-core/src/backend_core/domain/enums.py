@@ -1059,3 +1059,60 @@ ASPECT_DIMENSIONS: dict[str, tuple[int, int]] = {
 }
 
 RENDER_FPS: int = 30
+
+
+class AuditAction(StrEnum):
+    """The actions §60 requires a record of.
+
+    A closed set rather than free text, for the reason every audit trail keeps
+    one: "generate" and "Generate" and "generation" are three different strings
+    and one question nobody can answer six months later. Adding a member is a
+    visible edit; typing a new string is not.
+    """
+
+    LOGIN = "LOGIN"
+    LOGIN_FAILED = "LOGIN_FAILED"
+    LOGOUT = "LOGOUT"
+    PRODUCT_CREATE = "PRODUCT_CREATE"
+    PRODUCT_DELETE = "PRODUCT_DELETE"
+    FACT_VERIFY = "FACT_VERIFY"
+    CLAIM_VERIFY = "CLAIM_VERIFY"
+    GENERATE = "GENERATE"
+    JOB_CANCEL = "JOB_CANCEL"
+    CREDIT_ADJUSTMENT = "CREDIT_ADJUSTMENT"
+    RENDER = "RENDER"
+    DOWNLOAD = "DOWNLOAD"
+    ADMIN_PROVIDER_CHANGE = "ADMIN_PROVIDER_CHANGE"
+
+
+class ModerationTarget(StrEnum):
+    """What was screened (§61, P16-T13).
+
+    The stage matters as much as the verdict: a prompt rejected before
+    submission costs nothing, while the same content caught on an uploaded
+    asset means it is already in storage and has to be removed.
+    """
+
+    UPLOAD = "UPLOAD"
+    PROMPT = "PROMPT"
+    SCRIPT = "SCRIPT"
+    GENERATION_REQUEST = "GENERATION_REQUEST"
+    RENDER_OUTPUT = "RENDER_OUTPUT"
+
+
+class ModerationDecision(StrEnum):
+    """The screening outcome.
+
+    `FLAGGED` is deliberately not `BLOCKED`: most policy signals are worth a
+    person's attention and not worth refusing work over, and collapsing the two
+    forces every borderline case to be either ignored or fatal.
+    """
+
+    ALLOWED = "ALLOWED"
+    FLAGGED = "FLAGGED"
+    BLOCKED = "BLOCKED"
+    ERRORED = "ERRORED"
+
+
+#: Moderation outcomes that must stop the work they screened.
+BLOCKING_MODERATION: frozenset[ModerationDecision] = frozenset({ModerationDecision.BLOCKED})

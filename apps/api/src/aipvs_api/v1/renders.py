@@ -19,11 +19,18 @@ from typing import Any
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel, Field
 
-from aipvs_api.dependencies import SessionDep, require_permission
+from aipvs_api.dependencies import OriginDep, SessionDep, rate_limited, require_permission
 from aipvs_api.v1.jobs import JobResponse
 from aipvs_api.v1.schemas import ApiRequest
-from backend_core.domain.enums import Permission, QCCheckType, QCStatus, RenderStatus
+from backend_core.domain.enums import (
+    AuditAction,
+    Permission,
+    QCCheckType,
+    QCStatus,
+    RenderStatus,
+)
 from backend_core.domain.models import GenerationJob, QualityCheck, Render, VoiceoverTrack
+from backend_core.services.audit import AuditService
 from backend_core.services.post_production import PostProductionService
 
 router = APIRouter(
@@ -144,7 +151,7 @@ class RenderRequest(ApiRequest):
     "/voiceover",
     response_model=JobResponse,
     summary="Synthesise the narration",
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("generate")],
 )
 async def create_voiceover(
     workspace_id: uuid.UUID,
@@ -198,13 +205,14 @@ async def get_voiceover(
     response_model=RenderStartedResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Compose the final video",
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("render")],
 )
 async def create_render(
     workspace_id: uuid.UUID,
     project_id: uuid.UUID,
     payload: RenderRequest,
     session: SessionDep,
+    origin: OriginDep,
 ) -> RenderStartedResponse:
     """Build the timeline and queue the composition (§33, §34).
 
@@ -213,6 +221,14 @@ async def create_render(
     """
     render, job, created = await PostProductionService(session).create_render(
         workspace_id=workspace_id, project_id=project_id, burn_subtitles=payload.burn_subtitles
+    )
+    await AuditService(session).record(
+        AuditAction.RENDER,
+        workspace_id=workspace_id,
+        target_type="render",
+        target_id=render.id,
+        origin=origin,
+        context={"project_id": str(project_id), "version": render.version},
     )
     await session.commit()
 
@@ -261,7 +277,7 @@ async def get_render(
     "/renders/{render_id}/quality-checks",
     response_model=JobResponse,
     summary="Run quality checks",
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("render")],
 )
 async def create_quality_check(
     workspace_id: uuid.UUID,
@@ -314,6 +330,7 @@ async def download(
     workspace_id: uuid.UUID,
     project_id: uuid.UUID,
     session: SessionDep,
+    origin: OriginDep,
     render_id: uuid.UUID | None = None,
 ) -> DownloadResponse:
     """A presigned link to the newest finished render, or a named one.
@@ -330,6 +347,18 @@ async def download(
     )
     expires_in = get_settings().s3_signed_url_ttl_seconds
     url = get_storage().presigned_download_url(asset.object_key, expires_in=expires_in)
+
+    # §60 requires downloads to be recorded. The *link* is not: it carries a
+    # signature that grants the access, and an audit table holding live
+    # credentials would be a worse leak than the one it exists to detect.
+    await AuditService(session).record(
+        AuditAction.DOWNLOAD,
+        workspace_id=workspace_id,
+        target_type="media_asset",
+        target_id=asset.id,
+        origin=origin,
+        context={"project_id": str(project_id), "size_bytes": asset.size_bytes},
+    )
 
     return DownloadResponse(
         url=url,

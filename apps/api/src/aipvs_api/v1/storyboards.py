@@ -17,7 +17,7 @@ from typing import Any
 from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
-from aipvs_api.dependencies import SessionDep, require_permission
+from aipvs_api.dependencies import SessionDep, rate_limited, require_permission
 from aipvs_api.v1.schemas import ApiRequest
 from backend_core.domain.enums import (
     Permission,
@@ -168,7 +168,7 @@ class UpdateShotRequest(ApiRequest):
     status_code=status.HTTP_201_CREATED,
     summary="Break the script into shots",
     # Costs money (§40).
-    dependencies=[require_permission(Permission.GENERATION_RUN)],
+    dependencies=[require_permission(Permission.GENERATION_RUN), rate_limited("creative")],
 )
 async def generate_storyboard(
     workspace_id: uuid.UUID, project_id: uuid.UUID, session: SessionDep

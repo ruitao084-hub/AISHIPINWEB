@@ -77,6 +77,12 @@ class Settings(BaseSettings):
     # explicitly; a wildcard with credentials is rejected below.
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
+    # Whether `X-Forwarded-For` may be believed (§60, §61). Off by default:
+    # the header is attacker-controlled unless a proxy is actually in front,
+    # and trusting it without one puts forged addresses into the audit trail
+    # and lets a per-IP rate limit be bypassed by setting a header.
+    trust_proxy_headers: bool = False
+
     # --- Database (§4.4) --------------------------------------------------
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/aipvs"
     database_pool_size: int = Field(default=10, ge=1)

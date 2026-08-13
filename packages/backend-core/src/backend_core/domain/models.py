@@ -40,6 +40,7 @@ from backend_core.domain.enums import (
     AspectRatio,
     AssetSourceType,
     AssetType,
+    AuditAction,
     ClaimRiskLevel,
     ClaimStatus,
     ClaimType,
@@ -48,6 +49,8 @@ from backend_core.domain.enums import (
     JobStatus,
     JobType,
     LicenseType,
+    ModerationDecision,
+    ModerationTarget,
     PlanCode,
     ProductAssetRole,
     ProductStatus,
@@ -1606,4 +1609,125 @@ class QualityCheck(WorkspaceEntity):
         return (
             f"QualityCheck(id={self.id!r}, type={self.check_type.value!r}, "
             f"status={self.status.value!r})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# §10.31-§10.32 — audit and moderation (PHASE 16)
+# ---------------------------------------------------------------------------
+
+
+class AuditLog(BaseEntity):
+    """One recorded action (§60, P16-T14).
+
+    Not workspace-scoped through `WorkspaceEntity`, and that is deliberate: a
+    failed login has no workspace yet, and forcing one would either drop the
+    record or invent a tenant for it. `workspace_id` is present but nullable,
+    and indexed for the queries that do have one.
+
+    **This table is append-only by convention and by shape.** There is no
+    status to flip and no soft delete, because an audit row that can be edited
+    answers a different question from the one anybody asks it.
+    """
+
+    __tablename__ = "audit_logs"
+
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    #: Nullable for the same reason: a login attempt against an unknown address
+    #: has no user to point at, and that attempt is exactly what we want kept.
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    action: Mapped[AuditAction] = mapped_column(
+        _pg_enum(AuditAction, "audit_action"), nullable=False
+    )
+
+    #: What was acted on, as a type name and id rather than a foreign key. A
+    #: real FK would either cascade the record away when the target is deleted
+    #: — losing precisely the deletion we are recording — or block the delete.
+    target_type: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
+
+    #: Whether the action succeeded. A denied attempt is worth as much as a
+    #: successful one, and more, when someone is probing.
+    succeeded: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    #: Action-specific context. Never credentials, never a full request body —
+    #: §61 keeps secrets out of logs, and an audit table is a log.
+    context: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    __table_args__ = (
+        Index("ix_audit_logs_workspace_created", "workspace_id", "created_at"),
+        Index("ix_audit_logs_actor_created", "actor_user_id", "created_at"),
+        Index("ix_audit_logs_action_created", "action", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"AuditLog(action={self.action.value!r}, target={self.target_type!r})"
+
+
+class ModerationResult(WorkspaceEntity):
+    """One screening decision (§61, P16-T13).
+
+    Recorded even when the verdict is `ALLOWED`. "We checked and it was fine"
+    and "we never checked" look identical if only rejections are stored, and
+    the difference is the whole point of having a moderation step.
+    """
+
+    __tablename__ = "moderation_results"
+
+    target_type: Mapped[ModerationTarget] = mapped_column(
+        _pg_enum(ModerationTarget, "moderation_target"), nullable=False
+    )
+    #: The screened object. String rather than an FK for the same reason as
+    #: `AuditLog.target_id`: a prompt is not a row anywhere.
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
+
+    decision: Mapped[ModerationDecision] = mapped_column(
+        _pg_enum(ModerationDecision, "moderation_decision"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False, server_default="internal")
+
+    #: Which policies matched, as stable identifiers. Kept as a list rather
+    #: than prose so "how often does this rule fire" is a query.
+    categories: Mapped[list[str]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    #: 0.0-1.0 where the provider gives one. Absent is not zero.
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    #: A short excerpt of what matched, for a reviewer. Truncated at write
+    #: time: storing the whole of a rejected upload's text here would make this
+    #: table a second copy of the content we declined to accept.
+    excerpt: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    details: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    __table_args__ = (
+        workspace_scoped_index("moderation_results", "target_type"),
+        Index("ix_moderation_results_target_id", "target_id"),
+        CheckConstraint(
+            "score IS NULL OR (score >= 0 AND score <= 1)",
+            name="ck_moderation_results_score_range",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"ModerationResult(target={self.target_type.value!r}, decision={self.decision.value!r})"
         )

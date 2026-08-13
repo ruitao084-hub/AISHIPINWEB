@@ -14,7 +14,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from aipvs_api import __version__, health
 from aipvs_api.errors import register_exception_handlers
-from aipvs_api.middleware import RequestContextMiddleware
+from aipvs_api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from aipvs_api.v1 import api_v1_router
 from backend_core.cache import close_redis
 from backend_core.config import get_settings
@@ -90,6 +90,10 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
         expose_headers=["X-Request-ID"],
     )
+    # Added before the context middleware so it *runs after* it — the security
+    # headers are attached on the way out, over whatever the handler produced,
+    # including error responses that never reached a route (§61, P16-T10).
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestContextMiddleware)
 
     register_exception_handlers(app)

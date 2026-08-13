@@ -24,6 +24,7 @@ from anyio import to_thread
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend_core.domain.enums import (
+    ModerationTarget,
     ProjectStatus,
     ScriptStatus,
     VerificationStatus,
@@ -41,6 +42,7 @@ from backend_core.providers.creative_schemas import (
 from backend_core.providers.registry import get_llm_provider
 from backend_core.repositories.products import ProductRepository
 from backend_core.repositories.projects import ProjectRepository
+from backend_core.services.moderation import ModerationService
 from backend_core.services.product_truth import ProductTruthService
 from backend_core.services.projects import ProjectService
 
@@ -433,6 +435,17 @@ class CreativeService:
         )
         self._session.add(script)
         await self._session.flush()
+
+        # §61's screen on the narration (P16-T13). Applied here rather than at
+        # the prompt stage because §14's medical and financial rules are about
+        # what the video *says* about the product, and by the time the words
+        # have become a shot prompt that assertion is no longer in one place.
+        await ModerationService(self._session).screen(
+            document.plain_text,
+            workspace_id=project.workspace_id,
+            target=ModerationTarget.SCRIPT,
+            target_id=script.id,
+        )
 
         if project.status is ProjectStatus.CREATIVE_PLANNING:
             await self._advance(project, ProjectStatus.SCRIPTING)
