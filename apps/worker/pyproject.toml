@@ -3,7 +3,13 @@ name = "aipvs-worker"
 version = "0.0.0"
 description = "AI Product Video Studio — async job worker (Celery). Consumes the video generation, TTS and QC queues."
 requires-python = ">=3.11"
-dependencies = ["aipvs-backend-core"]
+dependencies = [
+    # `celery[redis]` pulls kombu's redis extra, which conflicts with the
+    # redis pin backend-core already carries. Plain celery plus that shared
+    # redis client is the same capability without the fight.
+    "celery>=5.6.0",
+    "aipvs-backend-core",
+]
 
 [build-system]
 requires = ["hatchling"]

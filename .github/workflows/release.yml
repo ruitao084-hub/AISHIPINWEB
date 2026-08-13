@@ -1,0 +1,207 @@
+# ===========================================================================
+# Build and publish production images (§100, P23-T02)
+# ===========================================================================
+# Builds only. **Deployment is deliberately not here.**
+#
+# §100's remaining tasks (P23-T03 managed DB, P23-T04 managed Redis, P23-T05
+# S3/R2, P23-T06 secret manager) each need a cloud account that does not exist
+# yet, and a deploy job written against an imagined target is a job nobody can
+# test — it would sit green for months and fail the first time it mattered.
+#
+# So this workflow does everything that is verifiable today: it runs the same
+# gates as CI, builds all three images, scans them, and publishes them to the
+# registry tagged with the commit. Deploying is then `docker compose pull` plus
+# the runbook, and the deploy job lands when there is a target to point it at.
+# ===========================================================================
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish"
+        required: true
+        default: "manual"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # Never cancel a publish half-way.
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # -------------------------------------------------------------------------
+  # The same gates as CI. Re-run rather than trusted from the branch build:
+  # a tag can point at a commit whose CI run predates a dependency change.
+  # -------------------------------------------------------------------------
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --frozen
+
+      - name: Lint
+        run: make lint
+
+      - name: Build
+        run: make build
+
+      - name: Type check
+        run: make typecheck
+
+      - name: Permission audit
+        run: make audit-perms
+
+      - name: Contract is current
+        run: make contract-check
+
+  # -------------------------------------------------------------------------
+  # Images
+  # -------------------------------------------------------------------------
+  images:
+    name: Build ${{ matrix.image }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: write
+      # Required to upload the vulnerability scan to the Security tab.
+      security-events: write
+
+    strategy:
+      # `fail-fast: false` so one image's failure still tells you whether the
+      # others build. Publishing two of three is safe — nothing deploys until
+      # the runbook says so.
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: infra/docker/api.Dockerfile
+          - image: worker
+            dockerfile: infra/docker/worker.Dockerfile
+          - image: web
+            dockerfile: infra/docker/web.Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}
+          tags: |
+            type=ref,event=tag
+            type=sha,format=long
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          # Loaded locally first so the scan runs against the artefact that
+          # will be pushed, not a rebuild of it.
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:sha-${{ github.sha }}
+          format: sarif
+          output: trivy-${{ matrix.image }}.sarif
+          severity: CRITICAL,HIGH
+          # Reported, not blocking. A HIGH in a base-image package with no fix
+          # available would otherwise block every release until upstream moves,
+          # which teaches people to disable the scan.
+          exit-code: "0"
+
+      - name: Upload the scan
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.image }}.sarif
+          category: image-${{ matrix.image }}
+
+      - name: Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+
+  # -------------------------------------------------------------------------
+  # Deployment (P23-T03 .. P23-T06) — not yet written.
+  # -------------------------------------------------------------------------
+  # A `deploy` job belongs here, and it needs four things that require an
+  # account somebody has to create and pay for:
+  #
+  #   P23-T03  a managed Postgres URL
+  #   P23-T04  a managed Redis URL
+  #   P23-T05  an S3 or R2 bucket and scoped credentials
+  #   P23-T06  a secret manager holding both, plus JWT_SECRET and provider keys
+  #
+  # Once those exist the job is short — pull the tag, run the migration step,
+  # roll the services — and `docs/operations/runbooks.md` §1 is the procedure
+  # it automates. It is written down there first on purpose: a deploy someone
+  # has performed by hand is a deploy that can be automated, and the reverse
+  # is how a deploy job's first real execution becomes its first test.
+  summary:
+    name: Summary
+    needs: images
+    runs-on: ubuntu-latest
+    steps:
+      - name: What was published
+        run: |
+          {
+            echo "### Images published"
+            echo
+            echo "| Image | Tag |"
+            echo "|---|---|"
+            for image in api worker web; do
+              echo "| \`$image\` | \`sha-${{ github.sha }}\` |"
+            done
+            echo
+            echo "Deployment is manual — see \`docs/operations/runbooks.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -9,6 +9,7 @@ from fastapi import APIRouter, status
 from pydantic import BaseModel, EmailStr, Field
 
 from aipvs_api.dependencies import CurrentUser, SessionDep
+from aipvs_api.v1.schemas import ApiRequest
 from backend_core.domain.enums import WorkspaceRole, permissions_for
 from backend_core.domain.models import Workspace, WorkspaceMember
 from backend_core.services.workspaces import WorkspaceService
@@ -61,20 +62,20 @@ class MemberResponse(BaseModel):
         )
 
 
-class CreateWorkspaceRequest(BaseModel):
+class CreateWorkspaceRequest(ApiRequest):
     name: str = Field(min_length=1, max_length=120)
 
 
-class UpdateWorkspaceRequest(BaseModel):
+class UpdateWorkspaceRequest(ApiRequest):
     name: str = Field(min_length=1, max_length=120)
 
 
-class AddMemberRequest(BaseModel):
+class AddMemberRequest(ApiRequest):
     email: EmailStr
     role: WorkspaceRole = WorkspaceRole.VIEWER
 
 
-class UpdateMemberRoleRequest(BaseModel):
+class UpdateMemberRoleRequest(ApiRequest):
     role: WorkspaceRole
 
 

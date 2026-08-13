@@ -15,7 +15,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
 
-from aipvs_api.dependencies import CurrentUser, SessionDep, require_permission
+from aipvs_api.dependencies import CurrentUser, SessionDep, rate_limited, require_permission
+from aipvs_api.v1.schemas import ApiRequest
 from backend_core.config import get_settings
 from backend_core.domain.enums import AssetType, Permission
 from backend_core.domain.models import MediaAsset
@@ -114,7 +115,7 @@ class UploadConfigResponse(BaseModel):
 # --- requests --------------------------------------------------------------
 
 
-class PresignRequest(BaseModel):
+class PresignRequest(ApiRequest):
     filename: str = Field(min_length=1, max_length=255)
     mime_type: str = Field(min_length=3, max_length=255)
     size_bytes: int = Field(
@@ -154,7 +155,7 @@ async def upload_config() -> UploadConfigResponse:
     response_model=PresignResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Start an upload",
-    dependencies=[require_permission(Permission.ASSET_UPLOAD)],
+    dependencies=[require_permission(Permission.ASSET_UPLOAD), rate_limited("presign")],
 )
 async def presign_upload(
     workspace_id: uuid.UUID,
@@ -186,7 +187,7 @@ async def presign_upload(
     "/uploads/{asset_id}/complete",
     response_model=MediaAssetResponse,
     summary="Finish an upload",
-    dependencies=[require_permission(Permission.ASSET_UPLOAD)],
+    dependencies=[require_permission(Permission.ASSET_UPLOAD), rate_limited("presign")],
 )
 async def complete_upload(
     workspace_id: uuid.UUID, asset_id: uuid.UUID, session: SessionDep

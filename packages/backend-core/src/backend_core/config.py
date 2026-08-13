@@ -19,8 +19,40 @@ from pydantic import Field, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AppEnv = Literal["development", "test", "staging", "production"]
-QualityMode = Literal["FAST", "STANDARD", "HIGH", "PREMIUM"]
+# QualityMode used to be declared here as a Literal. It moved to
+# `backend_core.domain.enums` in PHASE 7, where it is persisted on the
+# project row — two spellings of the same closed set is how they drift.
 MockVideoMode = Literal["success", "fail", "timeout", "slow"]
+
+#: Failure injection for the mock vision provider (§172). Each mode reaches a
+#: different branch in the caller: `malformed` is a 200 whose body fails schema
+#: validation, which must not be mistaken for a transport failure, and `empty`
+#: is a provider that worked and found nothing.
+MockVisionMode = Literal[
+    "success",
+    "unavailable",
+    "rate_limited",
+    "rejected",
+    "malformed",
+    "empty",
+]
+
+#: How much reasoning the vision model spends per call. Product analysis is
+#: description, not deduction, so the cheap end of the ladder is the honest
+#: default; the setting exists because a customer with difficult imagery can
+#: raise it without a deploy (§122).
+VisionEffort = Literal["low", "medium", "high", "xhigh", "max"]
+
+#: Failure injection for the mock LLM provider (§172). Same taxonomy as the
+#: vision mock, minus `empty` — an empty creative plan set fails schema
+#: validation rather than being a distinct outcome, so it is `malformed`.
+MockLLMMode = Literal[
+    "success",
+    "unavailable",
+    "rate_limited",
+    "rejected",
+    "malformed",
+]
 
 
 class Settings(BaseSettings):
@@ -44,6 +76,12 @@ class Settings(BaseSettings):
     # Defaults cover local development only. Production must set this
     # explicitly; a wildcard with credentials is rejected below.
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+
+    # Whether `X-Forwarded-For` may be believed (§60, §61). Off by default:
+    # the header is attacker-controlled unless a proxy is actually in front,
+    # and trusting it without one puts forged addresses into the audit trail
+    # and lets a per-IP rate limit be bypassed by setting a header.
+    trust_proxy_headers: bool = False
 
     # --- Database (§4.4) --------------------------------------------------
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/aipvs"
@@ -82,6 +120,7 @@ class Settings(BaseSettings):
     # --- AI providers (§20, §138) -----------------------------------------
     openai_api_key: SecretStr = SecretStr("")
     google_ai_api_key: SecretStr = SecretStr("")
+    anthropic_api_key: SecretStr = SecretStr("")
     runway_api_key: SecretStr = SecretStr("")
     tts_provider: str = "mock"
     tts_api_key: SecretStr = SecretStr("")
@@ -89,6 +128,46 @@ class Settings(BaseSettings):
     default_llm_provider: str = "mock"
     default_vision_provider: str = "mock"
     default_image_provider: str = "mock"
+
+    # --- Vision analysis (§14, §20) ---------------------------------------
+    #: Pinned rather than floating: §15 records the prompt version of every
+    #: call so results stay explainable, and a model that silently changed
+    #: underneath would make that record a half-truth.
+    anthropic_vision_model: str = "claude-opus-5"
+    anthropic_vision_effort: VisionEffort = "medium"
+
+    # --- Creative and script generation (§16, §17) ------------------------
+    anthropic_llm_model: str = "claude-opus-5"
+    #: Higher than the vision default: writing three genuinely distinct
+    #: concepts and a script that fits a character budget is a reasoning task,
+    #: not a description task, and the cheap tier shows.
+    anthropic_llm_effort: VisionEffort = "high"
+    llm_timeout_seconds: float = Field(default=300.0, gt=0)
+    #: §107 asks for a retry when structured output fails to parse. Two
+    #: attempts, because a third rarely helps and every one is billed.
+    llm_parse_retries: int = Field(default=1, ge=0, le=3)
+
+    # --- Video generation (§21, §22) --------------------------------------
+    runway_video_model: str = "gen4_turbo"
+    #: Runway truncates long prompts server-side; truncating here keeps what
+    #: was actually sent recorded on the provider_jobs row.
+    runway_prompt_max_chars: int = Field(default=1000, ge=100)
+    video_request_timeout_seconds: float = Field(default=60.0, gt=0)
+    #: How often a worker asks a provider how a submitted job is doing.
+    #: §26 suggests 2-5s for the *frontend*; a worker polling a paid API that
+    #: fast is just spending rate limit on an answer that has not changed.
+    video_poll_interval_seconds: float = Field(default=10.0, gt=0)
+    #: Wall-clock ceiling for one generation before the job is TIMEOUT (§161).
+    video_job_timeout_seconds: int = Field(default=1800, ge=60)
+
+    #: Cap on images per analysis call. Vision pricing is per image, and a
+    #: product with forty photographs produces an expensive request whose extra
+    #: frames add nothing — the first few cover it from every useful angle.
+    vision_max_images: int = Field(default=6, ge=1, le=20)
+    #: Wall-clock budget for one vision call, generous because a thinking model
+    #: on six images is not fast, but bounded so a hung request cannot pin a
+    #: worker thread indefinitely (§24).
+    vision_timeout_seconds: float = Field(default=180.0, gt=0)
 
     # --- Media toolchain (§4.7, §35) --------------------------------------
     ffmpeg_path: str = "ffmpeg"
@@ -134,6 +213,8 @@ class Settings(BaseSettings):
     # --- Feature flags (§122, §170) ---------------------------------------
     use_mock_providers: bool = True
     enable_real_video_provider: bool = False
+    enable_real_vision_provider: bool = False
+    enable_real_llm_provider: bool = False
     enable_qc: bool = False
     enable_credits: bool = False
     enable_multi_provider: bool = False
@@ -141,6 +222,8 @@ class Settings(BaseSettings):
 
     # --- Mock failure injection (§172) ------------------------------------
     mock_video_mode: MockVideoMode = "success"
+    mock_vision_mode: MockVisionMode = "success"
+    mock_llm_mode: MockLLMMode = "success"
 
     # -- computed ----------------------------------------------------------
 
@@ -206,12 +289,42 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _validate_provider_selection(self) -> Self:
         """A real provider must not be selected without a key to call it with."""
-        if self.use_mock_providers or not self.enable_real_video_provider:
+        if self.use_mock_providers:
             return self
-        if self.default_video_provider == "mock":
+
+        if self.enable_real_video_provider and self.default_video_provider == "mock":
             raise ValueError(
                 "ENABLE_REAL_VIDEO_PROVIDER is true but DEFAULT_VIDEO_PROVIDER is 'mock'"
             )
+
+        # Checked at boot rather than at the first analysis: a missing key
+        # discovered mid-request costs a user their upload flow, whereas one
+        # discovered here costs a deploy that was going to fail anyway.
+        if self.enable_real_llm_provider:
+            if self.default_llm_provider == "mock":
+                raise ValueError(
+                    "ENABLE_REAL_LLM_PROVIDER is true but DEFAULT_LLM_PROVIDER is 'mock'"
+                )
+            if (
+                self.default_llm_provider == "anthropic"
+                and not self.anthropic_api_key.get_secret_value()
+            ):
+                raise ValueError(
+                    "DEFAULT_LLM_PROVIDER is 'anthropic' but ANTHROPIC_API_KEY is not set"
+                )
+
+        if self.enable_real_vision_provider:
+            if self.default_vision_provider == "mock":
+                raise ValueError(
+                    "ENABLE_REAL_VISION_PROVIDER is true but DEFAULT_VISION_PROVIDER is 'mock'"
+                )
+            if (
+                self.default_vision_provider == "anthropic"
+                and not self.anthropic_api_key.get_secret_value()
+            ):
+                raise ValueError(
+                    "DEFAULT_VISION_PROVIDER is 'anthropic' but ANTHROPIC_API_KEY is not set"
+                )
         return self
 
 

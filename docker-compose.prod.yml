@@ -1,0 +1,264 @@
+# ===========================================================================
+# Production topology (§100, P23-T01 .. P23-T07)
+# ===========================================================================
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# **This file is a reference topology, not a recommended deployment.** It runs
+# every service on one host, which is fine for a pilot and wrong for anything
+# with customers: §100 asks for managed Postgres (P23-T03), managed Redis
+# (P23-T04) and S3 or R2 (P23-T05), and the reasons are backups, failover and
+# durability that a single Docker host does not have.
+#
+# So the datastores here are commented out rather than absent. Point the URLs
+# at managed services and they stay that way; uncomment them and you own the
+# backups. Which of those you have chosen is visible in one place.
+#
+# **No secrets in this file.** Every value comes from the environment, which
+# comes from a secret manager (P23-T06). A password committed here would be in
+# the repository, in every image cache, and still readable after rotation
+# (project rule 11).
+# ===========================================================================
+
+name: aipvs-prod
+
+x-python-env: &python-env
+  APP_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL to your managed Postgres}
+  REDIS_URL: ${REDIS_URL:?set REDIS_URL to your managed Redis}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:?}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:?}
+  JWT_SECRET: ${JWT_SECRET:?generate with `openssl rand -hex 32`}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_BUCKET: ${S3_BUCKET:?}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
+  CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:?set to your real frontend origin}
+  TRUST_PROXY_HEADERS: "true"
+  USE_MOCK_PROVIDERS: ${USE_MOCK_PROVIDERS:-false}
+  ENABLE_REAL_VIDEO_PROVIDER: ${ENABLE_REAL_VIDEO_PROVIDER:-false}
+  ENABLE_REAL_VISION_PROVIDER: ${ENABLE_REAL_VISION_PROVIDER:-false}
+  ENABLE_REAL_LLM_PROVIDER: ${ENABLE_REAL_LLM_PROVIDER:-false}
+  ENABLE_QC: ${ENABLE_QC:-true}
+  ENABLE_CREDITS: ${ENABLE_CREDITS:-false}
+  ENABLE_MULTI_PROVIDER: ${ENABLE_MULTI_PROVIDER:-false}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  RUNWAY_API_KEY: ${RUNWAY_API_KEY:-}
+
+x-worker: &worker
+  build:
+    context: .
+    dockerfile: infra/docker/worker.Dockerfile
+  image: aipvs-worker:${IMAGE_TAG:-latest}
+  restart: unless-stopped
+  environment: *python-env
+  # Every worker is stateless. Renders write to the container's own /tmp and
+  # the output is uploaded to storage before the task returns (§27), so a
+  # worker can be replaced mid-flight and §22's locking makes the redelivery
+  # safe.
+  stop_grace_period: 120s
+
+services:
+  # -------------------------------------------------------------------------
+  # Migrations (P23-T09). Runs to completion, then exits.
+  # -------------------------------------------------------------------------
+  # A separate service, not an application start hook: two API replicas
+  # starting together would both try to migrate and the loser would crash.
+  # `depends_on: service_completed_successfully` is what makes the API wait.
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    image: aipvs-api:${IMAGE_TAG:-latest}
+    command: ["alembic", "upgrade", "head"]
+    environment: *python-env
+    restart: "no"
+
+  # -------------------------------------------------------------------------
+  # API
+  # -------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    image: aipvs-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment: *python-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "8000"
+    # Not published to the host. Only nginx reaches it, so the API cannot be
+    # hit directly over plain HTTP even if a firewall rule is missing.
+
+  # -------------------------------------------------------------------------
+  # Web
+  # -------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        # Baked into the client bundle at build time, so this image is
+        # environment-specific and cannot be promoted from staging.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?}
+    image: aipvs-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"
+
+  # -------------------------------------------------------------------------
+  # Workers — §25's queues, one deployment each
+  # -------------------------------------------------------------------------
+  # The concurrency numbers are not interchangeable. A video job is almost
+  # entirely waiting on a provider; a render pins a CPU for minutes. One
+  # number for both either starves renders or floods them.
+  worker-video:
+    <<: *worker
+    command:
+      [
+        "celery",
+        "-A",
+        "aipvs_worker.celery_app",
+        "worker",
+        "-Q",
+        "video",
+        "--concurrency=8",
+        "-n",
+        "video@%h",
+        "--loglevel=INFO",
+      ]
+
+  worker-tts:
+    <<: *worker
+    command:
+      [
+        "celery",
+        "-A",
+        "aipvs_worker.celery_app",
+        "worker",
+        "-Q",
+        "tts",
+        "--concurrency=4",
+        "-n",
+        "tts@%h",
+        "--loglevel=INFO",
+      ]
+
+  worker-render:
+    <<: *worker
+    command:
+      [
+        "celery",
+        "-A",
+        "aipvs_worker.celery_app",
+        "worker",
+        "-Q",
+        "render",
+        "--concurrency=2",
+        "-n",
+        "render@%h",
+        "--loglevel=INFO",
+      ]
+    # Renders decode and encode video; two concurrent on a small node is
+    # already oversubscribed, and the OOM killer is the usual first symptom.
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  worker-qc:
+    <<: *worker
+    command:
+      [
+        "celery",
+        "-A",
+        "aipvs_worker.celery_app",
+        "worker",
+        "-Q",
+        "qc",
+        "--concurrency=2",
+        "-n",
+        "qc@%h",
+        "--loglevel=INFO",
+      ]
+
+  worker-default:
+    <<: *worker
+    command:
+      [
+        "celery",
+        "-A",
+        "aipvs_worker.celery_app",
+        "worker",
+        "-Q",
+        "default",
+        "--concurrency=2",
+        "-n",
+        "default@%h",
+        "--loglevel=INFO",
+      ]
+
+  # -------------------------------------------------------------------------
+  # Scheduler — exactly one (§161, P16-T15)
+  # -------------------------------------------------------------------------
+  # Two beats means two stuck-job sweeps racing over the same rows; zero means
+  # stuck jobs stay stuck and their credits stay reserved. `replicas: 1` is
+  # load-bearing, not a default.
+  beat:
+    <<: *worker
+    command:
+      ["celery", "-A", "aipvs_worker.celery_app", "beat", "--loglevel=INFO"]
+    deploy:
+      replicas: 1
+
+  # -------------------------------------------------------------------------
+  # TLS termination (P23-T07)
+  # -------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${TLS_CERT_DIR:-./infra/nginx/certs}:/etc/nginx/certs:ro
+    depends_on:
+      - api
+      - web
+
+# ---------------------------------------------------------------------------
+# Datastores — deliberately commented out (P23-T03, P23-T04, P23-T05)
+# ---------------------------------------------------------------------------
+# §100 asks for managed services, and the reason is not convenience: a Postgres
+# in this file has no automated backup, no point-in-time recovery and no
+# failover, and the first time that matters is the first time it matters.
+#
+# If you are running a pilot on one host and accept that, uncomment these and
+# read `docs/operations/production.md` §3 — you now own the backups.
+#
+#  postgres:
+#    image: postgres:17-alpine
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_USER: ${POSTGRES_USER:?}
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+#      POSTGRES_DB: ${POSTGRES_DB:-aipvs}
+#    volumes:
+#      - postgres-data:/var/lib/postgresql/data
+#
+#  redis:
+#    image: redis:7-alpine
+#    restart: unless-stopped
+#    command: ["redis-server", "--appendonly", "yes"]
+#    volumes:
+#      - redis-data:/data
+#
+# volumes:
+#   postgres-data:
+#   redis-data:

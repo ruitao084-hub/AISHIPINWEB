@@ -6,7 +6,21 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from aipvs_api.errors import ErrorResponse
-from aipvs_api.v1 import auth, uploads, workspaces
+from aipvs_api.v1 import (
+    admin,
+    auth,
+    batches,
+    branding,
+    credits,
+    editor,
+    jobs,
+    products,
+    projects,
+    renders,
+    storyboards,
+    uploads,
+    workspaces,
+)
 
 # Documented once here rather than repeated per route, so every endpoint's
 # OpenAPI entry advertises the same envelope and the generated TypeScript
@@ -19,6 +33,7 @@ COMMON_ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
     422: {"model": ErrorResponse, "description": "Validation failed"},
     500: {"model": ErrorResponse, "description": "Internal error"},
 }
+
 
 api_v1_router = APIRouter(prefix="/api/v1", responses=COMMON_ERROR_RESPONSES)
 
@@ -49,6 +64,10 @@ async def api_info() -> ApiInfo:
         features.append("mock_providers")
     if settings.enable_real_video_provider:
         features.append("real_video_provider")
+    if settings.enable_real_vision_provider:
+        features.append("real_vision_provider")
+    if settings.enable_real_llm_provider:
+        features.append("real_llm_provider")
     if settings.enable_qc:
         features.append("qc")
     if settings.enable_credits:
@@ -64,12 +83,13 @@ async def api_info() -> ApiInfo:
 api_v1_router.include_router(auth.router)
 api_v1_router.include_router(workspaces.router)
 api_v1_router.include_router(uploads.router)
-
-# Further resource routers mount here as their phases land:
-#   PHASE 5  products, brand kits
-#   PHASE 7  projects, creative plans, scripts
-#   PHASE 8  storyboards, shots
-#   PHASE 9  jobs
-#   PHASE 12 voice, subtitles
-#   PHASE 13 timelines, renders
-#   PHASE 14 quality checks
+api_v1_router.include_router(products.router)
+api_v1_router.include_router(projects.router)
+api_v1_router.include_router(storyboards.router)
+api_v1_router.include_router(jobs.router)
+api_v1_router.include_router(renders.router)
+api_v1_router.include_router(branding.router)
+api_v1_router.include_router(batches.router)
+api_v1_router.include_router(credits.router)
+api_v1_router.include_router(editor.router)
+api_v1_router.include_router(admin.router)

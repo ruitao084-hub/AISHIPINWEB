@@ -1,12 +1,11 @@
-"""Job orchestration (§22-§24).
+"""Job execution: the worker half of §22's orchestrator.
 
-Owns the async contract: create, reserve, enqueue, return 202. Then lock,
-submit, poll, ingest media, complete. Includes idempotency on
-``(workspace_id, idempotency_key)`` (§23), retry classification (§24) and the
-job state machine (§106).
-
-Celery is transport, not truth — job state lives in Postgres, so a lost
-message delays work without losing it (ADR-0004).
-
-Populated from PHASE 9.
+Kept in `backend_core` rather than in the worker app so the API and the worker
+agree on one state machine. §5.1 puts the Celery entrypoint in `apps/worker`;
+everything it calls lives here.
 """
+
+from backend_core.jobs.ingestion import ingest_provider_media
+from backend_core.jobs.runner import VideoJobRunner
+
+__all__ = ["VideoJobRunner", "ingest_provider_media"]

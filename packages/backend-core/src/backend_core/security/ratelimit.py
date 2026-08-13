@@ -84,3 +84,48 @@ async def reset_rate_limit(scope: str, identifier: str) -> None:
         await get_redis().delete(f"{_KEY_PREFIX}{scope}:{identifier}")
     except Exception:
         return
+
+
+# ---------------------------------------------------------------------------
+# §123's limits on the expensive endpoints (P16-T02)
+# ---------------------------------------------------------------------------
+#
+# Keyed by workspace rather than by IP or user. The cost these limits protect
+# against is the workspace's — a provider bill and a queue full of one tenant's
+# work — and a per-user limit would be evaded by inviting a second member.
+#
+# The numbers are generous on purpose. A limit that a normal working session
+# hits is a bug report, not a defence; these exist to stop a script, and a
+# script does thousands, not dozens.
+
+#: Product analysis: a vision call per invocation, over several images.
+ANALYZE_WORKSPACE_LIMIT: Final[RateLimit] = RateLimit(max_attempts=60, window_seconds=3600)
+#: Shot generation. The most expensive thing this platform does.
+GENERATE_WORKSPACE_LIMIT: Final[RateLimit] = RateLimit(max_attempts=200, window_seconds=3600)
+#: Composition. Cheap per call, but each one pins a CPU for minutes (§25).
+RENDER_WORKSPACE_LIMIT: Final[RateLimit] = RateLimit(max_attempts=60, window_seconds=3600)
+#: Presign. Cheap, but an unbounded stream of them is how storage fills up.
+PRESIGN_WORKSPACE_LIMIT: Final[RateLimit] = RateLimit(max_attempts=600, window_seconds=3600)
+#: LLM calls behind creative planning and scripting.
+CREATIVE_WORKSPACE_LIMIT: Final[RateLimit] = RateLimit(max_attempts=120, window_seconds=3600)
+
+
+#: Named limits, so a route declares `"generate"` rather than importing a
+#: constant and the API's dependency has one table to look them up in.
+WORKSPACE_LIMITS: Final[dict[str, RateLimit]] = {
+    "analyze": ANALYZE_WORKSPACE_LIMIT,
+    "generate": GENERATE_WORKSPACE_LIMIT,
+    "render": RENDER_WORKSPACE_LIMIT,
+    "presign": PRESIGN_WORKSPACE_LIMIT,
+    "creative": CREATIVE_WORKSPACE_LIMIT,
+}
+
+
+async def check_workspace_limit(scope: str, workspace_id: str) -> int:
+    """Apply one of §123's per-workspace limits.
+
+    Raises `KeyError` for an unknown scope rather than falling back to a
+    permissive default: a typo in a route decorator should fail loudly at the
+    first request, not silently remove the limit.
+    """
+    return await check_rate_limit(f"ws:{scope}", workspace_id, WORKSPACE_LIMITS[scope])

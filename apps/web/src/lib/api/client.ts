@@ -36,6 +36,66 @@ export type PresignRequest = Schemas["PresignRequest"];
 export type PresignResponse = Schemas["PresignResponse"];
 export type UploadConfigResponse = Schemas["UploadConfigResponse"];
 export type AssetType = Schemas["AssetType"];
+export type ProductResponse = Schemas["ProductResponse"];
+export type ProductAssetResponse = Schemas["ProductAssetResponse"];
+export type ProductFactResponse = Schemas["ProductFactResponse"];
+export type ProductClaimResponse = Schemas["ProductClaimResponse"];
+export type CreateProductRequest = Schemas["CreateProductRequest"];
+export type CreateFactRequest = Schemas["CreateFactRequest"];
+export type CreateClaimRequest = Schemas["CreateClaimRequest"];
+export type UpdateFactRequest = Schemas["UpdateFactRequest"];
+export type FactType = Schemas["FactType"];
+export type ClaimType = Schemas["ClaimType"];
+export type VerificationStatus = Schemas["VerificationStatus"];
+export type ClaimStatus = Schemas["ClaimStatus"];
+export type ProductAssetRole = Schemas["ProductAssetRole"];
+export type ProductAnalysisResponse = Schemas["ProductAnalysisResponse"];
+export type AnalysisStatus = Schemas["AnalysisStatus"];
+export type ProjectResponse = Schemas["ProjectResponse"];
+export type CreativePlanResponse = Schemas["CreativePlanResponse"];
+export type ScriptResponse = Schemas["ScriptResponse"];
+export type CreateProjectRequest = Schemas["CreateProjectRequest"];
+export type ProjectStatus = Schemas["ProjectStatus"];
+export type ProjectPurpose = Schemas["ProjectPurpose"];
+export type TargetPlatform = Schemas["TargetPlatform"];
+export type AspectRatio = Schemas["AspectRatio"];
+export type VideoStyle = Schemas["VideoStyle"];
+export type QualityMode = Schemas["QualityMode"];
+export type StoryboardResponse = Schemas["StoryboardResponse"];
+export type ShotResponse = Schemas["ShotResponse"];
+export type ShotType = Schemas["ShotType"];
+export type TransitionType = Schemas["TransitionType"];
+export type UpdateShotRequest = Schemas["UpdateShotRequest"];
+export type JobResponse = Schemas["JobResponse"];
+export type JobStatus = Schemas["JobStatus"];
+export type JobType = Schemas["JobType"];
+export type RenderResponse = Schemas["RenderResponse"];
+export type RenderStartedResponse = Schemas["RenderStartedResponse"];
+export type RenderRequest = Schemas["RenderRequest"];
+export type VoiceoverResponse = Schemas["VoiceoverResponse"];
+export type QualityCheckResponse = Schemas["QualityCheckResponse"];
+export type DownloadResponse = Schemas["DownloadResponse"];
+export type CreditAccountResponse = Schemas["CreditAccountResponse"];
+export type CreditTransactionResponse = Schemas["CreditTransactionResponse"];
+export type CostEstimateResponse = Schemas["CostEstimateResponse"];
+export type AnalyticsResponse = Schemas["AnalyticsResponse"];
+export type AdminJobResponse = Schemas["AdminJobResponse"];
+export type ProviderConfigResponse = Schemas["ProviderConfigResponse"];
+export type CapabilityResponse = Schemas["CapabilityResponse"];
+export type PromptVersionResponse = Schemas["PromptVersionResponse"];
+export type WorkspaceSummary = Schemas["WorkspaceSummary"];
+
+/** Job states that will never change again (§106). Polling stops at these. */
+export const TERMINAL_JOB_STATUSES: readonly JobStatus[] = [
+  "COMPLETED",
+  "FAILED",
+  "CANCELED",
+  "TIMEOUT",
+];
+
+export function isJobFinished(job: JobResponse): boolean {
+  return TERMINAL_JOB_STATUSES.includes(job.status);
+}
 
 /** An error carrying the API's `code`, so callers branch on it rather than text. */
 export class ApiError extends Error {
@@ -240,6 +300,444 @@ export const uploadApi = {
   get: (workspaceId: string, assetId: string) =>
     apiRequest<MediaAssetDetailResponse>(
       `/api/v1/workspaces/${workspaceId}/assets/${assetId}`,
+    ),
+};
+
+// --- Products and the Truth Layer (§13, §109) ------------------------------
+
+export const productApi = {
+  list: (workspaceId: string) =>
+    apiRequest<ProductResponse[]>(`/api/v1/workspaces/${workspaceId}/products`),
+
+  get: (workspaceId: string, productId: string) =>
+    apiRequest<ProductResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}`,
+    ),
+
+  create: (workspaceId: string, payload: CreateProductRequest) =>
+    apiRequest<ProductResponse>(`/api/v1/workspaces/${workspaceId}/products`, {
+      method: "POST",
+      body: payload,
+    }),
+
+  markReady: (workspaceId: string, productId: string) =>
+    apiRequest<ProductResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/ready`,
+      { method: "POST" },
+    ),
+
+  // -- imagery --
+  assets: (workspaceId: string, productId: string) =>
+    apiRequest<ProductAssetResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets`,
+    ),
+
+  attachAsset: (
+    workspaceId: string,
+    productId: string,
+    mediaAssetId: string,
+    assetRole: ProductAssetRole = "OTHER",
+  ) =>
+    apiRequest<ProductAssetResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets`,
+      {
+        method: "POST",
+        body: { media_asset_id: mediaAssetId, asset_role: assetRole },
+      },
+    ),
+
+  setPrimaryAsset: (workspaceId: string, productId: string, linkId: string) =>
+    apiRequest<ProductAssetResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets/${linkId}/primary`,
+      { method: "POST" },
+    ),
+
+  detachAsset: (workspaceId: string, productId: string, linkId: string) =>
+    apiRequest<void>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/assets/${linkId}`,
+      { method: "DELETE" },
+    ),
+
+  // -- facts --
+  facts: (workspaceId: string, productId: string) =>
+    apiRequest<ProductFactResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts`,
+    ),
+
+  createFact: (
+    workspaceId: string,
+    productId: string,
+    payload: CreateFactRequest,
+  ) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts`,
+      { method: "POST", body: payload },
+    ),
+
+  updateFact: (
+    workspaceId: string,
+    productId: string,
+    factId: string,
+    payload: UpdateFactRequest,
+  ) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts/${factId}`,
+      { method: "PATCH", body: payload },
+    ),
+
+  verifyFact: (workspaceId: string, productId: string, factId: string) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts/${factId}/verify`,
+      { method: "POST" },
+    ),
+
+  rejectFact: (workspaceId: string, productId: string, factId: string) =>
+    apiRequest<ProductFactResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/facts/${factId}/reject`,
+      { method: "POST" },
+    ),
+
+  // -- claims --
+  claims: (workspaceId: string, productId: string) =>
+    apiRequest<ProductClaimResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims`,
+    ),
+
+  /**
+   * §109's `get_verified_claims`: the only claims a script may use.
+   *
+   * A distinct call rather than a filter over `claims`, so "safe to broadcast"
+   * is something a caller asks for rather than something it has to remember
+   * to apply.
+   */
+  verifiedClaims: (workspaceId: string, productId: string) =>
+    apiRequest<ProductClaimResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims/verified`,
+    ),
+
+  createClaim: (
+    workspaceId: string,
+    productId: string,
+    payload: CreateClaimRequest,
+  ) =>
+    apiRequest<ProductClaimResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims`,
+      { method: "POST", body: payload },
+    ),
+
+  verifyClaim: (workspaceId: string, productId: string, claimId: string) =>
+    apiRequest<ProductClaimResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims/${claimId}/verify`,
+      { method: "POST" },
+    ),
+
+  rejectClaim: (workspaceId: string, productId: string, claimId: string) =>
+    apiRequest<ProductClaimResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/claims/${claimId}/reject`,
+      { method: "POST" },
+    ),
+
+  // -- analysis (§14) --
+
+  /**
+   * Run vision analysis over the product's images.
+   *
+   * Costs money and takes seconds, so callers must disable their trigger while
+   * it is in flight — a double-click is two billable calls. PHASE 9 moves this
+   * behind the job queue, at which point the response arrives PENDING and the
+   * client polls instead of waiting.
+   */
+  analyze: (workspaceId: string, productId: string) =>
+    apiRequest<ProductAnalysisResponse>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/analyze`,
+      { method: "POST" },
+    ),
+
+  analyses: (workspaceId: string, productId: string) =>
+    apiRequest<ProductAnalysisResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/products/${productId}/analyses`,
+    ),
+};
+
+/**
+ * Projects, creative plans and scripts (§16, §17).
+ *
+ * The two generation calls cost money and take seconds. Callers must disable
+ * their trigger while one is in flight — a double-click is two billable
+ * requests, and the API cannot tell them apart.
+ */
+export const projectApi = {
+  list: (workspaceId: string, productId?: string) =>
+    apiRequest<ProjectResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects` +
+        (productId ? `?product_id=${productId}` : ""),
+    ),
+
+  get: (workspaceId: string, projectId: string) =>
+    apiRequest<ProjectResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}`,
+    ),
+
+  create: (workspaceId: string, payload: CreateProjectRequest) =>
+    apiRequest<ProjectResponse>(`/api/v1/workspaces/${workspaceId}/projects`, {
+      method: "POST",
+      body: payload,
+    }),
+
+  // -- creative plans (§16) --
+  plans: (workspaceId: string, projectId: string) =>
+    apiRequest<CreativePlanResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-plans`,
+    ),
+
+  generatePlans: (workspaceId: string, projectId: string) =>
+    apiRequest<CreativePlanResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-plans`,
+      { method: "POST" },
+    ),
+
+  selectPlan: (workspaceId: string, projectId: string, planId: string) =>
+    apiRequest<CreativePlanResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/creative-plans/${planId}/select`,
+      { method: "POST" },
+    ),
+
+  // -- scripts (§17) --
+  scripts: (workspaceId: string, projectId: string) =>
+    apiRequest<ScriptResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/scripts`,
+    ),
+
+  generateScript: (workspaceId: string, projectId: string) =>
+    apiRequest<ScriptResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/scripts`,
+      { method: "POST" },
+    ),
+
+  approveScript: (workspaceId: string, projectId: string, scriptId: string) =>
+    apiRequest<ScriptResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/scripts/${scriptId}/approve`,
+      { method: "POST" },
+    ),
+
+  // -- storyboards (§18, §19, §29) --
+
+  storyboards: (workspaceId: string, projectId: string) =>
+    apiRequest<StoryboardResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards`,
+    ),
+
+  generateStoryboard: (workspaceId: string, projectId: string) =>
+    apiRequest<StoryboardResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards`,
+      { method: "POST" },
+    ),
+
+  shots: (workspaceId: string, projectId: string, storyboardId: string) =>
+    apiRequest<ShotResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/shots`,
+    ),
+
+  /**
+   * Edit a shot. Note what this cannot send: `visual_prompt`.
+   *
+   * §19 forbids handing a video model a sentence a user typed, so the prompt
+   * is compiled from these fields and recompiled after every edit. The API
+   * rejects a request carrying one, so a client that tried would find out
+   * rather than believe it had worked.
+   */
+  updateShot: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+    shotId: string,
+    payload: UpdateShotRequest,
+  ) =>
+    apiRequest<ShotResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/shots/${shotId}`,
+      { method: "PATCH", body: payload },
+    ),
+
+  approveStoryboard: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+  ) =>
+    apiRequest<StoryboardResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/approve`,
+      { method: "POST" },
+    ),
+};
+
+/**
+ * Generation, composition and delivery (§22, §26, §34, §37).
+ *
+ * Every write here returns a job rather than a result. §26 asks for polling
+ * and warns against reaching for WebSockets first, so `job()` is what the UI
+ * calls on an interval until `isJobFinished` is true.
+ */
+export const generationApi = {
+  // -- jobs (§22, §26) --
+
+  job: (workspaceId: string, jobId: string) =>
+    apiRequest<JobResponse>(`/api/v1/workspaces/${workspaceId}/jobs/${jobId}`),
+
+  projectJobs: (workspaceId: string, projectId: string, jobType?: JobType) =>
+    apiRequest<JobResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/jobs` +
+        (jobType ? `?job_type=${jobType}` : ""),
+    ),
+
+  cancelJob: (workspaceId: string, jobId: string) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/jobs/${jobId}/cancel`,
+      { method: "POST" },
+    ),
+
+  // -- shots (§22) --
+
+  generateShots: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+  ) =>
+    apiRequest<JobResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/generate`,
+      { method: "POST" },
+    ),
+
+  generateShot: (
+    workspaceId: string,
+    projectId: string,
+    storyboardId: string,
+    shotId: string,
+  ) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/storyboards/${storyboardId}/shots/${shotId}/generate`,
+      { method: "POST" },
+    ),
+
+  // -- voice (§30) --
+
+  voiceover: (workspaceId: string, projectId: string) =>
+    apiRequest<VoiceoverResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/voiceover`,
+    ),
+
+  generateVoiceover: (workspaceId: string, projectId: string) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/voiceover`,
+      { method: "POST" },
+    ),
+
+  // -- render (§34) --
+
+  renders: (workspaceId: string, projectId: string) =>
+    apiRequest<RenderResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders`,
+    ),
+
+  render: (workspaceId: string, projectId: string, renderId: string) =>
+    apiRequest<RenderResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders/${renderId}`,
+    ),
+
+  createRender: (
+    workspaceId: string,
+    projectId: string,
+    payload: RenderRequest = { burn_subtitles: true },
+  ) =>
+    apiRequest<RenderStartedResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders`,
+      { method: "POST", body: payload },
+    ),
+
+  // -- quality checks (§37) --
+
+  qualityChecks: (workspaceId: string, projectId: string, renderId?: string) =>
+    apiRequest<QualityCheckResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/quality-checks` +
+        (renderId ? `?render_id=${renderId}` : ""),
+    ),
+
+  runQualityCheck: (workspaceId: string, projectId: string, renderId: string) =>
+    apiRequest<JobResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/renders/${renderId}/quality-checks`,
+      { method: "POST" },
+    ),
+
+  // -- delivery (§60) --
+
+  /**
+   * A short-lived link to the finished video.
+   *
+   * Fetched on click rather than held in state: the URL expires, and a link
+   * rendered ten minutes ago would 403 by the time anyone pressed it.
+   */
+  download: (workspaceId: string, projectId: string, renderId?: string) =>
+    apiRequest<DownloadResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/download` +
+        (renderId ? `?render_id=${renderId}` : ""),
+    ),
+};
+
+/**
+ * Platform-staff endpoints (§99).
+ *
+ * Guarded server-side by `require_platform_admin`, which is a flag on the user
+ * rather than a workspace role — no role inside one workspace should confer
+ * the ability to read another's jobs. The client does not gate on it: a 403 is
+ * the answer, and a UI that hid the page would still not be a permission.
+ */
+export const adminApi = {
+  analytics: (hours = 24) =>
+    apiRequest<AnalyticsResponse>(`/api/v1/admin/analytics?hours=${hours}`),
+
+  providers: () =>
+    apiRequest<ProviderConfigResponse[]>(`/api/v1/admin/providers`),
+
+  capabilities: () =>
+    apiRequest<CapabilityResponse[]>(`/api/v1/admin/providers/capabilities`),
+
+  setProviderEnabled: (provider: string, enabled: boolean, notes?: string) =>
+    apiRequest<ProviderConfigResponse>(
+      `/api/v1/admin/providers/${provider}/enabled`,
+      { method: "POST", body: { enabled, notes: notes ?? null } },
+    ),
+
+  failedJobs: (hours = 24, limit = 50) =>
+    apiRequest<AdminJobResponse[]>(
+      `/api/v1/admin/jobs/failed?hours=${hours}&limit=${limit}`,
+    ),
+
+  workspaces: (limit = 50) =>
+    apiRequest<WorkspaceSummary[]>(`/api/v1/admin/workspaces?limit=${limit}`),
+
+  prompts: () => apiRequest<PromptVersionResponse[]>(`/api/v1/admin/prompts`),
+};
+
+/** Balance, ledger and pre-generation quotes (§95). */
+export const creditsApi = {
+  balance: (workspaceId: string) =>
+    apiRequest<CreditAccountResponse>(
+      `/api/v1/workspaces/${workspaceId}/credits`,
+    ),
+
+  transactions: (workspaceId: string, limit = 100) =>
+    apiRequest<CreditTransactionResponse[]>(
+      `/api/v1/workspaces/${workspaceId}/credits/transactions?limit=${limit}`,
+    ),
+
+  /**
+   * What generating this project will cost, before anything is spent.
+   *
+   * Reserves nothing — it is a quote. Fetched fresh each time the panel opens
+   * because the storyboard\u2019s shots, and therefore the price, change as it is
+   * edited.
+   */
+  estimate: (workspaceId: string, projectId: string) =>
+    apiRequest<CostEstimateResponse>(
+      `/api/v1/workspaces/${workspaceId}/projects/${projectId}/cost-estimate`,
     ),
 };
 

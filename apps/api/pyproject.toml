@@ -4,8 +4,14 @@ version = "0.0.0"
 description = "AI Product Video Studio — HTTP API (FastAPI)"
 requires-python = ">=3.11"
 dependencies = [
+    # The API enqueues Celery tasks the worker defines (§22).
+    "aipvs-worker",
     "aipvs-backend-core",
     "fastapi>=0.141.1",
+    # Multipart bodies, for §98's spreadsheet upload. FastAPI raises at route
+    # registration without it, so the whole app fails to build rather than the
+    # one endpoint failing at request time.
+    "python-multipart>=0.0.20",
     "pydantic>=2.13.4",
     "uvicorn[standard]>=0.52.1",
 ]

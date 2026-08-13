@@ -58,10 +58,32 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               Workspaces
             </Link>
             <Link
+              href="/app/products"
+              className="underline-offset-4 hover:underline"
+            >
+              Products
+            </Link>
+            <Link
+              href="/app/projects"
+              className="underline-offset-4 hover:underline"
+            >
+              Projects
+            </Link>
+            <Link
               href="/app/media"
               className="underline-offset-4 hover:underline"
             >
               Media
+            </Link>
+            {/* Always shown. The server answers 403 for anyone without the
+                platform-admin flag, which is the actual protection — hiding
+                the link would only be decoration, and the flag is not on the
+                user payload this layout has. */}
+            <Link
+              href="/app/admin"
+              className="underline-offset-4 hover:underline"
+            >
+              Operations
             </Link>
           </nav>
         </div>

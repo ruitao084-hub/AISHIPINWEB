@@ -7,6 +7,101 @@ are useful to know later but too small for an ADR.
 
 ---
 
+## 2026-08-12 — PHASE 5: Product + Product Truth
+
+The phase the project's credibility rests on. §13 forbids the platform from
+stating a product fact nobody confirmed, and the only way to make that hold is
+structurally — by the time a script is being written it is far too late to ask
+whether a number is real.
+
+### The rule cannot live at the point of generation
+
+That was the design decision everything else follows from. A check inside the
+script generator is a check some future code path skips, and by then the
+fabricated number is already in the database. So the guarantee is a _shape_:
+`get_verified_claims(product_id)` returns `VERIFIED` rows and nothing else,
+and there is no filtering step for a caller to forget. Written up as ADR-0008.
+
+Three rules, all in the service rather than the endpoint, because PHASE 6's
+analyser will call the same service:
+
+1. AI-sourced facts are forced to `AI_INFERRED`. A caller cannot insert a
+   pre-verified AI fact even deliberately.
+2. Promotion records who and when, with a database CHECK refusing a `VERIFIED`
+   row that has no timestamp.
+3. A claim asserting anything checkable needs a `VERIFIED` fact behind it, and
+   the cited facts must belong to the same product.
+
+`FUNCTIONAL` claims are _not_ exempt from rule 3, which is worth stating
+because it looks like an over-restriction. §13's own permitted example —
+"helps filter impurities" — is allowed only if that function has been confirmed
+as a fact. A capability claim is an evidential claim. `EMOTIONAL` is the single
+exemption: "brings a little calm to your morning" asserts nothing that could be
+substantiated.
+
+### The failure mode that decays silently
+
+Verify a fact. Verify a claim citing it. Reject the fact.
+
+Naively the claim stays `VERIFIED`, and a script goes on quoting evidence that
+has been withdrawn. Every individual step was legitimate; the result is exactly
+the fabricated statement §13 forbids. So rejecting a fact demotes every
+verified claim citing it, and editing a fact's _value_ does the same — a claim
+approved against "removes 99.9%" was not approved for "removes 50%". Editing
+only the key or type leaves verification alone, because the assertion has not
+changed.
+
+This is the kind of rule that is never missed in review and always missing in
+code, so it has its own test.
+
+### A CHECK constraint earned its place on the first run
+
+`create_fact` inserted a `VERIFIED` row and stamped `verified_at` in a _second_
+statement — so the insert hit
+`ck_product_facts_verified_facts_have_a_timestamp` immediately. The constraint
+exists precisely so a half-written verification cannot exist, and it caught its
+own author. The fix writes all three fields as part of the insert.
+
+Worth noting because the tempting reaction to a constraint that fires during
+development is to relax it. This one was right and the code was wrong.
+
+### The integration suite ran out of Postgres connections
+
+Adding PHASE 5's tests took the suite past ~100 and it started failing with
+`FATAL: sorry, too many clients already` — in tests that passed individually
+and in files that passed in pairs.
+
+Cause: engines are cached per event loop (so a Celery worker calling
+`asyncio.run` per job gets a working client — the fix from PHASE 1), and
+pytest-asyncio gives every test a fresh loop. So every test built a connection
+pool that nothing disposed. The app's lifespan disposes the pools it opens on
+_its_ loop; nothing was disposing the ones the fixture opened on the test's.
+
+The failure was latent from the moment the per-loop cache was introduced and
+became visible only at a specific test count, which is the worst kind of
+timing — it would have looked like PHASE 5 broke something unrelated.
+
+### Vocabulary the taskbook left open
+
+§10.7 and §10.8 name `fact_type`, `claim_type` and `risk_level` without
+enumerating them. Chose values organised around _what would have to be true for
+the statement to be honest_, since that is what decides whether evidence is
+required — and so that §13's dangerous category (a quantified outcome) is
+identifiable by type rather than by reading the text.
+
+`FactSourceType` is kept distinct from `VerificationStatus` on purpose: a fact
+can be `AI_VISION` in origin and `VERIFIED` in status, which is exactly the
+review workflow §13 describes. Origin is never overwritten, so "a human
+confirmed what the AI guessed" stays distinguishable from "a human typed it".
+
+### Deferred, and why
+
+`products.brand_kit_id` is in §10.5 but is not implemented. `brand_kits`
+arrives in PHASE 17, and a nullable UUID with no foreign key is an
+unconstrained column pretending to be a reference. It goes in with its table.
+
+---
+
 ## 2026-08-12 — PHASE 4: Media + Upload + Storage
 
 The phase where §116 stops being a principle and becomes a constraint the code

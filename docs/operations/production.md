@@ -1,0 +1,230 @@
+# Running this in production
+
+P16-T12. What has to be true before this platform serves a real customer, and
+what happens when each piece fails.
+
+This is written for the person on call, not for a reviewer. Every section says
+what to set, why it matters, and how you find out it is wrong.
+
+---
+
+## 1. The checklist
+
+Everything below has to be done. The ones marked **blocking** will lose data or
+leak credentials if skipped; the rest degrade the service.
+
+|     | Item                                                                   | Blocking |
+| --- | ---------------------------------------------------------------------- | -------- |
+| ☐   | `APP_ENV=production`                                                   | yes      |
+| ☐   | `JWT_SECRET` from a secret manager, ≥32 random bytes, never in git     | yes      |
+| ☐   | `CORS_ALLOW_ORIGINS` set to the real origin, no wildcard               | yes      |
+| ☐   | HTTPS terminated in front of the API, `TRUST_PROXY_HEADERS=true`       | yes      |
+| ☐   | Managed Postgres with automated backups and PITR                       | yes      |
+| ☐   | Object storage bucket **private**, no public read policy               | yes      |
+| ☐   | `USE_MOCK_PROVIDERS=false` and real provider keys present              | yes      |
+| ☐   | Migrations applied (`alembic upgrade head`) before the new code serves | yes      |
+| ☐   | `celery beat` running exactly once                                     | no       |
+| ☐   | One worker per queue with its own concurrency                          | no       |
+| ☐   | Log aggregation collecting the JSON stream                             | no       |
+| ☐   | Alerts on the four signals in §7                                       | no       |
+
+`APP_ENV=production` is not cosmetic. It disables `/docs` and `/redoc`, makes
+the refresh cookie `Secure`, and turns several config validations from warnings
+into startup failures — including the wildcard-CORS and plaintext-origin checks
+in `backend_core.config`.
+
+---
+
+## 2. Secrets
+
+Rule 11 of the project brief: **no API key, database password or secret is ever
+written into frontend code or committed to git.** The repository has a CI
+secret scan, and it is the second line of defence, not the first.
+
+Read secrets from your platform's secret manager into the process environment
+at start. Do not bake them into an image — an image is copied, cached and
+shared, and a rotated secret in a layer stays readable in the registry.
+
+| Variable                                    | Where it comes from                                                                                |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                                | secret manager; rotating it signs everyone out, which is the intended behaviour after a compromise |
+| `DATABASE_URL`                              | managed database credentials, ideally short-lived                                                  |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | scoped to the one bucket, no `s3:*` on `*`                                                         |
+| `ANTHROPIC_API_KEY`                         | vision and LLM providers                                                                           |
+| `RUNWAY_API_KEY`                            | video provider, when enabled                                                                       |
+
+Rotation for `JWT_SECRET` is a deliberate outage of every session. There is no
+key-id header on the tokens today, so a rolling rotation is not possible — plan
+it for a low-traffic window and say so in advance.
+
+---
+
+## 3. Database
+
+Managed Postgres 15 or newer. `gen_random_uuid()` is used for every primary
+key, which is built in from 13 onwards; nothing needs `pgcrypto`.
+
+**Backups.** Automated daily snapshots plus point-in-time recovery. Test a
+restore before you need one — an untested backup is a belief, not a backup.
+
+**Migrations.** `alembic upgrade head` runs as a separate step _before_ the new
+application version starts, never as an application start hook: two API
+replicas starting together would both try to migrate, and the loser crashes.
+
+Every migration in this repository has been round-tripped
+`upgrade → downgrade → upgrade` against a real database. That is what makes the
+rollback runbook a procedure rather than a hope.
+
+**What large media must never be.** Rule 15: video, image and audio bytes do
+not go in Postgres. The database stores object keys; the objects live in
+storage. A `bytea` column of video would make every backup unusable in size and
+every query slow.
+
+---
+
+## 4. Object storage
+
+S3 or an S3-compatible service (R2, MinIO). The bucket is **private**. The only
+read path is a presigned URL with a TTL, which is what `S3_SIGNED_URL_TTL_SECONDS`
+controls; 900 seconds is the default and is long enough to start a download and
+short enough that a leaked link is not a leaked video.
+
+Object keys are workspace-prefixed and generated by the platform, never by a
+client. `backend_core.storage.keys.belongs_to_workspace` is the check that
+makes a cross-tenant key request fail rather than succeed.
+
+Lifecycle rules worth setting: expire incomplete multipart uploads after a day,
+and move renders older than a quarter to infrequent access. Do **not** set an
+expiry on the objects themselves without a product decision — a customer's
+finished advert disappearing is a support incident.
+
+---
+
+## 5. Workers and queues
+
+§25 gives each kind of work its own queue because the work is differently
+shaped. Run them as separate deployments:
+
+```bash
+celery -A aipvs_worker.celery_app worker -Q video   --concurrency=8  -n video@%h
+celery -A aipvs_worker.celery_app worker -Q tts     --concurrency=4  -n tts@%h
+celery -A aipvs_worker.celery_app worker -Q render  --concurrency=2  -n render@%h
+celery -A aipvs_worker.celery_app worker -Q qc      --concurrency=2  -n qc@%h
+celery -A aipvs_worker.celery_app worker -Q default --concurrency=2  -n default@%h
+celery -A aipvs_worker.celery_app beat
+```
+
+The concurrency numbers are not interchangeable. A video job is almost entirely
+waiting on a provider, so eight per box is fine. A render pins a CPU for
+minutes, so two per core is already oversubscribed — raise it and every render
+gets slower rather than more happening at once.
+
+**`beat` runs exactly once.** It fires the stuck-job sweep (P16-T15). Two beats
+means two sweeps racing over the same rows; zero means stuck jobs stay stuck
+and their credits stay reserved.
+
+**`ffmpeg` and `ffprobe` must be on the render worker's PATH.** The render
+image installs them; a worker without them fails every render at the last step,
+after paying for all the generation.
+
+---
+
+## 6. HTTPS, headers and CORS
+
+Terminate TLS at a load balancer or ingress and set `TRUST_PROXY_HEADERS=true`
+so `X-Forwarded-For` is believed. **Only set it when a proxy is actually in
+front.** Without one, that header is attacker-controlled, and trusting it puts
+forged addresses into the audit trail and lets a per-IP rate limit be bypassed
+with a header.
+
+`SecurityHeadersMiddleware` attaches §61's headers to every response, including
+errors that never reached a route. `Strict-Transport-Security` is added only on
+an HTTPS request — sending it over plain HTTP is meaningless, and setting it in
+development would pin `localhost` to HTTPS in a developer's browser for two
+years.
+
+`CORS_ALLOW_ORIGINS` must list the real frontend origin. A wildcard with
+credentials is rejected at startup, and a plaintext `http://` origin in
+production is rejected too.
+
+---
+
+## 7. What to alert on
+
+Four signals. Each one has a specific action, which is what separates an alert
+from a dashboard.
+
+**Job failure rate above 10% over 15 minutes.** Usually a provider outage or an
+expired key. Check `job_failed` log lines grouped by `error_code`; a wall of
+`PROVIDER_UNAVAILABLE` is theirs, a wall of `PROVIDER_REJECTED` is ours.
+
+**Queue depth growing for 10 minutes.** Workers are down, or the queue's
+concurrency is below its arrival rate. `celery -A aipvs_worker.celery_app
+inspect active` shows whether anything is running at all.
+
+**Stuck jobs reaped.** `stuck_jobs_reaped` should be rare. A steady trickle
+means workers are dying mid-job — look at OOM kills on the render queue first,
+since that is where the memory goes.
+
+**5xx rate above 1%.** Every 5xx carries a `request_id`; the same id is on
+every log line of that request, which is the whole reason the correlation
+middleware exists.
+
+---
+
+## 8. Logging
+
+Structured JSON on stdout, collected by the platform. Never log to a file
+inside a container.
+
+`log_level=INFO` in production. `DEBUG` includes SQL statements, which are both
+enormous and capable of containing customer data.
+
+**What is deliberately not logged** (P16-T08, §61, §62): passwords, tokens,
+API keys, full request bodies, and provider error text verbatim. The last one
+is easy to miss — a provider's rejection message can quote a customer's own
+prompt back, so `JobResponse` exposes `error_code` and not `error_message`, and
+the audit trail's `context` column is scrubbed of credential-shaped keys before
+it is written.
+
+---
+
+## 9. Where the runbooks are
+
+- **Deploying, rolling back, restoring** — [`runbooks.md`](runbooks.md)
+  (P23-T08, P23-T09, P23-T10).
+- **What to alert on and what not to** — [`monitoring.md`](monitoring.md)
+  (P23-T11, P23-T12).
+- **Images and topology** — `infra/docker/*.Dockerfile`,
+  `docker-compose.prod.yml`, `infra/nginx/nginx.conf` (P23-T01, P23-T07).
+
+## 10. What is not built yet
+
+Four of §100's tasks need an account somebody has to create, and each is left
+as configuration rather than guessed at:
+
+|         | Task             | What it needs                               |
+| ------- | ---------------- | ------------------------------------------- |
+| P23-T03 | Managed Postgres | a provider account; set `DATABASE_URL`      |
+| P23-T04 | Managed Redis    | a provider account; set `REDIS_URL`         |
+| P23-T05 | S3 or R2         | a bucket and scoped credentials             |
+| P23-T06 | Secret manager   | a vault holding the above plus `JWT_SECRET` |
+
+`docker-compose.prod.yml` has the datastores commented out rather than absent,
+so which of these you have chosen is visible in one place. The `deploy` job in
+`.github/workflows/release.yml` is a comment for the same reason: a deploy job
+written against an imagined target sits green for months and fails the first
+time it matters.
+
+## 11. Before you go live
+
+Run once, against production, with a real product:
+
+```
+upload → analyze → verify a fact → new project → creative → script →
+storyboard → generate → voice → render → QC → download
+```
+
+That is §100's acceptance for PHASE 23, and it is the only check that exercises
+the storage credentials, the provider keys, the queues and the presigned URLs
+together. Each of those can be individually correct and collectively broken.

@@ -27,6 +27,202 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Generation volume, success rate and cost
+         * @description §99's acceptance: 生成量, 成功率, 成本, 失败率 (P22-T07, P22-T08).
+         *
+         *     Computed with aggregates rather than by loading jobs and counting in
+         *     Python. The difference does not matter at a thousand jobs and decides
+         *     whether this page loads at a million.
+         */
+        get: operations["analytics_api_v1_admin_analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jobs across every workspace
+         * @description §99's job monitor (P22-T03).
+         *
+         *     Cross-tenant, which is why this router is guarded by platform admin rather
+         *     than by a workspace role.
+         */
+        get: operations["list_jobs_api_v1_admin_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/jobs/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent failures
+         * @description §99's failure view (P22-T04).
+         *
+         *     Separate from `/jobs?status=FAILED` because it also covers `TIMEOUT`, and
+         *     because a time bound is the difference between a page that loads and one
+         *     that scans a year of history.
+         */
+        get: operations["list_failed_jobs_api_v1_admin_jobs_failed_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The prompt registry
+         * @description §15's registry, every version (P22-T06).
+         *
+         *     Read-only, and that is the design rather than an omission. §15 makes a
+         *     version immutable: a job records the key and version it sent, and an
+         *     endpoint that could edit that text would let someone change what a recorded
+         *     call *claims* to have sent. Shipping a new prompt is a deploy, which leaves
+         *     a commit; editing one through an API would not.
+         *
+         *     Superseded versions are listed alongside the active one, because the
+         *     question this view answers is usually "what did that job actually send",
+         *     and the answer is often not the current text.
+         */
+        get: operations["list_prompts_api_v1_admin_prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Provider configuration and health
+         * @description §54's config with §55's observed health folded in (P19-T04, P22-T05).
+         *
+         *     One endpoint rather than two, because the only question anyone asks here is
+         *     "which of these is working" — and answering it from two screens means
+         *     reading a config that says enabled next to a health page that says failing.
+         */
+        get: operations["list_providers_api_v1_admin_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The capability matrix
+         * @description §140's matrix (P19-T02).
+         *
+         *     Read from code rather than the database: capabilities change when a vendor
+         *     ships a model, and a row an operator could edit would let someone claim a
+         *     provider does 7-second clips when it does not.
+         */
+        get: operations["list_capabilities_api_v1_admin_providers_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/providers/{provider}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable or disable a provider
+         * @description §54's switch (P19-T07).
+         *
+         *     Enabling also clears the breaker: someone turning a provider back on means
+         *     "try this again now", and leaving a breaker open would make the switch
+         *     appear to do nothing.
+         */
+        post: operations["set_provider_enabled_api_v1_admin_providers__provider__enabled_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workspaces and what they have spent
+         * @description §99's user list (P22-T02).
+         *
+         *     Workspaces rather than users, because usage and cost are billed to a
+         *     workspace and a user in three of them is three different customers.
+         */
+        get: operations["list_workspaces_api_v1_admin_workspaces_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -231,6 +427,331 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List batches */
+        get: operations["list_batches_api_v1_workspaces__workspace_id__batches_get"];
+        put?: never;
+        /**
+         * Import a spreadsheet as a batch
+         * @description Create the batch and its items (P21-T04).
+         *
+         *     Invalid rows are stored as `INVALID` items rather than dropped, so the
+         *     count a user sees matches the file they uploaded.
+         */
+        post: operations["create_batch_api_v1_workspaces__workspace_id__batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a spreadsheet without importing it
+         * @description §98's validation preview (P21-T03).
+         *
+         *     Writes nothing. Every row's verdict is returned so a user can fix their
+         *     spreadsheet before committing to generating dozens of videos.
+         */
+        post: operations["preview_import_api_v1_workspaces__workspace_id__batches_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a batch */
+        get: operations["get_batch_api_v1_workspaces__workspace_id__batches__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a batch
+         * @description Stop a batch. Rows already running are left to finish — interrupting a
+         *     generation mid-flight wastes what has already been paid for.
+         */
+        post: operations["cancel_batch_api_v1_workspaces__workspace_id__batches__batch_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Per-row status
+         * @description §98's per-item status (P21-T06). `row_number` is the source line.
+         */
+        get: operations["list_items_api_v1_workspaces__workspace_id__batches__batch_id__items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Batch progress */
+        get: operations["batch_progress_api_v1_workspaces__workspace_id__batches__batch_id__progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry failed rows
+         * @description P21-T07. Retries `FAILED` rows only.
+         *
+         *     `INVALID` rows are not retried: their row is wrong, and running it again
+         *     produces the same wrong row. Those need a corrected file.
+         */
+        post: operations["retry_batch_api_v1_workspaces__workspace_id__batches__batch_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/batches/{batch_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start processing a batch
+         * @description Queue the first tranche (P21-T05).
+         *
+         *     Only up to `max_concurrency` items are claimed here; the worker claims the
+         *     next as each finishes. Queuing all five hundred at once would fill every
+         *     queue with one tenant's work, which is exactly what P21-T08 forbids.
+         */
+        post: operations["start_batch_api_v1_workspaces__workspace_id__batches__batch_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/brand-kits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List brand kits */
+        get: operations["list_brand_kits_api_v1_workspaces__workspace_id__brand_kits_get"];
+        put?: never;
+        /** Create a brand kit */
+        post: operations["create_brand_kit_api_v1_workspaces__workspace_id__brand_kits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/brand-kits/{brand_kit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a brand kit */
+        get: operations["get_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a brand kit
+         * @description Soft-delete. Projects made under this kit keep their reference, because
+         *     "which brand was this video made under" is asked about shipped videos.
+         */
+        delete: operations["delete_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update a brand kit */
+        patch: operations["update_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Credit balance
+         * @description The workspace's balance (P18-T08).
+         *
+         *     Creates the account on first read rather than 404ing. A workspace that has
+         *     never generated anything has no account row, and "you have no account" is a
+         *     worse answer than "you have your signup grant".
+         */
+        get: operations["get_balance_api_v1_workspaces__workspace_id__credits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/credits/grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add credits
+         * @description Top up a workspace. `BILLING_MANAGE` — owners only (§40).
+         *
+         *     Audited as a `CREDIT_ADJUSTMENT` (§60): moving money is the category of
+         *     action a trail exists for.
+         */
+        post: operations["grant_credits_api_v1_workspaces__workspace_id__credits_grant_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/credits/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Credit history
+         * @description The ledger, newest first (P18-T08).
+         *
+         *     Every movement, including reservations that were released. A history that
+         *     showed only charges would leave a user unable to explain why their
+         *     available balance dipped during a generation that failed.
+         */
+        get: operations["list_transactions_api_v1_workspaces__workspace_id__credits_transactions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Job status
+         * @description §26's polling endpoint. The frontend calls this every few seconds.
+         */
+        get: operations["get_job_api_v1_workspaces__workspace_id__jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a job
+         * @description Stop a job.
+         *
+         *     A job that already finished is returned unchanged rather than erroring: the
+         *     user wanted it stopped and it is stopped, and raising over a race they
+         *     cannot see would be pedantry.
+         */
+        post: operations["cancel_job_api_v1_workspaces__workspace_id__jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/members": {
         parameters: {
             query?: never;
@@ -283,6 +804,1035 @@ export interface paths {
          *     billed, deleted, or have its membership managed.
          */
         patch: operations["update_member_role_api_v1_workspaces__workspace_id__members__member_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List products */
+        get: operations["list_products_api_v1_workspaces__workspace_id__products_get"];
+        put?: never;
+        /**
+         * Create a product
+         * @description Create a product. Always starts in DRAFT (§104).
+         */
+        post: operations["create_product_api_v1_workspaces__workspace_id__products_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a product */
+        get: operations["get_product_api_v1_workspaces__workspace_id__products__product_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a product
+         * @description Edit descriptive fields.
+         *
+         *     `status` is deliberately not editable here — §105 forbids arbitrary status
+         *     writes, so transitions go through their own endpoints.
+         */
+        patch: operations["update_product_api_v1_workspaces__workspace_id__products__product_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/analyses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Analysis history
+         * @description Past runs, newest first, failures included.
+         *
+         *     A refused or timed-out attempt is exactly what a reviewer needs to see;
+         *     hiding it would make the product look as though nothing had been tried.
+         */
+        get: operations["list_analyses_api_v1_workspaces__workspace_id__products__product_id__analyses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyse the product's images
+         * @description Run vision analysis and file the results for review (§14).
+         *
+         *     Everything the model observes lands as an `AI_INFERRED` fact and everything
+         *     it suggests lands as a `SUGGESTED` claim — nothing here is publishable, and
+         *     the product moves to `REVIEW_REQUIRED` rather than to a ready state.
+         *
+         *     Synchronous for now, which §83 permits at this length. PHASE 9 moves it
+         *     behind the job queue, at which point this returns the analysis in `PENDING`
+         *     and the client polls.
+         */
+        post: operations["analyze_product_api_v1_workspaces__workspace_id__products__product_id__analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a product */
+        post: operations["archive_product_api_v1_workspaces__workspace_id__products__product_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a product's images */
+        get: operations["list_product_assets_api_v1_workspaces__workspace_id__products__product_id__assets_get"];
+        put?: never;
+        /**
+         * Attach an image to a product
+         * @description Attach an already-uploaded media asset (§10.6).
+         *
+         *     The first image attached becomes the primary one automatically.
+         */
+        post: operations["attach_asset_api_v1_workspaces__workspace_id__products__product_id__assets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/assets/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Detach an image
+         * @description Detach an image. The underlying file is untouched (§163 reclaims it).
+         */
+        delete: operations["detach_asset_api_v1_workspaces__workspace_id__products__product_id__assets__link_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/assets/{link_id}/primary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set the primary image */
+        post: operations["set_primary_asset_api_v1_workspaces__workspace_id__products__product_id__assets__link_id__primary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List claims */
+        get: operations["list_claims_api_v1_workspaces__workspace_id__products__product_id__claims_get"];
+        put?: never;
+        /**
+         * Propose a claim
+         * @description Propose a marketing claim. Always created SUGGESTED (§10.8).
+         */
+        post: operations["create_claim_api_v1_workspaces__workspace_id__products__product_id__claims_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/claims/verified": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Claims a script may use
+         * @description §109's `get_verified_claims`, exposed over HTTP.
+         *
+         *     A separate route rather than a query parameter, so "the claims that may be
+         *     broadcast" is a distinct thing a caller asks for rather than a filter it
+         *     has to remember to apply.
+         */
+        get: operations["list_verified_claims_api_v1_workspaces__workspace_id__products__product_id__claims_verified_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/claims/{claim_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a claim */
+        post: operations["reject_claim_api_v1_workspaces__workspace_id__products__product_id__claims__claim_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/claims/{claim_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a claim for use
+         * @description Approve a claim (§13, §109).
+         *
+         *     Refused with `CLAIM_NOT_VERIFIED` when the claim asserts something
+         *     checkable and cites no verified fact. Only EMOTIONAL claims — which assert
+         *     nothing substantiable — are exempt.
+         */
+        post: operations["verify_claim_api_v1_workspaces__workspace_id__products__product_id__claims__claim_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List product facts */
+        get: operations["list_facts_api_v1_workspaces__workspace_id__products__product_id__facts_get"];
+        put?: never;
+        /**
+         * Record a product fact
+         * @description Record something true about the product (§10.7).
+         *
+         *     Facts created here are `USER_INPUT`: this endpoint is a person typing.
+         *     The analyser's AI-sourced facts go through the same service and are forced
+         *     to `AI_INFERRED` (§13) — there is no route that can create a verified AI
+         *     fact.
+         */
+        post: operations["create_fact_api_v1_workspaces__workspace_id__products__product_id__facts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/facts/{fact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a fact
+         * @description Edit a fact, optionally re-confirming it.
+         *
+         *     Changing the value withdraws any prior verification and sends claims that
+         *     cited it back for review — they were approved against a different
+         *     statement.
+         */
+        patch: operations["update_fact_api_v1_workspaces__workspace_id__products__product_id__facts__fact_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/facts/{fact_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a fact
+         * @description Mark a fact wrong.
+         *
+         *     Any verified claim that cited it is demoted to SUGGESTED in the same
+         *     transaction — evidence withdrawn means the sentence built on it is no
+         *     longer approved.
+         */
+        post: operations["reject_fact_api_v1_workspaces__workspace_id__products__product_id__facts__fact_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/facts/{fact_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a fact
+         * @description Take responsibility for a fact (§13).
+         *
+         *     Records who confirmed it and when. This is the only way a fact becomes
+         *     usable as evidence.
+         */
+        post: operations["verify_fact_api_v1_workspaces__workspace_id__products__product_id__facts__fact_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/products/{product_id}/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a reviewed product ready
+         * @description Move a product to READY.
+         *
+         *     Refused unless at least one fact has been verified: a product with nothing
+         *     confirmed has nothing a script could truthfully say (§13).
+         */
+        post: operations["mark_product_ready_api_v1_workspaces__workspace_id__products__product_id__ready_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List projects */
+        get: operations["list_projects_api_v1_workspaces__workspace_id__projects_get"];
+        put?: never;
+        /**
+         * Start a project
+         * @description Create a project against a product. Always starts in DRAFT (§105).
+         */
+        post: operations["create_project_api_v1_workspaces__workspace_id__projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a project */
+        get: operations["get_project_api_v1_workspaces__workspace_id__projects__project_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit the brief
+         * @description Change the brief, while the project is still ahead of generation.
+         *
+         *     Refused afterwards: changing the duration once shots exist would silently
+         *     invalidate work already paid for. Move the project back a stage first.
+         */
+        patch: operations["update_project_api_v1_workspaces__workspace_id__projects__project_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a project */
+        post: operations["archive_project_api_v1_workspaces__workspace_id__projects__project_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/cost-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What generating this project will cost
+         * @description §95's pre-generation quote (P18-T07).
+         *
+         *     Estimated from the approved storyboard's actual shot durations when one
+         *     exists, and from the project's target duration when it does not — so the
+         *     number a user sees before writing a storyboard is a rough guide, and the
+         *     one they see before pressing Generate is derived from the shots that will
+         *     actually be generated.
+         *
+         *     Reserves nothing. This is a quote, and a GET that took money would be a
+         *     surprising GET.
+         */
+        get: operations["estimate_cost_api_v1_workspaces__workspace_id__projects__project_id__cost_estimate_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/creative-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List creative plans */
+        get: operations["list_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_get"];
+        put?: never;
+        /**
+         * Generate three creative directions
+         * @description Produce three directions to choose between (§16).
+         *
+         *     Built only from the product's VERIFIED facts and claims — a product with
+         *     nothing confirmed is refused with `CLAIM_NOT_VERIFIED` rather than served
+         *     with invented content.
+         *
+         *     Re-running produces a new version and clears any previous selection; the
+         *     old plans stay readable (§103 rule 9).
+         */
+        post: operations["generate_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/creative-plans/{plan_id}/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose a direction
+         * @description Pick the plan to script from (§16). Exactly one per project.
+         */
+        post: operations["select_creative_plan_api_v1_workspaces__workspace_id__projects__project_id__creative_plans__plan_id__select_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the finished video
+         * @description A presigned link to the newest finished render, or a named one.
+         *
+         *     The link is short-lived and the API does not store it. Handing back a
+         *     permanent public URL would make every finished video readable by anyone who
+         *     ever saw one link (§60).
+         */
+        get: operations["download_api_v1_workspaces__workspace_id__projects__project_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A project's jobs */
+        get: operations["list_project_jobs_api_v1_workspaces__workspace_id__projects__project_id__jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/quality-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quality check results */
+        get: operations["list_quality_checks_api_v1_workspaces__workspace_id__projects__project_id__quality_checks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/renders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every render of this project */
+        get: operations["list_renders_api_v1_workspaces__workspace_id__projects__project_id__renders_get"];
+        put?: never;
+        /**
+         * Compose the final video
+         * @description Build the timeline and queue the composition (§33, §34).
+         *
+         *     Always `202`: even when §23 returns an existing job, a `Render` row was
+         *     created for this request and the client has something new to poll.
+         */
+        post: operations["create_render_api_v1_workspaces__workspace_id__projects__project_id__renders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/renders/{render_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One render */
+        get: operations["get_render_api_v1_workspaces__workspace_id__projects__project_id__renders__render_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/renders/{render_id}/quality-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run quality checks */
+        post: operations["create_quality_check_api_v1_workspaces__workspace_id__projects__project_id__renders__render_id__quality_checks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Script history */
+        get: operations["list_scripts_api_v1_workspaces__workspace_id__projects__project_id__scripts_get"];
+        put?: never;
+        /**
+         * Generate a script
+         * @description Write a script from the selected plan (§17).
+         *
+         *     Only VERIFIED claims reach the generator (P7-T09), and which ones did is
+         *     recorded on the row. Always a new version; the previous ones stay readable.
+         */
+        post: operations["generate_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts/revise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save an edited script
+         * @description Store a human's edit as a new version (§17).
+         *
+         *     Never an update in place — history survives an edit, so a user who regrets
+         *     a change can still see what they had.
+         */
+        post: operations["revise_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_revise_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/scripts/{script_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a script
+         * @description Accept this version and supersede the rest.
+         *
+         *     PHASE 8 reads the approved script, so exactly one may hold that status —
+         *     enforced by a partial unique index, not only by this handler.
+         */
+        post: operations["approve_script_api_v1_workspaces__workspace_id__projects__project_id__scripts__script_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Storyboard history */
+        get: operations["list_storyboards_api_v1_workspaces__workspace_id__projects__project_id__storyboards_get"];
+        put?: never;
+        /**
+         * Break the script into shots
+         * @description Generate a storyboard from the project's approved script (§18).
+         *
+         *     Requires an approved script, not merely a latest one — approval is the act
+         *     by which a person accepted the words, and skipping it would make §17's
+         *     review cosmetic.
+         *
+         *     Shot durations are scaled to sum to the project's duration, and a
+         *     storyboard that still cannot fit is refused rather than stored.
+         */
+        post: operations["generate_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a storyboard
+         * @description Accept a storyboard and supersede the rest.
+         *
+         *     Re-checks §18's duration constraint and that every shot carries a compiled
+         *     prompt — this is the last moment before PHASE 9 starts spending money, and
+         *     a shot with no prompt is one the job system has nothing to send for.
+         */
+        post: operations["approve_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate every shot
+         * @description Queue every shot of an approved storyboard (§22).
+         *
+         *     `202`, not `200`: nothing has been generated when this returns. The client
+         *     polls each job id.
+         *
+         *     Shots that already have a chosen take are skipped — regenerating one is a
+         *     per-shot action (§103 rule 10), not something a bulk queue should decide.
+         */
+        post: operations["generate_shots_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/shots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a storyboard's shots */
+        get: operations["list_shots_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/shots/{shot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a shot
+         * @description Change a shot's fields; the prompt is recompiled from them (§19).
+         *
+         *     Changing the duration recomputes the storyboard's total, which is checked
+         *     again when the storyboard is approved.
+         */
+        patch: operations["update_shot_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots__shot_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/storyboards/{storyboard_id}/shots/{shot_id}/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate one shot
+         * @description §103 rule 10's one-click regeneration, for a single shot.
+         *
+         *     Returns `202` for new work and `200` when §23's idempotency returned an
+         *     existing job — the distinction matters to a client that would otherwise
+         *     count one generation as two.
+         */
+        post: operations["generate_shot_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots__shot_id__generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The editable timeline
+         * @description §33's document, as the editor sees it (P20-T01).
+         *
+         *     Composes one from the shots on first open and returns the stored one
+         *     afterwards — rebuilding every time would discard every edit the moment
+         *     somebody reopened the page.
+         */
+        get: operations["get_timeline_api_v1_workspaces__workspace_id__projects__project_id__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reorder, trim, adjust volume, style subtitles, set a logo
+         * @description Apply P20-T02 through T07 in one batch.
+         *
+         *     Batched because the operations interact: a reorder followed by a trim by
+         *     index means something different from the reverse, and two round trips would
+         *     let a second client interleave between them.
+         *
+         *     Costs nothing. No shot is touched, which is the whole of §97.
+         */
+        post: operations["apply_edits_api_v1_workspaces__workspace_id__projects__project_id__timeline_edits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline/render": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-encode the edited cut
+         * @description §97's point (P20-T08): encode the edit, generate nothing.
+         *
+         *     Queues a render job and no generation job. The clips already exist; only
+         *     the composition changed.
+         */
+        post: operations["rerender_api_v1_workspaces__workspace_id__projects__project_id__timeline_render_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/voiceover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The project's narration track */
+        get: operations["get_voiceover_api_v1_workspaces__workspace_id__projects__project_id__voiceover_get"];
+        put?: never;
+        /**
+         * Synthesise the narration
+         * @description Queue TTS for the approved storyboard (§30).
+         *
+         *     `202` for new work, `200` when §23's idempotency returned the existing job
+         *     — the same distinction the shot generation endpoints draw, for the same
+         *     reason: a client that cannot tell counts one synthesis as two.
+         */
+        post: operations["create_voiceover_api_v1_workspaces__workspace_id__projects__project_id__voiceover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Template gallery
+         * @description §57's gallery (P17-T06). Presets first, then by how often each is used.
+         */
+        get: operations["list_templates_api_v1_workspaces__workspace_id__templates_get"];
+        put?: never;
+        /** Create a template */
+        post: operations["create_template_api_v1_workspaces__workspace_id__templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a template */
+        get: operations["get_template_api_v1_workspaces__workspace_id__templates__template_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete a template */
+        delete: operations["delete_template_api_v1_workspaces__workspace_id__templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update a template */
+        patch: operations["update_template_api_v1_workspaces__workspace_id__templates__template_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/templates/{template_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Instantiate a template against a product
+         * @description §57's apply (P17-T05).
+         *
+         *     Returns the shots a storyboard *would* contain, without creating one. A
+         *     preview rather than a commit: choosing a template is a decision someone
+         *     should be able to reverse by looking at the result, and creating a
+         *     storyboard version per template tried would litter the project.
+         */
+        post: operations["apply_template_api_v1_workspaces__workspace_id__templates__template_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/templates/{template_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy a template into this workspace
+         * @description The only way to build on a preset, which is read-only everywhere.
+         */
+        post: operations["duplicate_template_api_v1_workspaces__workspace_id__templates__template_id__duplicate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/workspaces/{workspace_id}/uploads/config": {
@@ -409,6 +1959,78 @@ export interface components {
             /** @default VIEWER */
             role: components["schemas"]["WorkspaceRole"];
         };
+        /** AdminJobResponse */
+        AdminJobResponse: {
+            /** Actual Cost */
+            actual_cost: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Estimated Cost */
+            estimated_cost: number;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            job_type: components["schemas"]["JobType"];
+            /** Model */
+            model: string | null;
+            /** Provider */
+            provider: string;
+            /** Retry Count */
+            retry_count: number;
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+        };
+        /**
+         * AnalysisStatus
+         * @description Outcome of one product analysis run (§14, P6-T06).
+         *
+         *     Recorded even when it fails: §15 requires the prompt key and version of
+         *     every call, and a failed call is exactly the one someone will want to
+         *     explain later.
+         * @enum {string}
+         */
+        AnalysisStatus: "PENDING" | "SUCCEEDED" | "FAILED";
+        /**
+         * AnalyticsResponse
+         * @description §99's four numbers: volume, success rate, cost, failure rate.
+         */
+        AnalyticsResponse: {
+            /** By Job Type */
+            by_job_type: {
+                [key: string]: number;
+            };
+            /** By Provider */
+            by_provider: components["schemas"]["ProviderUsage"][];
+            /** Failed */
+            failed: number;
+            /** Failure Rate */
+            failure_rate: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Success Rate */
+            success_rate: number;
+            /** Total Jobs */
+            total_jobs: number;
+            /** Total Spend */
+            total_spend: number;
+            /** Window Hours */
+            window_hours: number;
+            /** Workspaces Active */
+            workspaces_active: number;
+        };
         /**
          * ApiInfo
          * @description What this API version is and what it can currently do.
@@ -430,17 +2052,586 @@ export interface components {
              */
             version: string;
         };
+        /** ApplyTemplateRequest */
+        ApplyTemplateRequest: {
+            /**
+             * Product Id
+             * Format: uuid
+             * @description The product to instantiate against (§57). Required: a template applied without one would be the same video every time.
+             */
+            product_id: string;
+        };
+        /**
+         * AspectRatio
+         * @description Frame shape. Stored as an enum rather than a free string because the
+         *     render pipeline (PHASE 13) resolves it to exact pixel dimensions, and
+         *     "9 : 16" versus "9:16" would be two products' worth of bugs.
+         * @enum {string}
+         */
+        AspectRatio: "9:16" | "16:9" | "1:1" | "4:5";
         /**
          * AssetType
          * @description What kind of media an asset holds (§10.17).
          * @enum {string}
          */
         AssetType: "IMAGE" | "VIDEO" | "AUDIO" | "SUBTITLE" | "DOCUMENT" | "THUMBNAIL";
+        /** AttachAssetRequest */
+        AttachAssetRequest: {
+            /** @default OTHER */
+            asset_role: components["schemas"]["ProductAssetRole"];
+            /**
+             * Is Primary
+             * @default false
+             */
+            is_primary: boolean;
+            /**
+             * Media Asset Id
+             * Format: uuid
+             */
+            media_asset_id: string;
+        };
+        /** BatchItemResponse */
+        BatchItemResponse: {
+            /** Attempts */
+            attempts: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Product Id */
+            product_id: string | null;
+            /** Project Id */
+            project_id: string | null;
+            /** Row Number */
+            row_number: number;
+            /** Source Row */
+            source_row: {
+                [key: string]: unknown;
+            };
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["BatchItemStatus"];
+            /** Validation Errors */
+            validation_errors: string[];
+        };
+        /**
+         * BatchItemStatus
+         * @description One row's progress (§98, P21-T06).
+         * @enum {string}
+         */
+        BatchItemStatus: "PENDING" | "INVALID" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "SKIPPED";
+        /** BatchProgressResponse */
+        BatchProgressResponse: {
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Completed */
+            completed: number;
+            /** Failed */
+            failed: number;
+            /** Finished */
+            finished: boolean;
+            /** Invalid */
+            invalid: number;
+            /** Pending */
+            pending: number;
+            /** Running */
+            running: number;
+            /** Total */
+            total: number;
+        };
+        /** BatchResponse */
+        BatchResponse: {
+            /** Brand Kit Id */
+            brand_kit_id: string | null;
+            /** Completed Items */
+            completed_items: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Message */
+            error_message: string | null;
+            /** Failed Items */
+            failed_items: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Max Concurrency */
+            max_concurrency: number;
+            /** Name */
+            name: string;
+            /** Source Filename */
+            source_filename: string | null;
+            /** Source Format */
+            source_format: string;
+            status: components["schemas"]["BatchStatus"];
+            /** Template Id */
+            template_id: string | null;
+            /** Total Items */
+            total_items: number;
+        };
+        /**
+         * BatchStatus
+         * @description Where a bulk import has got to (§98, P21-T04).
+         *
+         *     `VALIDATING` and `READY` are distinct from `RUNNING` because §98 asks for a
+         *     validation *preview*: the rows are parsed and checked before anybody
+         *     commits to generating dozens of videos, and a batch that went straight from
+         *     upload to running would spend money on rows a person would have rejected.
+         * @enum {string}
+         */
+        BatchStatus: "DRAFT" | "VALIDATING" | "READY" | "RUNNING" | "PAUSED" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELED";
+        /**
+         * BlueprintSlot
+         * @description One shot's shape, before a product fills it in (§57).
+         */
+        BlueprintSlot: {
+            /**
+             * Camera
+             * @default
+             */
+            camera: string;
+            /**
+             * Composition
+             * @default
+             */
+            composition: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /**
+             * Identity Lock
+             * @default true
+             */
+            identity_lock: boolean;
+            /** Intent */
+            intent: string;
+            /**
+             * Lighting
+             * @default
+             */
+            lighting: string;
+            /**
+             * Motion
+             * @default
+             */
+            motion: string;
+            /**
+             * Narration Template
+             * @default
+             */
+            narration_template: string;
+            /** Sequence No */
+            sequence_no: number;
+            shot_type: components["schemas"]["ShotType"];
+        };
+        /** Body_create_batch_api_v1_workspaces__workspace_id__batches_post */
+        Body_create_batch_api_v1_workspaces__workspace_id__batches_post: {
+            /** Brand Kit Id */
+            brand_kit_id?: string | null;
+            /** File */
+            file: string;
+            /**
+             * Max Concurrency
+             * @default 3
+             */
+            max_concurrency: number;
+            /** Name */
+            name: string;
+            /** Template Id */
+            template_id?: string | null;
+        };
+        /** Body_preview_import_api_v1_workspaces__workspace_id__batches_preview_post */
+        Body_preview_import_api_v1_workspaces__workspace_id__batches_preview_post: {
+            /**
+             * File
+             * @description A .csv or .xlsx file.
+             */
+            file: string;
+        };
+        /** BrandKitRequest */
+        BrandKitRequest: {
+            /** Banned Phrases */
+            banned_phrases?: string[];
+            /** Description */
+            description?: string | null;
+            /** Ending Cta */
+            ending_cta?: string | null;
+            /** Ending Line */
+            ending_line?: string | null;
+            /** Font Family */
+            font_family?: string | null;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+            /** Logo Asset Id */
+            logo_asset_id?: string | null;
+            /** @default BOTTOM_RIGHT */
+            logo_position: components["schemas"]["LogoPosition"];
+            /** Name */
+            name: string;
+            /** Primary Color */
+            primary_color?: string | null;
+            /** Required Phrases */
+            required_phrases?: string[];
+            /** Secondary Color */
+            secondary_color?: string | null;
+            /** Subtitle Color */
+            subtitle_color?: string | null;
+            /** @default PROFESSIONAL */
+            tone: components["schemas"]["BrandTone"];
+            /** Visual Guidelines */
+            visual_guidelines?: string | null;
+        };
+        /** BrandKitResponse */
+        BrandKitResponse: {
+            /** Banned Phrases */
+            banned_phrases: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /** Ending Cta */
+            ending_cta: string | null;
+            /** Ending Line */
+            ending_line: string | null;
+            /** Font Family */
+            font_family: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Logo Asset Id */
+            logo_asset_id: string | null;
+            logo_position: components["schemas"]["LogoPosition"];
+            /** Name */
+            name: string;
+            /** Primary Color */
+            primary_color: string | null;
+            /** Required Phrases */
+            required_phrases: string[];
+            /** Secondary Color */
+            secondary_color: string | null;
+            /** Subtitle Color */
+            subtitle_color: string | null;
+            tone: components["schemas"]["BrandTone"];
+            /** Visual Guidelines */
+            visual_guidelines: string | null;
+        };
+        /**
+         * BrandTone
+         * @description How a brand speaks (§58).
+         *
+         *     §58 is explicit that a Brand Kit is not a logo uploader — it must reach
+         *     creative, script, prompt, subtitles and the ending. Tone is the part that
+         *     reaches the *words*, so it is a field rather than a note, and the generator
+         *     receives it as an instruction rather than as decoration.
+         * @enum {string}
+         */
+        BrandTone: "PROFESSIONAL" | "FRIENDLY" | "LUXURY" | "PLAYFUL" | "TECHNICAL" | "WARM" | "BOLD";
+        /**
+         * CapabilityResponse
+         * @description §140's schema, as the admin sees it (P19-T02).
+         */
+        CapabilityResponse: {
+            /** Audio */
+            audio: boolean;
+            /** Cancel */
+            cancel: boolean;
+            /** Cost Per Second */
+            cost_per_second: number;
+            /**
+             * Durations
+             * @description Exact lengths offered. Empty means continuous up to the maximum.
+             */
+            durations: number[];
+            /** Image To Video */
+            image_to_video: boolean;
+            /** Max Duration Seconds */
+            max_duration_seconds: number;
+            /** Max Reference Images */
+            max_reference_images: number;
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Quality Modes */
+            quality_modes: string[];
+            /** Ratios */
+            ratios: string[];
+            /** Reference Images */
+            reference_images: boolean;
+            /** Resolutions */
+            resolutions: string[];
+            /** Text To Video */
+            text_to_video: boolean;
+            /** Typical Latency Seconds */
+            typical_latency_seconds: number;
+            /** Webhook */
+            webhook: boolean;
+        };
+        /**
+         * ClaimRiskLevel
+         * @description How much substantiation a claim needs before it is safe to broadcast.
+         *
+         *     Recorded per claim so the review UI can order the queue by consequence:
+         *     an unverified `HIGH` claim about infant safety deserves attention before a
+         *     `LOW` one about colour.
+         * @enum {string}
+         */
+        ClaimRiskLevel: "LOW" | "MEDIUM" | "HIGH";
+        /**
+         * ClaimStatus
+         * @description Whether a claim may be used (§10.8).
+         *
+         *     §109 is unambiguous: only `VERIFIED` claims reach a script.
+         * @enum {string}
+         */
+        ClaimStatus: "SUGGESTED" | "VERIFIED" | "REJECTED";
+        /**
+         * ClaimType
+         * @description What a marketing claim asserts (§10.8).
+         *
+         *     Not enumerated by the taskbook. The split is by *what would have to be
+         *     true* for the claim to be honest, because that is what decides whether it
+         *     needs a verified fact behind it (§13, §109).
+         * @enum {string}
+         */
+        ClaimType: "FUNCTIONAL" | "PERFORMANCE" | "COMPARATIVE" | "CERTIFICATION" | "SAFETY" | "EMOTIONAL";
+        /**
+         * CostEstimateResponse
+         * @description A quote, and whether the workspace can cover it (P18-T07).
+         */
+        CostEstimateResponse: {
+            /**
+             * Affordable
+             * @description Whether `maximum` fits in the available balance right now.
+             */
+            affordable: boolean;
+            /** Available */
+            available: number;
+            /**
+             * Expected
+             * @description What this is likely to cost.
+             */
+            expected: number;
+            /** Lines */
+            lines: components["schemas"]["CostLine"][];
+            /**
+             * Maximum
+             * @description What will be reserved. Higher than `expected` because providers round up and a retry costs again.
+             */
+            maximum: number;
+        };
+        /** CostLine */
+        CostLine: {
+            /** Credits */
+            credits: number;
+            /** Label */
+            label: string;
+        };
+        /** CreateClaimRequest */
+        CreateClaimRequest: {
+            /** Claim Text */
+            claim_text: string;
+            claim_type: components["schemas"]["ClaimType"];
+            risk_level?: components["schemas"]["ClaimRiskLevel"] | null;
+            /** Source Fact Ids */
+            source_fact_ids?: string[];
+        };
+        /** CreateFactRequest */
+        CreateFactRequest: {
+            fact_type: components["schemas"]["FactType"];
+            /** Key */
+            key: string;
+            /** Source Asset Id */
+            source_asset_id?: string | null;
+            /** Value Json */
+            value_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Value Text */
+            value_text: string;
+            /**
+             * Verify
+             * @description Confirm the fact as you create it. Only honoured for facts a user supplied — AI-sourced facts are always AI_INFERRED (§13).
+             * @default false
+             */
+            verify: boolean;
+        };
+        /** CreateProductRequest */
+        CreateProductRequest: {
+            /** Brand Name */
+            brand_name?: string | null;
+            /** Category */
+            category: string;
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /** Sku */
+            sku?: string | null;
+        };
+        /** CreateProjectRequest */
+        CreateProjectRequest: {
+            /** @default 9:16 */
+            aspect_ratio: components["schemas"]["AspectRatio"];
+            /**
+             * Duration Seconds
+             * @default 30
+             */
+            duration_seconds: number;
+            /**
+             * Language
+             * @default zh-CN
+             */
+            language: string;
+            /** Name */
+            name: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** @default SOCIAL_AD */
+            purpose: components["schemas"]["ProjectPurpose"];
+            /** @default STANDARD */
+            quality_mode: components["schemas"]["QualityMode"];
+            /** @default CLEAN_MINIMAL */
+            style: components["schemas"]["VideoStyle"];
+            /** Target Audience */
+            target_audience?: string | null;
+            /** @default DOUYIN */
+            target_platform: components["schemas"]["TargetPlatform"];
+        };
         /** CreateWorkspaceRequest */
         CreateWorkspaceRequest: {
             /** Name */
             name: string;
         };
+        /** CreatedBatchResponse */
+        CreatedBatchResponse: {
+            batch: components["schemas"]["BatchResponse"];
+            preview: components["schemas"]["PreviewResponse"];
+        };
+        /** CreativePlanResponse */
+        CreativePlanResponse: {
+            /** Camera Direction */
+            camera_direction: string;
+            /** Concept */
+            concept: string;
+            /** Core Message */
+            core_message: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Ending Cta */
+            ending_cta: string;
+            /** Hook */
+            hook: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Music Direction */
+            music_direction: string;
+            /** Narrative Structure */
+            narrative_structure: string;
+            /**
+             * Risk Notes
+             * @description Where the model flagged something a human should check before filming — a claim it wanted and did not have, or a direction resting on something unstated (§16).
+             */
+            risk_notes: string;
+            /** Selected */
+            selected: boolean;
+            /** Title */
+            title: string;
+            /** Version */
+            version: number;
+            /** Visual Direction */
+            visual_direction: string;
+        };
+        /** CreditAccountResponse */
+        CreditAccountResponse: {
+            /**
+             * Available
+             * @description What a new job may be charged against.
+             */
+            available: number;
+            /**
+             * Balance
+             * @description Credits held, including reserved.
+             */
+            balance: number;
+            /** Lifetime Granted */
+            lifetime_granted: number;
+            /** Lifetime Spent */
+            lifetime_spent: number;
+            /**
+             * Reserved
+             * @description The part already promised to jobs in flight.
+             */
+            reserved: number;
+        };
+        /** CreditTransactionResponse */
+        CreditTransactionResponse: {
+            /**
+             * Amount
+             * @description Always positive; the type says which way it moved.
+             */
+            amount: number;
+            /** Balance After */
+            balance_after: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Id */
+            job_id: string | null;
+            /** Reserved After */
+            reserved_after: number;
+            transaction_type: components["schemas"]["CreditTransactionType"];
+        };
+        /**
+         * CreditTransactionType
+         * @description Why credits moved (§10.29, PHASE 18).
+         *
+         *     Reserve, capture and release are three separate rows rather than one
+         *     mutated balance, because §95's acceptance — no double charge, no negative
+         *     balance, no charge on failure — is only checkable if each step left a
+         *     record. A single `balance` column can be wrong; a ledger that disagrees
+         *     with its own sum cannot hide.
+         * @enum {string}
+         */
+        CreditTransactionType: "GRANT" | "RESERVE" | "CAPTURE" | "RELEASE" | "REFUND" | "ADJUSTMENT" | "EXPIRY";
         /**
          * DependencyStatus
          * @description Result of a single readiness probe.
@@ -452,6 +2643,35 @@ export interface components {
             name: string;
             /** Ready */
             ready: boolean;
+        };
+        /**
+         * DownloadResponse
+         * @description A time-limited link to the finished video (§60).
+         */
+        DownloadResponse: {
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /**
+             * Url
+             * @description Presigned URL. Expires; do not store it.
+             */
+            url: string;
+        };
+        /** DuplicateTemplateRequest */
+        DuplicateTemplateRequest: {
+            /** Name */
+            name?: string | null;
+        };
+        /** EditRequest */
+        EditRequest: {
+            /** Operations */
+            operations: (components["schemas"]["ReorderShots"] | components["schemas"]["TrimClip"] | components["schemas"]["SetTrackGain"] | components["schemas"]["SetSubtitleStyle"] | components["schemas"]["SetLogo"])[];
         };
         /**
          * ErrorCode
@@ -492,6 +2712,45 @@ export interface components {
             error: components["schemas"]["ErrorDetail"];
         };
         /**
+         * FactSourceType
+         * @description Where a fact came from (§10.7).
+         *
+         *     Distinct from :class:`VerificationStatus`, which is how much it is
+         *     trusted. A fact can be `AI_VISION` in origin and `VERIFIED` in status —
+         *     that is precisely the review workflow §13 describes — but the origin is
+         *     never overwritten, so "a human confirmed something the AI guessed" stays
+         *     distinguishable from "a human typed it in".
+         * @enum {string}
+         */
+        FactSourceType: "USER_INPUT" | "AI_VISION" | "AI_TEXT" | "DOCUMENT" | "IMPORT";
+        /**
+         * FactType
+         * @description What kind of thing a product fact asserts (§10.7).
+         *
+         *     The taskbook names ``fact_type`` without enumerating it. These values are
+         *     chosen so that the *risky* categories are separable: §13's forbidden
+         *     example ("除甲醛率 99.9%") is a `PERFORMANCE` fact, and being able to
+         *     identify that class by type is what lets the claim rules treat it more
+         *     strictly than, say, a colour.
+         * @enum {string}
+         */
+        FactType: "SPEC" | "MATERIAL" | "FEATURE" | "PERFORMANCE" | "CERTIFICATION" | "INGREDIENT" | "COMPATIBILITY" | "WARRANTY" | "PRICING" | "APPEARANCE" | "OTHER";
+        /** GrantRequest */
+        GrantRequest: {
+            /** Amount */
+            amount: number;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Idempotency Key
+             * @description Required. A grant has no natural id, so this key is the only thing between a retried purchase webhook and a doubled balance.
+             */
+            idempotency_key: string;
+        };
+        /**
          * HealthResponse
          * @description Liveness payload.
          */
@@ -513,6 +2772,93 @@ export interface components {
              */
             version: string;
         };
+        /** InstantiatedShotResponse */
+        InstantiatedShotResponse: {
+            /** Camera */
+            camera: string;
+            /** Composition */
+            composition: string;
+            /** Description */
+            description: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Identity Lock */
+            identity_lock: boolean;
+            /** Lighting */
+            lighting: string;
+            /** Motion */
+            motion: string;
+            /** Sequence No */
+            sequence_no: number;
+            /** Shot Type */
+            shot_type: string;
+            /** Voiceover Text */
+            voiceover_text: string;
+        };
+        /** JobResponse */
+        JobResponse: {
+            /** Actual Cost */
+            actual_cost: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Estimated Cost */
+            estimated_cost: number;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            job_type: components["schemas"]["JobType"];
+            /** Max Retries */
+            max_retries: number;
+            /** Model */
+            model: string | null;
+            /**
+             * Progress
+             * @description 0-100, advisory. Most providers report coarsely or not at all, and a smooth bar over work we cannot see would be a lie.
+             */
+            progress: number;
+            /** Project Id */
+            project_id: string | null;
+            /** Provider */
+            provider: string;
+            /** Result Asset Id */
+            result_asset_id: string | null;
+            /** Retry Count */
+            retry_count: number;
+            /** Shot Id */
+            shot_id: string | null;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["JobStatus"];
+        };
+        /**
+         * JobStatus
+         * @description §106's job machine.
+         *
+         *     `SUBMITTED` and `PROCESSING` are distinct on purpose: the first means a
+         *     provider accepted the request, the second that it reports work underway.
+         *     Losing the distinction would make "the provider never answered" and "the
+         *     provider is slow" the same incident.
+         * @enum {string}
+         */
+        JobStatus: "CREATED" | "QUEUED" | "SUBMITTED" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELED" | "TIMEOUT";
+        /**
+         * JobType
+         * @description What a job is for (§10.15).
+         *
+         *     One table for every long task, because §22 routes them all through the same
+         *     orchestrator. The type picks the queue and the worker, not the schema.
+         * @enum {string}
+         */
+        JobType: "VIDEO_GENERATION" | "IMAGE_GENERATION" | "TTS" | "RENDER" | "QC" | "PRODUCT_ANALYSIS";
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -523,6 +2869,12 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * LogoPosition
+         * @description Where a logo sits when one is burned in (§58, §34).
+         * @enum {string}
+         */
+        LogoPosition: "TOP_LEFT" | "TOP_RIGHT" | "BOTTOM_LEFT" | "BOTTOM_RIGHT" | "NONE";
         /**
          * MediaAssetDetailResponse
          * @description An asset plus a short-lived URL to fetch it (§110).
@@ -674,6 +3026,389 @@ export interface components {
             upload_url: string;
         };
         /**
+         * PreviewResponse
+         * @description What an import would do, before it does it (P21-T03).
+         */
+        PreviewResponse: {
+            /** Invalid Rows */
+            invalid_rows: number;
+            /** Max Rows */
+            max_rows: number;
+            /**
+             * Missing Columns
+             * @description Required columns absent from the file. Fatal for the whole import.
+             */
+            missing_columns: string[];
+            /** Required Columns */
+            required_columns: string[];
+            /** Rows */
+            rows: components["schemas"]["RowPreview"][];
+            /** Total Rows */
+            total_rows: number;
+            /**
+             * Unknown Columns
+             * @description Columns the importer does not understand. Reported rather than ignored — a misspelled header is silently dropped data otherwise.
+             */
+            unknown_columns: string[];
+            /** Valid Rows */
+            valid_rows: number;
+        };
+        /** ProductAnalysisResponse */
+        ProductAnalysisResponse: {
+            /** Analyzed Asset Ids */
+            analyzed_asset_ids: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created Claim Count */
+            created_claim_count: number;
+            /** Created Fact Count */
+            created_fact_count: number;
+            /** Error Code */
+            error_code: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Input Tokens */
+            input_tokens: number | null;
+            /** Latency Ms */
+            latency_ms: number | null;
+            /** Model */
+            model: string | null;
+            /** Output Tokens */
+            output_tokens: number | null;
+            /**
+             * Prompt Key
+             * @description Which registered prompt produced this result (§15).
+             */
+            prompt_key: string;
+            /** Prompt Version */
+            prompt_version: number;
+            /** Provider */
+            provider: string;
+            status: components["schemas"]["AnalysisStatus"];
+        };
+        /** ProductAssetResponse */
+        ProductAssetResponse: {
+            asset_role: components["schemas"]["ProductAssetRole"];
+            /** Height */
+            height: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Primary */
+            is_primary: boolean;
+            /**
+             * Media Asset Id
+             * Format: uuid
+             */
+            media_asset_id: string;
+            /** Original Filename */
+            original_filename: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Width */
+            width: number | null;
+        };
+        /**
+         * ProductAssetRole
+         * @description What a product image shows (§10.6).
+         *
+         *     The role is not decoration: PHASE 8's prompt compiler picks reference
+         *     imagery by role, so "the front of the product" has to be answerable
+         *     without a human looking at the picture.
+         * @enum {string}
+         */
+        ProductAssetRole: "FRONT" | "SIDE" | "BACK" | "ANGLE_45" | "PACKAGING" | "LOGO" | "DETAIL" | "MATERIAL" | "SCENE" | "STRUCTURE" | "OTHER";
+        /** ProductClaimResponse */
+        ProductClaimResponse: {
+            /** Claim Text */
+            claim_text: string;
+            claim_type: components["schemas"]["ClaimType"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            risk_level: components["schemas"]["ClaimRiskLevel"];
+            /** Source Fact Ids */
+            source_fact_ids: string[];
+            /** @description Only VERIFIED claims may be used in a generated script (§109). */
+            status: components["schemas"]["ClaimStatus"];
+            /** Verified At */
+            verified_at: string | null;
+        };
+        /** ProductFactResponse */
+        ProductFactResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            fact_type: components["schemas"]["FactType"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Source Asset Id */
+            source_asset_id: string | null;
+            source_type: components["schemas"]["FactSourceType"];
+            /** Value Json */
+            value_json: {
+                [key: string]: unknown;
+            } | null;
+            /** Value Text */
+            value_text: string;
+            /** @description Only VERIFIED facts may back a claim or reach a generated script (§13). Anything the AI produced is AI_INFERRED until a person confirms it. */
+            verification_status: components["schemas"]["VerificationStatus"];
+            /** Verified At */
+            verified_at: string | null;
+        };
+        /** ProductResponse */
+        ProductResponse: {
+            /** Ai Summary */
+            ai_summary: string | null;
+            /** Brand Name */
+            brand_name: string | null;
+            /** Category */
+            category: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Sku */
+            sku: string | null;
+            status: components["schemas"]["ProductStatus"];
+            /** Visual Dna */
+            visual_dna: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ProductStatus
+         * @description Where a product sits in its lifecycle (§104).
+         *
+         *     Transitions are validated by :func:`can_transition_product`; §105 forbids
+         *     writing a status by assignment, and the same rule is applied here.
+         * @enum {string}
+         */
+        ProductStatus: "DRAFT" | "ASSETS_READY" | "ANALYZING" | "REVIEW_REQUIRED" | "READY" | "ARCHIVED";
+        /**
+         * ProjectPurpose
+         * @description What the video is for (§10.9, §16).
+         *
+         *     Feeds the creative prompt, so these are not cosmetic: a launch film and a
+         *     marketplace listing want different structures from the same product.
+         * @enum {string}
+         */
+        ProjectPurpose: "LAUNCH" | "ECOMMERCE_LISTING" | "SOCIAL_AD" | "BRAND_STORY" | "FEATURE_HIGHLIGHT" | "TUTORIAL" | "OTHER";
+        /** ProjectResponse */
+        ProjectResponse: {
+            aspect_ratio: components["schemas"]["AspectRatio"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Failure Reason */
+            failure_reason: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Language */
+            language: string;
+            /** Name */
+            name: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            purpose: components["schemas"]["ProjectPurpose"];
+            quality_mode: components["schemas"]["QualityMode"];
+            status: components["schemas"]["ProjectStatus"];
+            style: components["schemas"]["VideoStyle"];
+            /** Target Audience */
+            target_audience: string | null;
+            target_platform: components["schemas"]["TargetPlatform"];
+        };
+        /**
+         * ProjectStatus
+         * @description Where a video project has got to (§10.9, §105).
+         *
+         *     Longer than the product's machine because a project *is* the pipeline: each
+         *     state names a stage that can fail on its own and be resumed on its own.
+         * @enum {string}
+         */
+        ProjectStatus: "DRAFT" | "ANALYZING" | "CREATIVE_PLANNING" | "SCRIPTING" | "STORYBOARDING" | "GENERATING" | "COMPOSITING" | "QC" | "READY" | "FAILED" | "ARCHIVED";
+        /** PromptVersionResponse */
+        PromptVersionResponse: {
+            /**
+             * Active
+             * @description Whether this is the version now being sent.
+             */
+            active: boolean;
+            /** Characters */
+            characters: number;
+            /** Key */
+            key: string;
+            /** Text */
+            text: string;
+            /** Version */
+            version: number;
+        };
+        /** ProviderConfigResponse */
+        ProviderConfigResponse: {
+            /**
+             * Attempts
+             * @default 0
+             */
+            attempts: number;
+            /**
+             * Circuit Open Until
+             * @description Set by the breaker, not by an operator. Null means closed.
+             */
+            circuit_open_until: string | null;
+            /** Circuit Trip Count */
+            circuit_trip_count: number;
+            /**
+             * Consecutive Failures
+             * @default 0
+             */
+            consecutive_failures: number;
+            /** Cost Per Second */
+            cost_per_second: number | null;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Failure Rate
+             * @default 0
+             */
+            failure_rate: number;
+            /**
+             * Failures
+             * @default 0
+             */
+            failures: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Max Concurrency */
+            max_concurrency: number | null;
+            /** Model */
+            model: string;
+            /** Notes */
+            notes: string | null;
+            /** Priority */
+            priority: number;
+            /** Provider */
+            provider: string;
+            /**
+             * Quality Score
+             * @description 0.0-1.0 from §37's checks over the last 30 days (§101). 1.0 when nothing has been judged — unknown reads as good, so a newly enabled provider is tried rather than buried.
+             * @default 1
+             */
+            quality_score: number;
+        };
+        /** ProviderUsage */
+        ProviderUsage: {
+            /** Failed */
+            failed: number;
+            /** Provider */
+            provider: string;
+            /** Spend */
+            spend: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Success Rate */
+            success_rate: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * QCCheckType
+         * @description §37's two families.
+         *
+         *     `TECHNICAL` is decidable — a file either decodes or it does not. `VISUAL`
+         *     is a model's opinion, and §37.2 exists because the technical checks pass
+         *     happily on a video of the wrong product.
+         * @enum {string}
+         */
+        QCCheckType: "TECHNICAL" | "VISUAL";
+        /**
+         * QCStatus
+         * @description The outcome of one quality check.
+         *
+         *     `WARNING` is distinct from `FAILED` on purpose: a clip two frames short of
+         *     its target is worth showing a person and not worth blocking a delivery on,
+         *     and collapsing the two would force every borderline result to be either
+         *     ignored or fatal.
+         * @enum {string}
+         */
+        QCStatus: "PASSED" | "WARNING" | "FAILED";
+        /** QualityCheckResponse */
+        QualityCheckResponse: {
+            check_type: components["schemas"]["QCCheckType"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Findings */
+            findings: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Render Id */
+            render_id: string | null;
+            /** Shot Id */
+            shot_id: string | null;
+            status: components["schemas"]["QCStatus"];
+        };
+        /**
+         * QualityMode
+         * @description Cost/quality tier (§10.9, §138). Drives provider and model selection in
+         *     PHASE 19 and the credit price in PHASE 18.
+         * @enum {string}
+         */
+        QualityMode: "FAST" | "STANDARD" | "HIGH" | "PREMIUM";
+        /**
          * ReadyResponse
          * @description Readiness payload.
          */
@@ -683,6 +3418,16 @@ export interface components {
             /** Ready */
             ready: boolean;
         };
+        /**
+         * ReferenceRole
+         * @description Why an image is attached to a shot (§10.14).
+         *
+         *     `IDENTITY` is the load-bearing one: those are the frames §29 says the
+         *     generated product must match, and PHASE 14's QC compares against exactly
+         *     this set.
+         * @enum {string}
+         */
+        ReferenceRole: "IDENTITY" | "STYLE" | "COMPOSITION" | "ENVIRONMENT" | "OTHER";
         /** RegisterRequest */
         RegisterRequest: {
             /** Display Name */
@@ -697,6 +3442,539 @@ export interface components {
              * @description At least 12 characters.
              */
             password: string;
+        };
+        /** RenderRequest */
+        RenderRequest: {
+            /**
+             * Burn Subtitles
+             * @description Burn the subtitle track into the picture (§31).
+             * @default true
+             */
+            burn_subtitles: boolean;
+        };
+        /** RenderResponse */
+        RenderResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Height */
+            height: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Output Asset Id */
+            output_asset_id: string | null;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            status: components["schemas"]["RenderStatus"];
+            /** Storyboard Id */
+            storyboard_id: string | null;
+            /** Thumbnail Asset Id */
+            thumbnail_asset_id: string | null;
+            /** Version */
+            version: number;
+            /** Width */
+            width: number | null;
+        };
+        /**
+         * RenderStartedResponse
+         * @description What a composition request returns: the render row and the job to poll.
+         */
+        RenderStartedResponse: {
+            job: components["schemas"]["JobResponse"];
+            render: components["schemas"]["RenderResponse"];
+        };
+        /**
+         * RenderStatus
+         * @description Where one render attempt has got to (§34).
+         * @enum {string}
+         */
+        RenderStatus: "PENDING" | "RENDERING" | "COMPLETED" | "FAILED";
+        /**
+         * ReorderShots
+         * @description P20-T02. The new order, as clip indices into the VIDEO track.
+         */
+        ReorderShots: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "reorder";
+            /** Order */
+            order: number[];
+        };
+        /**
+         * RerenderRequest
+         * @description Nothing to configure yet. Present so adding a field is not a breaking
+         *     change from a body-less POST.
+         */
+        RerenderRequest: {
+            /**
+             * Confirm
+             * @default true
+             * @constant
+             */
+            confirm: true;
+        };
+        /** RerenderResponse */
+        RerenderResponse: {
+            job: components["schemas"]["JobResponse"];
+            render: components["schemas"]["RenderResponse"];
+        };
+        /**
+         * ReviseScriptRequest
+         * @description A human's edit. Validated against §17's schema like any generated one —
+         *     a hand-written script with eight sections would break PHASE 8 exactly as a
+         *     generated one would.
+         */
+        ReviseScriptRequest: {
+            document: components["schemas"]["ScriptDocument"];
+        };
+        /** RowPreview */
+        RowPreview: {
+            /** Errors */
+            errors: string[];
+            /**
+             * Row Number
+             * @description The line in the source file, header included.
+             */
+            row_number: number;
+            /** Valid */
+            valid: boolean;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * ScriptDocument
+         * @description A complete script (§17).
+         *
+         *     All nine sections, in §17's order, no duplicates. Order is not cosmetic —
+         *     PHASE 8 turns this sequence into shots, and a script whose CTA precedes its
+         *     hook would produce a storyboard nobody could film.
+         */
+        ScriptDocument: {
+            /** Sections */
+            sections: components["schemas"]["ScriptSection"][];
+        };
+        /** ScriptResponse */
+        ScriptResponse: {
+            /** Content Json */
+            content_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Creative Plan Id */
+            creative_plan_id: string | null;
+            /** Estimated Duration Seconds */
+            estimated_duration_seconds: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Plain Text */
+            plain_text: string;
+            /**
+             * Sourced Claim Ids
+             * @description The VERIFIED claims that were in scope when this was written (P7-T09). A claim withdrawn later can be traced to every script that used it.
+             */
+            sourced_claim_ids: string[];
+            status: components["schemas"]["ScriptStatus"];
+            /** Version */
+            version: number;
+        };
+        /**
+         * ScriptSection
+         * @description One narrated beat of the script (§17).
+         */
+        ScriptSection: {
+            /**
+             * Duration Seconds
+             * @default 0
+             */
+            duration_seconds: number;
+            /**
+             * Narration
+             * @default
+             */
+            narration: string;
+            /** Section */
+            section: string;
+            /**
+             * Visual
+             * @default
+             */
+            visual: string;
+        };
+        /**
+         * ScriptStatus
+         * @description §10.11. A script is DRAFT until a person accepts it.
+         *
+         *     `SUPERSEDED` rather than deletion: §17 requires history to survive an edit,
+         *     so a new version marks the old one superseded instead of overwriting it.
+         * @enum {string}
+         */
+        ScriptStatus: "DRAFT" | "APPROVED" | "SUPERSEDED";
+        /**
+         * SetLogo
+         * @description P20-T07. §141 says a missing logo must never block a render.
+         */
+        SetLogo: {
+            /** Asset Id */
+            asset_id?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "logo";
+            /**
+             * Opacity
+             * @default 0.85
+             */
+            opacity: number;
+            /** @default BOTTOM_RIGHT */
+            position: components["schemas"]["LogoPosition"];
+            /**
+             * Scale
+             * @default 0.12
+             */
+            scale: number;
+        };
+        /** SetProviderEnabledRequest */
+        SetProviderEnabledRequest: {
+            /** Enabled */
+            enabled: boolean;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * SetSubtitleStyle
+         * @description P20-T04. Style is metadata on the SUBTITLE track, not free-form text.
+         *
+         *     A closed set of fields rather than a style string, because the value ends
+         *     up inside ffmpeg's `force_style` argument (§35) and a string a user typed
+         *     there is an injection into the filter grammar.
+         */
+        SetSubtitleStyle: {
+            /** Color */
+            color?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Font Size */
+            font_size?: number | null;
+            /** Margin V */
+            margin_v?: number | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "subtitle_style";
+            /** Outline Color */
+            outline_color?: string | null;
+        };
+        /**
+         * SetTrackGain
+         * @description P20-T05 and P20-T06 — one operation, because they are one thing.
+         */
+        SetTrackGain: {
+            /** Gain */
+            gain: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "gain";
+            /**
+             * Track
+             * @enum {string}
+             */
+            track: "VOICE" | "BGM";
+        };
+        /** ShotReferenceResponse */
+        ShotReferenceResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Media Asset Id
+             * Format: uuid
+             */
+            media_asset_id: string;
+            reference_role: components["schemas"]["ReferenceRole"];
+            /** Weight */
+            weight: number | null;
+        };
+        /** ShotResponse */
+        ShotResponse: {
+            /** Camera */
+            camera: string;
+            /** Composition */
+            composition: string;
+            /** Description */
+            description: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Identity Lock
+             * @description §29's product identity lock. When on, the compiler adds the consistency rules and QC checks generated frames against the identity references below.
+             */
+            identity_lock: boolean;
+            /** Lighting */
+            lighting: string;
+            /** Motion */
+            motion: string;
+            /** Negative Prompt */
+            negative_prompt: string;
+            /** References */
+            references: components["schemas"]["ShotReferenceResponse"][];
+            /** Sequence No */
+            sequence_no: number;
+            shot_type: components["schemas"]["ShotType"];
+            status: components["schemas"]["ShotStatus"];
+            /** Subtitle Text */
+            subtitle_text: string;
+            /** Title */
+            title: string;
+            transition_in: components["schemas"]["TransitionType"];
+            transition_out: components["schemas"]["TransitionType"];
+            /**
+             * Visual Prompt
+             * @description Compiled by the prompt compiler from this shot's fields (§19). Read-only: edit the fields and it is rebuilt.
+             */
+            visual_prompt: string;
+            /** Voiceover Text */
+            voiceover_text: string;
+        };
+        /**
+         * ShotStatus
+         * @description Where a shot sits in generation (§10.13).
+         *
+         *     `PENDING` means "written but never sent to a provider"; `READY` means a
+         *     generated clip has been chosen for it. The middle states become meaningful
+         *     in PHASE 9 when the job system can actually report progress.
+         * @enum {string}
+         */
+        ShotStatus: "PENDING" | "QUEUED" | "GENERATING" | "READY" | "FAILED" | "SKIPPED";
+        /**
+         * ShotType
+         * @description What a shot is doing (§10.13).
+         *
+         *     Not decoration: PHASE 8's compiler picks reference imagery by shot type,
+         *     and PHASE 14's QC weights the identity check differently for a `MACRO`
+         *     than for a `LIFESTYLE` — one is mostly product, the other mostly room.
+         * @enum {string}
+         */
+        ShotType: "HOOK" | "PRODUCT_HERO" | "MACRO" | "ROTATION" | "USAGE" | "MATERIAL" | "FEATURE" | "EXPLODED" | "BEFORE_AFTER" | "LIFESTYLE" | "BRAND_ENDING" | "CUSTOM";
+        /**
+         * StartBatchRequest
+         * @description Nothing configurable yet; `max_concurrency` is set at import.
+         */
+        StartBatchRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+        };
+        /** StoryboardResponse */
+        StoryboardResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Model Info */
+            model_info: {
+                [key: string]: unknown;
+            };
+            /** Script Id */
+            script_id: string | null;
+            status: components["schemas"]["StoryboardStatus"];
+            /** Total Duration Seconds */
+            total_duration_seconds: number;
+            /** Version */
+            version: number;
+        };
+        /**
+         * StoryboardStatus
+         * @description §10.12. Same shape as `ScriptStatus`, and for the same reason (§17):
+         *     a new storyboard supersedes rather than overwrites, so "which storyboard
+         *     did we film" keeps an answer.
+         * @enum {string}
+         */
+        StoryboardStatus: "DRAFT" | "APPROVED" | "SUPERSEDED";
+        /**
+         * TargetPlatform
+         * @description Where the video will be published (§10.9).
+         * @enum {string}
+         */
+        TargetPlatform: "DOUYIN" | "XIAOHONGSHU" | "BILIBILI" | "WECHAT_CHANNELS" | "TAOBAO" | "TIKTOK" | "INSTAGRAM" | "YOUTUBE" | "OTHER";
+        /**
+         * TemplateBlueprint
+         * @description A template's whole shot plan, validated as one thing (§57).
+         */
+        TemplateBlueprint: {
+            /** Slots */
+            slots: components["schemas"]["BlueprintSlot"][];
+        };
+        /**
+         * TemplateCategory
+         * @description What a template is for (§57).
+         * @enum {string}
+         */
+        TemplateCategory: "ECOMMERCE" | "SOCIAL" | "BRAND" | "LAUNCH" | "TUTORIAL" | "SEASONAL";
+        /** TemplateRequest */
+        TemplateRequest: {
+            aspect_ratio: components["schemas"]["AspectRatio"];
+            blueprint: components["schemas"]["TemplateBlueprint"];
+            category: components["schemas"]["TemplateCategory"];
+            /** Description */
+            description?: string | null;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Ending Style */
+            ending_style?: string | null;
+            /** Music Tags */
+            music_tags?: string[];
+            /** Name */
+            name: string;
+            /** Prompt Rules */
+            prompt_rules?: string[];
+            purpose: components["schemas"]["ProjectPurpose"];
+            style: components["schemas"]["VideoStyle"];
+            /** Subtitle Style */
+            subtitle_style?: {
+                [key: string]: unknown;
+            };
+            target_platform: components["schemas"]["TargetPlatform"];
+            /** @default CUT */
+            transition_style: components["schemas"]["TransitionType"];
+        };
+        /** TemplateResponse */
+        TemplateResponse: {
+            aspect_ratio: components["schemas"]["AspectRatio"];
+            category: components["schemas"]["TemplateCategory"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Ending Style */
+            ending_style: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Is Preset
+             * @description Platform-provided. Readable everywhere, editable nowhere.
+             */
+            is_preset: boolean;
+            /** Music Tags */
+            music_tags: string[];
+            /** Name */
+            name: string;
+            /** Preview Asset Id */
+            preview_asset_id: string | null;
+            /** Prompt Rules */
+            prompt_rules: string[];
+            purpose: components["schemas"]["ProjectPurpose"];
+            /** Storyboard Blueprint */
+            storyboard_blueprint: {
+                [key: string]: unknown;
+            }[];
+            style: components["schemas"]["VideoStyle"];
+            /** Subtitle Style */
+            subtitle_style: {
+                [key: string]: unknown;
+            };
+            target_platform: components["schemas"]["TargetPlatform"];
+            transition_style: components["schemas"]["TransitionType"];
+            /** Usage Count */
+            usage_count: number;
+        };
+        /** TimelineItemResponse */
+        TimelineItemResponse: {
+            /** Asset Id */
+            asset_id: string | null;
+            /** Duration Ms */
+            duration_ms: number;
+            /** End Ms */
+            end_ms: number;
+            /** Gain */
+            gain: number;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Object Key */
+            object_key: string | null;
+            /** Source Start Ms */
+            source_start_ms: number;
+            /** Start Ms */
+            start_ms: number;
+            /** Text */
+            text: string;
+        };
+        /**
+         * TimelineResponse
+         * @description The editable cut (P20-T01).
+         */
+        TimelineResponse: {
+            /** Duration Ms */
+            duration_ms: number;
+            /**
+             * Edited
+             * @description True once operations have been applied to the composed cut.
+             */
+            edited: boolean;
+            /** Fps */
+            fps: number;
+            /** Height */
+            height: number;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Tracks */
+            tracks: components["schemas"]["TrackResponse"][];
+            /** Width */
+            width: number;
         };
         /**
          * TokenResponse
@@ -721,9 +3999,177 @@ export interface components {
             token_type: string;
             user: components["schemas"]["UserResponse"];
         };
+        /** TrackResponse */
+        TrackResponse: {
+            /** Items */
+            items: components["schemas"]["TimelineItemResponse"][];
+            /** Type */
+            type: string;
+        };
+        /**
+         * TransitionType
+         * @description How a shot enters or leaves (§10.13). Resolved to ffmpeg filters in
+         *     PHASE 13; kept as an enum because "cross fade" and "crossfade" would be two
+         *     products' worth of render bugs.
+         * @enum {string}
+         */
+        TransitionType: "CUT" | "FADE" | "DISSOLVE" | "WIPE" | "ZOOM" | "NONE";
+        /**
+         * TrimClip
+         * @description P20-T03. Shorten or lengthen one clip's slot on the timeline.
+         *
+         *     `source_start_ms` moves the in-point *within* the generated clip; changing
+         *     it is how a trim keeps the interesting part rather than always the first
+         *     seconds.
+         */
+        TrimClip: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Index */
+            index: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "trim";
+            /**
+             * Source Start Ms
+             * @default 0
+             */
+            source_start_ms: number;
+        };
+        /**
+         * UpdateBrandKitRequest
+         * @description Every field optional. Absent means unchanged, not cleared.
+         */
+        UpdateBrandKitRequest: {
+            /** Banned Phrases */
+            banned_phrases?: string[] | null;
+            /** Description */
+            description?: string | null;
+            /** Ending Cta */
+            ending_cta?: string | null;
+            /** Ending Line */
+            ending_line?: string | null;
+            /** Font Family */
+            font_family?: string | null;
+            /** Is Default */
+            is_default?: boolean | null;
+            /** Logo Asset Id */
+            logo_asset_id?: string | null;
+            logo_position?: components["schemas"]["LogoPosition"] | null;
+            /** Name */
+            name?: string | null;
+            /** Primary Color */
+            primary_color?: string | null;
+            /** Required Phrases */
+            required_phrases?: string[] | null;
+            /** Secondary Color */
+            secondary_color?: string | null;
+            /** Subtitle Color */
+            subtitle_color?: string | null;
+            tone?: components["schemas"]["BrandTone"] | null;
+            /** Visual Guidelines */
+            visual_guidelines?: string | null;
+        };
+        /** UpdateFactRequest */
+        UpdateFactRequest: {
+            fact_type?: components["schemas"]["FactType"] | null;
+            /** Key */
+            key?: string | null;
+            /** Value Json */
+            value_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Value Text */
+            value_text?: string | null;
+            /**
+             * Verify
+             * @description Re-confirm after editing. Without it, changing a value drops the fact back to USER_PROVIDED, because whatever was verified before was a different statement.
+             * @default false
+             */
+            verify: boolean;
+        };
         /** UpdateMemberRoleRequest */
         UpdateMemberRoleRequest: {
             role: components["schemas"]["WorkspaceRole"];
+        };
+        /** UpdateProductRequest */
+        UpdateProductRequest: {
+            /** Brand Name */
+            brand_name?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Sku */
+            sku?: string | null;
+        };
+        /** UpdateProjectRequest */
+        UpdateProjectRequest: {
+            aspect_ratio?: components["schemas"]["AspectRatio"] | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
+            /** Name */
+            name?: string | null;
+            quality_mode?: components["schemas"]["QualityMode"] | null;
+            style?: components["schemas"]["VideoStyle"] | null;
+            /** Target Audience */
+            target_audience?: string | null;
+        };
+        /**
+         * UpdateShotRequest
+         * @description Everything a user may change about a shot.
+         *
+         *     Note the absence of `visual_prompt` and `negative_prompt` — see the module
+         *     docstring. Their absence is the enforcement.
+         */
+        UpdateShotRequest: {
+            /** Camera */
+            camera?: string | null;
+            /** Composition */
+            composition?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
+            /** Identity Lock */
+            identity_lock?: boolean | null;
+            /** Lighting */
+            lighting?: string | null;
+            /** Motion */
+            motion?: string | null;
+            shot_type?: components["schemas"]["ShotType"] | null;
+            /** Subtitle Text */
+            subtitle_text?: string | null;
+            /** Title */
+            title?: string | null;
+            transition_in?: components["schemas"]["TransitionType"] | null;
+            transition_out?: components["schemas"]["TransitionType"] | null;
+            /** Voiceover Text */
+            voiceover_text?: string | null;
+        };
+        /** UpdateTemplateRequest */
+        UpdateTemplateRequest: {
+            blueprint?: components["schemas"]["TemplateBlueprint"] | null;
+            category?: components["schemas"]["TemplateCategory"] | null;
+            /** Description */
+            description?: string | null;
+            /** Ending Style */
+            ending_style?: string | null;
+            /** Music Tags */
+            music_tags?: string[] | null;
+            /** Name */
+            name?: string | null;
+            /** Prompt Rules */
+            prompt_rules?: string[] | null;
+            /** Subtitle Style */
+            subtitle_style?: {
+                [key: string]: unknown;
+            } | null;
+            transition_style?: components["schemas"]["TransitionType"] | null;
         };
         /** UpdateWorkspaceRequest */
         UpdateWorkspaceRequest: {
@@ -776,6 +4222,49 @@ export interface components {
             /** Status */
             status: string;
         };
+        /**
+         * VerificationStatus
+         * @description How much a fact may be trusted (§10.7, §13).
+         *
+         *     This is the Truth Layer. Only `VERIFIED` facts may back a claim, and only
+         *     `VERIFIED` claims may reach a script (§109). Everything the AI produces
+         *     starts at `AI_INFERRED` and can only be promoted by a person.
+         * @enum {string}
+         */
+        VerificationStatus: "AI_INFERRED" | "USER_PROVIDED" | "VERIFIED" | "REJECTED";
+        /**
+         * VideoStyle
+         * @description Visual register (§10.9). Reaches the prompt compiler in PHASE 8.
+         * @enum {string}
+         */
+        VideoStyle: "CLEAN_MINIMAL" | "WARM_LIFESTYLE" | "TECH_PREMIUM" | "BOLD_ENERGETIC" | "NATURAL_DOCUMENTARY" | "LUXURY";
+        /** VoiceoverResponse */
+        VoiceoverResponse: {
+            /** Audio Asset Id */
+            audio_asset_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Language */
+            language: string;
+            /** Provider */
+            provider: string;
+            /** Segments */
+            segments: {
+                [key: string]: unknown;
+            }[];
+            /** Total Duration Ms */
+            total_duration_ms: number;
+            /** Voice */
+            voice: string;
+        };
         /** WorkspaceResponse */
         WorkspaceResponse: {
             /**
@@ -816,6 +4305,31 @@ export interface components {
          * @enum {string}
          */
         WorkspaceRole: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+        /** WorkspaceSummary */
+        WorkspaceSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Count */
+            job_count: number;
+            /** Name */
+            name: string;
+            /** Plan Code */
+            plan_code: string;
+            /** Slug */
+            slug: string;
+            /** Spend */
+            spend: number;
+            /** Status */
+            status: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -841,6 +4355,620 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiInfo"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    analytics_api_v1_admin_analytics_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_jobs_api_v1_admin_jobs_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["JobStatus"] | null;
+                job_type?: components["schemas"]["JobType"] | null;
+                provider?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJobResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_failed_jobs_api_v1_admin_jobs_failed_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminJobResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_prompts_api_v1_admin_prompts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptVersionResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_providers_api_v1_admin_providers_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConfigResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_capabilities_api_v1_admin_providers_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_provider_enabled_api_v1_admin_providers__provider__enabled_post: {
+        parameters: {
+            query?: {
+                kind?: string;
+            };
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProviderEnabledRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConfigResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_workspaces_api_v1_admin_workspaces_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceSummary"][];
                 };
             };
             /** @description Invalid request */
@@ -1744,6 +5872,1489 @@ export interface operations {
             };
         };
     };
+    list_batches_api_v1_workspaces__workspace_id__batches_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_batch_api_v1_workspaces__workspace_id__batches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_batch_api_v1_workspaces__workspace_id__batches_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedBatchResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    preview_import_api_v1_workspaces__workspace_id__batches_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_import_api_v1_workspaces__workspace_id__batches_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_batch_api_v1_workspaces__workspace_id__batches__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cancel_batch_api_v1_workspaces__workspace_id__batches__batch_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_items_api_v1_workspaces__workspace_id__batches__batch_id__items_get: {
+        parameters: {
+            query?: {
+                item_status?: components["schemas"]["BatchItemStatus"] | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchItemResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    batch_progress_api_v1_workspaces__workspace_id__batches__batch_id__progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchProgressResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    retry_batch_api_v1_workspaces__workspace_id__batches__batch_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchProgressResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_batch_api_v1_workspaces__workspace_id__batches__batch_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchProgressResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_brand_kits_api_v1_workspaces__workspace_id__brand_kits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_brand_kit_api_v1_workspaces__workspace_id__brand_kits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandKitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                brand_kit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                brand_kit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_brand_kit_api_v1_workspaces__workspace_id__brand_kits__brand_kit_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                brand_kit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBrandKitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_balance_api_v1_workspaces__workspace_id__credits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditAccountResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    grant_credits_api_v1_workspaces__workspace_id__credits_grant_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditAccountResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_transactions_api_v1_workspaces__workspace_id__credits_transactions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditTransactionResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_job_api_v1_workspaces__workspace_id__jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cancel_job_api_v1_workspaces__workspace_id__jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_members_api_v1_workspaces__workspace_id__members_get: {
         parameters: {
             query?: never;
@@ -1998,6 +7609,4803 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_products_api_v1_workspaces__workspace_id__products_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ProductStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_product_api_v1_workspaces__workspace_id__products_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProductRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_product_api_v1_workspaces__workspace_id__products__product_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_product_api_v1_workspaces__workspace_id__products__product_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProductRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_analyses_api_v1_workspaces__workspace_id__products__product_id__analyses_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAnalysisResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    analyze_product_api_v1_workspaces__workspace_id__products__product_id__analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAnalysisResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    archive_product_api_v1_workspaces__workspace_id__products__product_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_product_assets_api_v1_workspaces__workspace_id__products__product_id__assets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAssetResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    attach_asset_api_v1_workspaces__workspace_id__products__product_id__assets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttachAssetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAssetResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    detach_asset_api_v1_workspaces__workspace_id__products__product_id__assets__link_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_primary_asset_api_v1_workspaces__workspace_id__products__product_id__assets__link_id__primary_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAssetResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_claims_api_v1_workspaces__workspace_id__products__product_id__claims_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ClaimStatus"] | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductClaimResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_claim_api_v1_workspaces__workspace_id__products__product_id__claims_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductClaimResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_verified_claims_api_v1_workspaces__workspace_id__products__product_id__claims_verified_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductClaimResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reject_claim_api_v1_workspaces__workspace_id__products__product_id__claims__claim_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductClaimResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    verify_claim_api_v1_workspaces__workspace_id__products__product_id__claims__claim_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductClaimResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_facts_api_v1_workspaces__workspace_id__products__product_id__facts_get: {
+        parameters: {
+            query?: {
+                verification_status?: components["schemas"]["VerificationStatus"] | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductFactResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_fact_api_v1_workspaces__workspace_id__products__product_id__facts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductFactResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_fact_api_v1_workspaces__workspace_id__products__product_id__facts__fact_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+                fact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductFactResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reject_fact_api_v1_workspaces__workspace_id__products__product_id__facts__fact_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+                fact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductFactResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    verify_fact_api_v1_workspaces__workspace_id__products__product_id__facts__fact_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+                fact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductFactResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    mark_product_ready_api_v1_workspaces__workspace_id__products__product_id__ready_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_projects_api_v1_workspaces__workspace_id__projects_get: {
+        parameters: {
+            query?: {
+                product_id?: string | null;
+                project_status?: components["schemas"]["ProjectStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_project_api_v1_workspaces__workspace_id__projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_project_api_v1_workspaces__workspace_id__projects__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_project_api_v1_workspaces__workspace_id__projects__project_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    archive_project_api_v1_workspaces__workspace_id__projects__project_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    estimate_cost_api_v1_workspaces__workspace_id__projects__project_id__cost_estimate_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostEstimateResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreativePlanResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_creative_plans_api_v1_workspaces__workspace_id__projects__project_id__creative_plans_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreativePlanResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    select_creative_plan_api_v1_workspaces__workspace_id__projects__project_id__creative_plans__plan_id__select_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreativePlanResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    download_api_v1_workspaces__workspace_id__projects__project_id__download_get: {
+        parameters: {
+            query?: {
+                render_id?: string | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_project_jobs_api_v1_workspaces__workspace_id__projects__project_id__jobs_get: {
+        parameters: {
+            query?: {
+                job_type?: components["schemas"]["JobType"] | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_quality_checks_api_v1_workspaces__workspace_id__projects__project_id__quality_checks_get: {
+        parameters: {
+            query?: {
+                render_id?: string | null;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityCheckResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_renders_api_v1_workspaces__workspace_id__projects__project_id__renders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_render_api_v1_workspaces__workspace_id__projects__project_id__renders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderStartedResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_render_api_v1_workspaces__workspace_id__projects__project_id__renders__render_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                render_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_quality_check_api_v1_workspaces__workspace_id__projects__project_id__renders__render_id__quality_checks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                render_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_scripts_api_v1_workspaces__workspace_id__projects__project_id__scripts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    revise_script_api_v1_workspaces__workspace_id__projects__project_id__scripts_revise_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviseScriptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approve_script_api_v1_workspaces__workspace_id__projects__project_id__scripts__script_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                script_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_storyboards_api_v1_workspaces__workspace_id__projects__project_id__storyboards_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryboardResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryboardResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approve_storyboard_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryboardResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_shots_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_shots_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShotResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_shot_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots__shot_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+                shot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShotRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShotResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    generate_shot_api_v1_workspaces__workspace_id__projects__project_id__storyboards__storyboard_id__shots__shot_id__generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+                storyboard_id: string;
+                shot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_timeline_api_v1_workspaces__workspace_id__projects__project_id__timeline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    apply_edits_api_v1_workspaces__workspace_id__projects__project_id__timeline_edits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rerender_api_v1_workspaces__workspace_id__projects__project_id__timeline_render_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RerenderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RerenderResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_voiceover_api_v1_workspaces__workspace_id__projects__project_id__voiceover_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceoverResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_voiceover_api_v1_workspaces__workspace_id__projects__project_id__voiceover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_templates_api_v1_workspaces__workspace_id__templates_get: {
+        parameters: {
+            query?: {
+                category?: components["schemas"]["TemplateCategory"] | null;
+                include_presets?: boolean;
+            };
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_template_api_v1_workspaces__workspace_id__templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_template_api_v1_workspaces__workspace_id__templates__template_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_template_api_v1_workspaces__workspace_id__templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_template_api_v1_workspaces__workspace_id__templates__template_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    apply_template_api_v1_workspaces__workspace_id__templates__template_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstantiatedShotResponse"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    duplicate_template_api_v1_workspaces__workspace_id__templates__template_id__duplicate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DuplicateTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateResponse"];
                 };
             };
             /** @description Invalid request */
