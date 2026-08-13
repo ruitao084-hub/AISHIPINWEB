@@ -24,6 +24,7 @@ command inspectable in a test and in a log without a render happening.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
@@ -34,7 +35,7 @@ from backend_core.domain.enums import (
     RENDER_VIDEO_CODEC,
     TrackType,
 )
-from backend_core.render.timeline import Timeline
+from backend_core.render.timeline import Timeline, Track
 
 #: §34's output baseline, as encoder flags. `faststart` moves the moov atom to
 #: the front so a browser can begin playing before the whole file arrives —
@@ -53,6 +54,8 @@ _BASE_OUTPUT_ARGS: Final[tuple[str, ...]] = (
     "-movflags",
     "+faststart",
 )
+
+_HEX_COLOUR: Final[re.Pattern[str]] = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 #: Quality/size trade-off. 20 is visually near-lossless for product footage at
 #: these resolutions; lower numbers buy detail nobody will see on a phone at
@@ -175,8 +178,24 @@ def build_render_plan(
     video_label = "vcat"
     sidecars: dict[Path, str] = {}
 
+    # PHASE 20's logo overlay, read from the first video item's metadata. §141
+    # is explicit that a missing logo must never block a render, so every
+    # failure here — no metadata, no downloaded file — is a silent skip.
+    logo_index = _logo_input(argv, video_track, local_paths, len(inputs))
+    if logo_index is not None:
+        inputs.append(Path("logo"))
+
     subtitle_track = timeline.track(TrackType.SUBTITLE)
-    if burn_subtitles and subtitle_track and subtitle_track.items:
+    subtitle_style = _subtitle_style(subtitle_track)
+    subtitles_wanted = (
+        burn_subtitles
+        and subtitle_track is not None
+        and bool(subtitle_track.items)
+        # PHASE 20 lets an editor turn burn-in off per project without
+        # discarding the cues, which a separate subtitle file still needs.
+        and subtitle_style.enabled
+    )
+    if subtitles_wanted and subtitle_track is not None:
         from backend_core.render.subtitles import SubtitleCue, to_srt
 
         srt_path = workspace / "subtitles.srt"
@@ -191,8 +210,12 @@ def build_render_plan(
         # would need escaping and would still be a bad idea.
         filters.append(
             f"[{video_label}]subtitles={_escape_filter_path(srt_path)}:"
-            f"force_style='{_SUBTITLE_STYLE}'[vout]"
+            f"force_style='{subtitle_style.to_force_style()}'[vsub]"
         )
+        video_label = "vsub"
+
+    if logo_index is not None:
+        filters.extend(_logo_filters(video_track, logo_index, video_label, timeline))
         video_label = "vout"
 
     audio_label = _build_audio_filters(filters, voice_index, bgm_index, bgm_gain)
@@ -218,6 +241,185 @@ def build_render_plan(
         sidecar_files=sidecars,
         expected_duration_ms=timeline.duration_ms,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class SubtitleStyle:
+    """§31's styling, with PHASE 20's per-project overrides applied.
+
+    A closed set of fields that are rendered into ffmpeg's `force_style`
+    argument. §35 forbids user text becoming filter arguments, and this is the
+    reason: `force_style` is a comma-separated key=value grammar, so a free
+    string would let anyone add their own keys — or end the argument early.
+
+    Colours arrive as `#RRGGBB` and leave as ASS's `&HAABBGGRR`, which is
+    reversed *and* alpha-first. Getting that backwards produces text in the
+    complementary colour, which looks like a design choice rather than a bug.
+    """
+
+    font_name: str = "Noto Sans CJK SC"
+    font_size: int = 16
+    color: str = "#FFFFFF"
+    outline_color: str = "#000000"
+    outline: int = 2
+    shadow: int = 1
+    margin_v: int = 80
+    enabled: bool = True
+
+    def to_force_style(self) -> str:
+        return (
+            f"FontName={self.font_name},"
+            f"FontSize={self.font_size},"
+            f"PrimaryColour={_ass_colour(self.color)},"
+            f"OutlineColour={_ass_colour(self.outline_color, alpha=0x80)},"
+            f"BorderStyle=1,Outline={self.outline},Shadow={self.shadow},"
+            f"Alignment=2,MarginV={self.margin_v}"
+        )
+
+
+def _ass_colour(hex_colour: str, *, alpha: int = 0) -> str:
+    """`#RRGGBB` to ASS's `&HAABBGGRR`.
+
+    Byte order is reversed and alpha leads. Validated by pattern before it
+    reaches here, so the slice is safe; a malformed value falls back to white
+    rather than emitting a broken filter argument.
+    """
+    text = hex_colour.lstrip("#")
+    if len(text) != 6:
+        return "&H00FFFFFF"
+    red, green, blue = text[0:2], text[2:4], text[4:6]
+    return f"&H{alpha:02X}{blue}{green}{red}".upper()
+
+
+def _subtitle_style(track: Track | None) -> SubtitleStyle:
+    """Read PHASE 20's overrides off the first cue's metadata.
+
+    Off the cues because §33 makes the timeline the render's only input: a
+    style stored anywhere else would have to reach the worker separately, and
+    then two renders of the same timeline could differ.
+    """
+    defaults = SubtitleStyle()
+    if track is None or not track.items:
+        return defaults
+
+    metadata = track.items[0].metadata
+    return SubtitleStyle(
+        font_size=_as_int(metadata.get("font_size"), defaults.font_size),
+        color=_as_hex(metadata.get("color"), defaults.color),
+        outline_color=_as_hex(metadata.get("outline_color"), defaults.outline_color),
+        margin_v=_as_int(metadata.get("margin_v"), defaults.margin_v),
+        enabled=bool(metadata.get("enabled", defaults.enabled)),
+    )
+
+
+def _as_int(value: object, fallback: int) -> int:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    return fallback
+
+
+def _as_hex(value: object, fallback: str) -> str:
+    """Accept `#RRGGBB` and nothing else.
+
+    Re-checked here even though the API validates it, because this string is
+    concatenated into a filter argument and the API is not the only writer —
+    a migration or a fixture could put anything in that JSONB column.
+    """
+    if isinstance(value, str) and _HEX_COLOUR.match(value):
+        return value
+    return fallback
+
+
+#: Where a logo sits, as an ffmpeg `overlay` x:y expression. `W`/`H` are the
+#: base picture's dimensions and `w`/`h` the overlay's, so these hold at any
+#: canvas size without arithmetic here.
+_LOGO_POSITIONS: Final[dict[str, str]] = {
+    "TOP_LEFT": "24:24",
+    "TOP_RIGHT": "W-w-24:24",
+    "BOTTOM_LEFT": "24:H-h-24",
+    "BOTTOM_RIGHT": "W-w-24:H-h-24",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class LogoOverlay:
+    """A logo to burn in, parsed from a timeline item's metadata.
+
+    Typed rather than passed around as a dict: the values reach an ffmpeg
+    filter string, and `float(metadata["opacity"])` on an unchecked mapping is
+    how a malformed timeline becomes a broken filter chain at encode time.
+    """
+
+    object_key: str
+    position: str = "BOTTOM_RIGHT"
+    opacity: float = 0.85
+    scale: float = 0.12
+
+
+def _logo_meta(video_track: Track | None) -> LogoOverlay | None:
+    if video_track is None or not video_track.items:
+        return None
+    logo = video_track.items[0].metadata.get("logo")
+    if not isinstance(logo, dict):
+        return None
+
+    key = logo.get("object_key")
+    if not isinstance(key, str) or not key:
+        # A logo recorded by asset id but never resolved to a stored object.
+        # §141: skip it rather than fail the render.
+        return None
+
+    return LogoOverlay(
+        object_key=key,
+        position=str(logo.get("position", "BOTTOM_RIGHT")),
+        opacity=_as_float(logo.get("opacity"), 0.85),
+        scale=_as_float(logo.get("scale"), 0.12),
+    )
+
+
+def _as_float(value: object, fallback: float) -> float:
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value)
+    return fallback
+
+
+def _logo_input(
+    argv: list[str], video_track: Track | None, local_paths: dict[str, Path], next_index: int
+) -> int | None:
+    """Add the logo as an ffmpeg input, if there is one to add.
+
+    §141: a missing logo must never block a render. So every reason this can
+    fail — no logo set, the file was not downloaded, the key is unknown —
+    returns `None` and the render proceeds without it.
+    """
+    logo = _logo_meta(video_track)
+    if logo is None:
+        return None
+    path = local_paths.get(logo.object_key)
+    if path is None:
+        return None
+    argv.extend(["-i", str(path)])
+    return next_index
+
+
+def _logo_filters(
+    video_track: Track | None, logo_index: int, video_label: str, timeline: Timeline
+) -> list[str]:
+    """Scale the logo to a fraction of the frame and overlay it."""
+    logo = _logo_meta(video_track)
+    if logo is None:  # pragma: no cover — the caller already found one
+        return []
+
+    position = _LOGO_POSITIONS.get(logo.position, _LOGO_POSITIONS["BOTTOM_RIGHT"])
+    width = max(16, int(timeline.canvas.width * logo.scale))
+
+    return [
+        f"[{logo_index}:v]scale={width}:-1,format=rgba,"
+        f"colorchannelmixer=aa={logo.opacity:.2f}[logo]",
+        f"[{video_label}][logo]overlay={position}:format=auto[vout]",
+    ]
 
 
 def _build_audio_filters(

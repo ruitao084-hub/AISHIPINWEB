@@ -1339,6 +1339,49 @@
         "title": "DuplicateTemplateRequest",
         "type": "object"
       },
+      "EditRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "operations": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "gain": "#/components/schemas/SetTrackGain",
+                  "logo": "#/components/schemas/SetLogo",
+                  "reorder": "#/components/schemas/ReorderShots",
+                  "subtitle_style": "#/components/schemas/SetSubtitleStyle",
+                  "trim": "#/components/schemas/TrimClip"
+                },
+                "propertyName": "op"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ReorderShots"
+                },
+                {
+                  "$ref": "#/components/schemas/TrimClip"
+                },
+                {
+                  "$ref": "#/components/schemas/SetTrackGain"
+                },
+                {
+                  "$ref": "#/components/schemas/SetSubtitleStyle"
+                },
+                {
+                  "$ref": "#/components/schemas/SetLogo"
+                }
+              ]
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Operations",
+            "type": "array"
+          }
+        },
+        "required": ["operations"],
+        "title": "EditRequest",
+        "type": "object"
+      },
       "ErrorCode": {
         "description": "The complete set of error codes (§65).",
         "enum": [
@@ -3139,6 +3182,57 @@
         "title": "RenderStatus",
         "type": "string"
       },
+      "ReorderShots": {
+        "additionalProperties": false,
+        "description": "P20-T02. The new order, as clip indices into the VIDEO track.",
+        "properties": {
+          "op": {
+            "const": "reorder",
+            "default": "reorder",
+            "title": "Op",
+            "type": "string"
+          },
+          "order": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Order",
+            "type": "array"
+          }
+        },
+        "required": ["order"],
+        "title": "ReorderShots",
+        "type": "object"
+      },
+      "RerenderRequest": {
+        "additionalProperties": false,
+        "description": "Nothing to configure yet. Present so adding a field is not a breaking\nchange from a body-less POST.",
+        "properties": {
+          "confirm": {
+            "const": true,
+            "default": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "RerenderRequest",
+        "type": "object"
+      },
+      "RerenderResponse": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobResponse"
+          },
+          "render": {
+            "$ref": "#/components/schemas/RenderResponse"
+          }
+        },
+        "required": ["render", "job"],
+        "title": "RerenderResponse",
+        "type": "object"
+      },
       "ReviseScriptRequest": {
         "additionalProperties": false,
         "description": "A human's edit. Validated against §17's schema like any generated one —\na hand-written script with eight sections would break PHASE 8 exactly as a\ngenerated one would.",
@@ -3278,6 +3372,50 @@
         "title": "ScriptStatus",
         "type": "string"
       },
+      "SetLogo": {
+        "additionalProperties": false,
+        "description": "P20-T07. §141 says a missing logo must never block a render.",
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "op": {
+            "const": "logo",
+            "default": "logo",
+            "title": "Op",
+            "type": "string"
+          },
+          "opacity": {
+            "default": 0.85,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opacity",
+            "type": "number"
+          },
+          "position": {
+            "$ref": "#/components/schemas/LogoPosition",
+            "default": "BOTTOM_RIGHT"
+          },
+          "scale": {
+            "default": 0.12,
+            "maximum": 0.5,
+            "minimum": 0.02,
+            "title": "Scale",
+            "type": "number"
+          }
+        },
+        "title": "SetLogo",
+        "type": "object"
+      },
       "SetProviderEnabledRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3300,6 +3438,107 @@
         },
         "required": ["enabled"],
         "title": "SetProviderEnabledRequest",
+        "type": "object"
+      },
+      "SetSubtitleStyle": {
+        "additionalProperties": false,
+        "description": "P20-T04. Style is metadata on the SUBTITLE track, not free-form text.\n\nA closed set of fields rather than a style string, because the value ends\nup inside ffmpeg's `force_style` argument (§35) and a string a user typed\nthere is an injection into the filter grammar.",
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "font_size": {
+            "anyOf": [
+              {
+                "maximum": 72.0,
+                "minimum": 8.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Size"
+          },
+          "margin_v": {
+            "anyOf": [
+              {
+                "maximum": 400.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin V"
+          },
+          "op": {
+            "const": "subtitle_style",
+            "default": "subtitle_style",
+            "title": "Op",
+            "type": "string"
+          },
+          "outline_color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outline Color"
+          }
+        },
+        "title": "SetSubtitleStyle",
+        "type": "object"
+      },
+      "SetTrackGain": {
+        "additionalProperties": false,
+        "description": "P20-T05 and P20-T06 — one operation, because they are one thing.",
+        "properties": {
+          "gain": {
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Gain",
+            "type": "number"
+          },
+          "op": {
+            "const": "gain",
+            "default": "gain",
+            "title": "Op",
+            "type": "string"
+          },
+          "track": {
+            "enum": ["VOICE", "BGM"],
+            "title": "Track",
+            "type": "string"
+          }
+        },
+        "required": ["track", "gain"],
+        "title": "SetTrackGain",
         "type": "object"
       },
       "ShotReferenceResponse": {
@@ -3805,6 +4044,123 @@
         "title": "TemplateResponse",
         "type": "object"
       },
+      "TimelineItemResponse": {
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "end_ms": {
+            "title": "End Ms",
+            "type": "integer"
+          },
+          "gain": {
+            "title": "Gain",
+            "type": "number"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "object_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Key"
+          },
+          "source_start_ms": {
+            "title": "Source Start Ms",
+            "type": "integer"
+          },
+          "start_ms": {
+            "title": "Start Ms",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_ms",
+          "end_ms",
+          "duration_ms",
+          "asset_id",
+          "object_key",
+          "source_start_ms",
+          "text",
+          "gain",
+          "metadata"
+        ],
+        "title": "TimelineItemResponse",
+        "type": "object"
+      },
+      "TimelineResponse": {
+        "description": "The editable cut (P20-T01).",
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "edited": {
+            "description": "True once operations have been applied to the composed cut.",
+            "title": "Edited",
+            "type": "boolean"
+          },
+          "fps": {
+            "title": "Fps",
+            "type": "integer"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "tracks": {
+            "items": {
+              "$ref": "#/components/schemas/TrackResponse"
+            },
+            "title": "Tracks",
+            "type": "array"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id",
+          "width",
+          "height",
+          "fps",
+          "duration_ms",
+          "edited",
+          "tracks"
+        ],
+        "title": "TimelineResponse",
+        "type": "object"
+      },
       "TokenResponse": {
         "description": "Issued credentials.\n\nThe refresh token is **not** in this body — it is set as an HttpOnly cookie.\nReturning it here would put a long-lived credential somewhere JavaScript\ncan read it.",
         "properties": {
@@ -3830,11 +4186,60 @@
         "title": "TokenResponse",
         "type": "object"
       },
+      "TrackResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": ["type", "items"],
+        "title": "TrackResponse",
+        "type": "object"
+      },
       "TransitionType": {
         "description": "How a shot enters or leaves (§10.13). Resolved to ffmpeg filters in\nPHASE 13; kept as an enum because \"cross fade\" and \"crossfade\" would be two\nproducts' worth of render bugs.",
         "enum": ["CUT", "FADE", "DISSOLVE", "WIPE", "ZOOM", "NONE"],
         "title": "TransitionType",
         "type": "string"
+      },
+      "TrimClip": {
+        "additionalProperties": false,
+        "description": "P20-T03. Shorten or lengthen one clip's slot on the timeline.\n\n`source_start_ms` moves the in-point *within* the generated clip; changing\nit is how a trim keeps the interesting part rather than always the first\nseconds.",
+        "properties": {
+          "duration_ms": {
+            "minimum": 800.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "index": {
+            "minimum": 0.0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "op": {
+            "const": "trim",
+            "default": "trim",
+            "title": "Op",
+            "type": "string"
+          },
+          "source_start_ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Source Start Ms",
+            "type": "integer"
+          }
+        },
+        "required": ["index", "duration_ms"],
+        "title": "TrimClip",
+        "type": "object"
       },
       "UpdateBrandKitRequest": {
         "additionalProperties": false,
@@ -13918,6 +14323,347 @@
         ],
         "summary": "Generate one shot",
         "tags": ["jobs"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline": {
+      "get": {
+        "description": "§33's document, as the editor sees it (P20-T01).\n\nComposes one from the shots on first open and returns the stored one\nafterwards — rebuilding every time would discard every edit the moment\nsomebody reopened the page.",
+        "operationId": "get_timeline_api_v1_workspaces__workspace_id__projects__project_id__timeline_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "The editable timeline",
+        "tags": ["editor"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline/edits": {
+      "post": {
+        "description": "Apply P20-T02 through T07 in one batch.\n\nBatched because the operations interact: a reorder followed by a trim by\nindex means something different from the reverse, and two round trips would\nlet a second client interleave between them.\n\nCosts nothing. No shot is touched, which is the whole of §97.",
+        "operationId": "apply_edits_api_v1_workspaces__workspace_id__projects__project_id__timeline_edits_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Reorder, trim, adjust volume, style subtitles, set a logo",
+        "tags": ["editor"]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline/render": {
+      "post": {
+        "description": "§97's point (P20-T08): encode the edit, generate nothing.\n\nQueues a render job and no generation job. The clips already exist; only\nthe composition changed.",
+        "operationId": "rerender_api_v1_workspaces__workspace_id__projects__project_id__timeline_render_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RerenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RerenderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal error"
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "summary": "Re-encode the edited cut",
+        "tags": ["editor"]
       }
     },
     "/api/v1/workspaces/{workspace_id}/projects/{project_id}/voiceover": {

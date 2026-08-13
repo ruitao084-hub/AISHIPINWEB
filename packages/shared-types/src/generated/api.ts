@@ -1453,6 +1453,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The editable timeline
+         * @description §33's document, as the editor sees it (P20-T01).
+         *
+         *     Composes one from the shots on first open and returns the stored one
+         *     afterwards — rebuilding every time would discard every edit the moment
+         *     somebody reopened the page.
+         */
+        get: operations["get_timeline_api_v1_workspaces__workspace_id__projects__project_id__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reorder, trim, adjust volume, style subtitles, set a logo
+         * @description Apply P20-T02 through T07 in one batch.
+         *
+         *     Batched because the operations interact: a reorder followed by a trim by
+         *     index means something different from the reverse, and two round trips would
+         *     let a second client interleave between them.
+         *
+         *     Costs nothing. No shot is touched, which is the whole of §97.
+         */
+        post: operations["apply_edits_api_v1_workspaces__workspace_id__projects__project_id__timeline_edits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/projects/{project_id}/timeline/render": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-encode the edited cut
+         * @description §97's point (P20-T08): encode the edit, generate nothing.
+         *
+         *     Queues a render job and no generation job. The clips already exist; only
+         *     the composition changed.
+         */
+        post: operations["rerender_api_v1_workspaces__workspace_id__projects__project_id__timeline_render_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/projects/{project_id}/voiceover": {
         parameters: {
             query?: never;
@@ -2266,6 +2339,11 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** EditRequest */
+        EditRequest: {
+            /** Operations */
+            operations: (components["schemas"]["ReorderShots"] | components["schemas"]["TrimClip"] | components["schemas"]["SetTrackGain"] | components["schemas"]["SetSubtitleStyle"] | components["schemas"]["SetLogo"])[];
+        };
         /**
          * ErrorCode
          * @description The complete set of error codes (§65).
@@ -3045,6 +3123,37 @@ export interface components {
          */
         RenderStatus: "PENDING" | "RENDERING" | "COMPLETED" | "FAILED";
         /**
+         * ReorderShots
+         * @description P20-T02. The new order, as clip indices into the VIDEO track.
+         */
+        ReorderShots: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "reorder";
+            /** Order */
+            order: number[];
+        };
+        /**
+         * RerenderRequest
+         * @description Nothing to configure yet. Present so adding a field is not a breaking
+         *     change from a body-less POST.
+         */
+        RerenderRequest: {
+            /**
+             * Confirm
+             * @default true
+             * @constant
+             */
+            confirm: true;
+        };
+        /** RerenderResponse */
+        RerenderResponse: {
+            job: components["schemas"]["JobResponse"];
+            render: components["schemas"]["RenderResponse"];
+        };
+        /**
          * ReviseScriptRequest
          * @description A human's edit. Validated against §17's schema like any generated one —
          *     a hand-written script with eight sections would break PHASE 8 exactly as a
@@ -3128,12 +3237,80 @@ export interface components {
          * @enum {string}
          */
         ScriptStatus: "DRAFT" | "APPROVED" | "SUPERSEDED";
+        /**
+         * SetLogo
+         * @description P20-T07. §141 says a missing logo must never block a render.
+         */
+        SetLogo: {
+            /** Asset Id */
+            asset_id?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "logo";
+            /**
+             * Opacity
+             * @default 0.85
+             */
+            opacity: number;
+            /** @default BOTTOM_RIGHT */
+            position: components["schemas"]["LogoPosition"];
+            /**
+             * Scale
+             * @default 0.12
+             */
+            scale: number;
+        };
         /** SetProviderEnabledRequest */
         SetProviderEnabledRequest: {
             /** Enabled */
             enabled: boolean;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * SetSubtitleStyle
+         * @description P20-T04. Style is metadata on the SUBTITLE track, not free-form text.
+         *
+         *     A closed set of fields rather than a style string, because the value ends
+         *     up inside ffmpeg's `force_style` argument (§35) and a string a user typed
+         *     there is an injection into the filter grammar.
+         */
+        SetSubtitleStyle: {
+            /** Color */
+            color?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Font Size */
+            font_size?: number | null;
+            /** Margin V */
+            margin_v?: number | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "subtitle_style";
+            /** Outline Color */
+            outline_color?: string | null;
+        };
+        /**
+         * SetTrackGain
+         * @description P20-T05 and P20-T06 — one operation, because they are one thing.
+         */
+        SetTrackGain: {
+            /** Gain */
+            gain: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "gain";
+            /**
+             * Track
+             * @enum {string}
+             */
+            track: "VOICE" | "BGM";
         };
         /** ShotReferenceResponse */
         ShotReferenceResponse: {
@@ -3344,6 +3521,55 @@ export interface components {
             /** Usage Count */
             usage_count: number;
         };
+        /** TimelineItemResponse */
+        TimelineItemResponse: {
+            /** Asset Id */
+            asset_id: string | null;
+            /** Duration Ms */
+            duration_ms: number;
+            /** End Ms */
+            end_ms: number;
+            /** Gain */
+            gain: number;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Object Key */
+            object_key: string | null;
+            /** Source Start Ms */
+            source_start_ms: number;
+            /** Start Ms */
+            start_ms: number;
+            /** Text */
+            text: string;
+        };
+        /**
+         * TimelineResponse
+         * @description The editable cut (P20-T01).
+         */
+        TimelineResponse: {
+            /** Duration Ms */
+            duration_ms: number;
+            /**
+             * Edited
+             * @description True once operations have been applied to the composed cut.
+             */
+            edited: boolean;
+            /** Fps */
+            fps: number;
+            /** Height */
+            height: number;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Tracks */
+            tracks: components["schemas"]["TrackResponse"][];
+            /** Width */
+            width: number;
+        };
         /**
          * TokenResponse
          * @description Issued credentials.
@@ -3367,6 +3593,13 @@ export interface components {
             token_type: string;
             user: components["schemas"]["UserResponse"];
         };
+        /** TrackResponse */
+        TrackResponse: {
+            /** Items */
+            items: components["schemas"]["TimelineItemResponse"][];
+            /** Type */
+            type: string;
+        };
         /**
          * TransitionType
          * @description How a shot enters or leaves (§10.13). Resolved to ffmpeg filters in
@@ -3375,6 +3608,30 @@ export interface components {
          * @enum {string}
          */
         TransitionType: "CUT" | "FADE" | "DISSOLVE" | "WIPE" | "ZOOM" | "NONE";
+        /**
+         * TrimClip
+         * @description P20-T03. Shorten or lengthen one clip's slot on the timeline.
+         *
+         *     `source_start_ms` moves the in-point *within* the generated clip; changing
+         *     it is how a trim keeps the interesting part rather than always the first
+         *     seconds.
+         */
+        TrimClip: {
+            /** Duration Ms */
+            duration_ms: number;
+            /** Index */
+            index: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "trim";
+            /**
+             * Source Start Ms
+             * @default 0
+             */
+            source_start_ms: number;
+        };
         /**
          * UpdateBrandKitRequest
          * @description Every field optional. Absent means unchanged, not cleared.
@@ -10016,6 +10273,245 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_timeline_api_v1_workspaces__workspace_id__projects__project_id__timeline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    apply_edits_api_v1_workspaces__workspace_id__projects__project_id__timeline_edits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rerender_api_v1_workspaces__workspace_id__projects__project_id__timeline_render_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RerenderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RerenderResponse"];
                 };
             };
             /** @description Invalid request */

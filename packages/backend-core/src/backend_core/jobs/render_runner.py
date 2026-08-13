@@ -33,7 +33,7 @@ from backend_core.errors import AppError, ErrorCode
 from backend_core.observability import get_logger
 from backend_core.render.plan import build_render_plan, build_thumbnail_plan
 from backend_core.render.qc import check_rendered_video
-from backend_core.render.timeline import Timeline
+from backend_core.render.timeline import Timeline, load_timeline
 from backend_core.services.jobs import JobService
 from backend_core.services.projects import ProjectService
 from backend_core.storage.keys import project_thumbnail_key, render_output_key
@@ -81,7 +81,7 @@ class RenderJobRunner:
             render = await session.get(Render, render_id)
             if render is None or render.workspace_id != workspace_id:
                 raise ValueError("Render not found.")
-            timeline = Timeline.model_validate(render.timeline_json)
+            timeline, _ = load_timeline(render.timeline_json)
             render.status = RenderStatus.RENDERING
             await session.commit()
 
@@ -191,12 +191,32 @@ class RenderJobRunner:
         storage = get_storage()
 
         local_paths: dict[str, Path] = {}
+
+        def fetch(key: str) -> None:
+            if not key or key in local_paths:
+                return
+            destination = workspace / f"{len(local_paths):03d}_{Path(key).name}"
+            storage.download_file(key, destination)
+            local_paths[key] = destination
+
         for track in timeline.tracks:
             for item in track.items:
-                if item.object_key and item.object_key not in local_paths:
-                    destination = workspace / f"{len(local_paths):03d}_{Path(item.object_key).name}"
-                    storage.download_file(item.object_key, destination)
-                    local_paths[item.object_key] = destination
+                if item.object_key:
+                    fetch(item.object_key)
+
+                # PHASE 20's logo overlay rides in an item's metadata rather
+                # than on a track of its own (§33 fixes the four). §141 makes a
+                # missing logo a skip, not a failure, so a download that fails
+                # here must not take the render with it.
+                logo = item.metadata.get("logo")
+                if isinstance(logo, dict) and isinstance(logo.get("object_key"), str):
+                    try:
+                        fetch(str(logo["object_key"]))
+                    except Exception:
+                        logger.warning(
+                            "logo_download_failed",
+                            extra={"object_key": str(logo["object_key"])},
+                        )
 
         plan = build_render_plan(
             timeline,

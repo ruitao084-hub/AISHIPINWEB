@@ -11,6 +11,7 @@ from aipvs_api.v1 import (
     auth,
     branding,
     credits,
+    editor,
     jobs,
     products,
     projects,
@@ -88,4 +89,5 @@ api_v1_router.include_router(jobs.router)
 api_v1_router.include_router(renders.router)
 api_v1_router.include_router(branding.router)
 api_v1_router.include_router(credits.router)
+api_v1_router.include_router(editor.router)
 api_v1_router.include_router(admin.router)

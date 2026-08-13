@@ -240,4 +240,44 @@ def build_timeline(
     return Timeline(canvas=Canvas(width=width, height=height, fps=fps), tracks=tracks)
 
 
-__all__ = ["TIMELINE_VERSION", "Canvas", "Timeline", "TimelineItem", "Track", "build_timeline"]
+#: Sidecar keys stored alongside a serialised timeline.
+#:
+#: `Timeline` forbids unknown fields, which is what stops a stray key changing
+#: a render's meaning — so bookkeeping that is *about* a timeline rather than
+#: part of one cannot live inside the document. It rides beside it and is
+#: stripped on the way back in. `store_timeline` / `load_timeline` are the only
+#: sanctioned pair; validating `render.timeline_json` directly is a bug waiting
+#: for the first sidecar key.
+EDITED_KEY: Final[str] = "_edited"
+
+_SIDECAR_KEYS: Final[frozenset[str]] = frozenset({EDITED_KEY})
+
+
+def store_timeline(timeline: Timeline, *, edited: bool = False) -> dict[str, Any]:
+    """Serialise a timeline with its sidecar metadata."""
+    payload = timeline.model_dump(mode="json")
+    payload[EDITED_KEY] = edited
+    return payload
+
+
+def load_timeline(payload: dict[str, Any]) -> tuple[Timeline, bool]:
+    """Parse a stored timeline, returning it and whether it was hand-edited.
+
+    Tolerates a payload written before the sidecar existed: a plain dump has no
+    `_edited` key and reads as unedited, which is what it is.
+    """
+    body = {key: value for key, value in payload.items() if key not in _SIDECAR_KEYS}
+    return Timeline.model_validate(body), bool(payload.get(EDITED_KEY, False))
+
+
+__all__ = [
+    "EDITED_KEY",
+    "TIMELINE_VERSION",
+    "Canvas",
+    "Timeline",
+    "TimelineItem",
+    "Track",
+    "build_timeline",
+    "load_timeline",
+    "store_timeline",
+]

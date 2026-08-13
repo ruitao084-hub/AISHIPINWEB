@@ -101,10 +101,13 @@ class PostProductionService:
 
     # -- render (§33, §34) --------------------------------------------------
 
-    async def create_render(
+    async def compose_timeline(
         self, *, workspace_id: uuid.UUID, project_id: uuid.UUID, burn_subtitles: bool = True
-    ) -> tuple[Render, GenerationJob, bool]:
-        """Build the timeline, store it, and queue the composition (§33, §34).
+    ) -> Timeline:
+        """Assemble the timeline without storing or queueing anything (§33).
+
+        Split out of `create_render` so PHASE 20's editor can build a draft to
+        edit without starting an encode. Opening an editor must not spend CPU.
 
         Refuses a storyboard whose shots are not all generated. A render of
         four shots out of six is not a shorter video — it is a video missing
@@ -157,13 +160,26 @@ class PostProductionService:
                 if str(cue.get("text", "")).strip()
             ]
 
-        timeline = build_timeline(
+        return build_timeline(
             aspect_ratio=project.aspect_ratio.value,
             clips=clips,
             voice_segments=voice_segments or None,
             subtitle_cues=subtitle_cues or None,
             bgm_gain=_BGM_GAIN,
         )
+
+    async def create_render(
+        self, *, workspace_id: uuid.UUID, project_id: uuid.UUID, burn_subtitles: bool = True
+    ) -> tuple[Render, GenerationJob, bool]:
+        """Store a timeline and queue the composition (§33, §34)."""
+        project = await self._projects.get(workspace_id=workspace_id, project_id=project_id)
+        storyboard = await self._require_approved_storyboard(workspace_id, project_id)
+        timeline = await self.compose_timeline(
+            workspace_id=workspace_id, project_id=project_id, burn_subtitles=burn_subtitles
+        )
+
+        video_track = timeline.track(TrackType.VIDEO)
+        clip_count = len(video_track.items) if video_track is not None else 0
 
         version = await self._renders.next_version(workspace_id, project_id)
         render = Render(
@@ -206,7 +222,7 @@ class PostProductionService:
                 "render_id": str(render.id),
                 "project_id": str(project_id),
                 "version": version,
-                "clips": len(clips),
+                "clips": clip_count,
                 "duration_ms": timeline.duration_ms,
                 "reused_job": not created,
             },
